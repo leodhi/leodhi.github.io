@@ -1,9 +1,12 @@
 <!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>MyTesla</title>
-<body style="font-family:system-ui;padding:2em;text-align:center">
+<body style="font-family:system-ui;padding:2em;text-align:center;line-height:1.5">
 <p id="m">Signing you in to MyTesla…</p>
 <script>
-// Tesla sends the sign-in code here; hand it straight to the app.
-var q = location.search;
-if (q.indexOf('code=') >= 0) { location.href = 'mytesla://auth' + q; document.getElementById('m').innerHTML = 'Opening MyTesla… <br><br><a href="mytesla://auth' + q + '">Tap here if it doesn\'t open.</a>'; }
-else { document.getElementById('m').textContent = 'Open the MyTesla app on your iPhone and tap Sign in.'; }
+// Tesla sends the sign-in code here. Hand it to the app if it's installed;
+// otherwise show it so it can be pasted to Claude.
+var q = location.search, code = (q.match(/[?&]code=([^&]+)/) || [])[1];
+if (code) {
+  location.href = 'mytesla://auth' + q;
+  document.getElementById('m').innerHTML = 'Signed in with Tesla.<br><br>If the MyTesla app is installed it opens now. If not, copy this code and paste it to Claude:<br><br><code style="font-size:1.1em;word-break:break-all;background:#eee;padding:.5em;display:inline-block;border-radius:8px">' + code + '</code>';
+} else { document.getElementById('m').textContent = 'Open the MyTesla app on your iPhone and tap Sign in.'; }
 </script>
