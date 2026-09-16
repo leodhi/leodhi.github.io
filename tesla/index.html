@@ -1,0 +1,9 @@
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>MyTesla</title>
+<body style="font-family:system-ui;padding:2em;text-align:center">
+<p id="m">Signing you in to MyTesla…</p>
+<script>
+// Tesla sends the sign-in code here; hand it straight to the app.
+var q = location.search;
+if (q.indexOf('code=') >= 0) { location.href = 'mytesla://auth' + q; document.getElementById('m').innerHTML = 'Opening MyTesla… <br><br><a href="mytesla://auth' + q + '">Tap here if it doesn\'t open.</a>'; }
+else { document.getElementById('m').textContent = 'Open the MyTesla app on your iPhone and tap Sign in.'; }
+</script>
