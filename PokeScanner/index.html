@@ -408,6 +408,9 @@
   }
   .tile:active { transform: scale(0.96); }
   .tile.lifted { transform: scale(1.06); z-index: 5; box-shadow: 0 14px 30px rgba(0,0,0,0.6); transition: none; }
+  /* A card you have is outlined in green. (Moshe.) */
+  .tile.owned { outline: 3px solid var(--ok); outline-offset: -3px; }
+  .master .mc:not(.none) { outline: 3px solid var(--ok); outline-offset: -3px; }
   .tile.gap { opacity: 0.35; }
   .tile .pic { width: 100%; aspect-ratio: 63 / 88; background: var(--panel-2); display: block; object-fit: cover; }
   .tile .pic.missing { display: flex; align-items: center; justify-content: center; color: var(--ink-faint); font-size: 12px; text-align: center; padding: 10px; }
@@ -485,6 +488,8 @@
     opacity: 0; visibility: hidden; pointer-events: none; transition: opacity 0.2s ease;
   }
   .sheet-back.show { opacity: 1; visibility: visible; pointer-events: auto; }
+  /* Sheets that open on top of the card sheet, wherever they sit in the page. */
+  #confirm-sheet, #who-sheet, #time-sheet, #trade-add-sheet, #money-sheet { z-index: 27; }
   .sheet {
     background: var(--panel); border-radius: 18px 18px 0 0; width: 100%; max-width: 720px;
     padding: 14px 18px calc(18px + env(safe-area-inset-bottom));
@@ -727,6 +732,9 @@
           <input type="search" id="q" placeholder="Type a name — e.g. Charizard, or Pikachu 25/102" autocomplete="off" autocorrect="off" autocapitalize="words" enterkeyhint="search">
           <button type="button" class="search-clear hide" id="q-clear" aria-label="Clear">×</button>
         </div>
+        <button type="button" class="scan-btn secondary" id="btn-voice" aria-label="Say the card's name" style="padding:0 10px">
+          <svg viewBox="0 0 24 24" fill="none"><rect x="9" y="3" width="6" height="11" rx="3" stroke="currentColor" stroke-width="2"/><path d="M5.5 11a6.5 6.5 0 0013 0M12 17.5V21M9 21h6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        </button>
         <button type="button" class="scan-btn" id="btn-scan" aria-label="Scan a card with the camera">
           <svg viewBox="0 0 24 24" fill="none"><path d="M4 8.5A2.5 2.5 0 016.5 6h1.2l1.1-1.6a1 1 0 01.8-.4h4.8a1 1 0 01.8.4L16.3 6h1.2A2.5 2.5 0 0120 8.5v8a2.5 2.5 0 01-2.5 2.5h-11A2.5 2.5 0 014 16.5z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="12" cy="12.5" r="3.2" stroke="currentColor" stroke-width="2"/></svg>
           Scan
@@ -742,6 +750,7 @@
       <div class="langs" id="games"></div>
       <div class="langs" id="langs"></div>
       <div id="scanned" class="scanned hide"></div>
+      <div id="types" class="langs"></div>
       <div id="picker" class="picker hide"></div>
       <div id="crumb" class="crumb hide"></div>
       <div id="results"></div>
@@ -806,8 +815,23 @@
       <div class="status-line" id="req-status" style="text-align:left;padding:6px 0 0"></div>
       <div id="req-mine"></div>
     </div>
+    <div style="text-align:center;margin-top:18px"><button type="button" class="pill-btn" id="btn-signout-bottom">Sign out</button></div>
   </div>
 
+</div>
+
+<!-- Is it this exact printing? Asked before a card is added. (Moshe.) -->
+<div class="sheet-back" id="confirm-sheet">
+  <div class="sheet">
+    <div class="grabber"></div>
+    <h3>Is this the one in your hand?</h3>
+    <p class="sheet-sub">Look at the bottom of your card. The set's letters and the number there should match these.</p>
+    <div class="fact-grid"><div class="fact"><div class="k">Set letters</div><div class="v" id="confirm-abbr">—</div></div><div class="fact"><div class="k">Number</div><div class="v" id="confirm-num">—</div></div><div class="fact wide"><div class="k">Set</div><div class="v" id="confirm-set">—</div></div></div>
+    <div class="sheet-actions">
+      <button type="button" class="btn-save" id="confirm-yes">Yes — add it</button>
+      <button type="button" class="btn-plain" id="confirm-no">No — show the other printings</button>
+    </div>
+  </div>
 </div>
 
 <!-- How long, and time's up. Moshe's idea. -->
@@ -1264,6 +1288,7 @@ $("btn-reset").addEventListener("click", async () => {
   catch (e) { setStatus("signin-status", friendlyAuthError(e), true); }
 });
 $("btn-signout").addEventListener("click", () => { closeOptions(); signOut(authClient); });
+$("btn-signout-bottom").addEventListener("click", () => signOut(authClient));
 
 function creds() { return { email: $("in-email").value.trim(), pass: $("in-pass").value }; }
 function setStatus(id, msg, isError) {
@@ -1854,10 +1879,18 @@ async function searchCards(name) {
   let list = [];
   if (game === "ygo") {
     list = await searchYgo(name);
+  } else if (lang === "en" && typeWord(name)) {
+    list = await searchByType(typeWord(name));
   } else if (lang === "en") {
     const safe = name.trim().toLowerCase().replace(/\\/g, "\\\\").replace(/"/g, '\\"');
-    const data = await gql(`{ cards(filters:{name:"${safe}"}) { id localId name rarity image category stage suffix regulationMark set { id name releaseDate symbol logo cardCount { official total } } } }`);
+    const data = await gql(`{ cards(filters:{name:"${safe}"}) { id localId name rarity image category stage suffix regulationMark types trainerType set { id name releaseDate symbol logo cardCount { official total } } } }`);
     list = (data.cards || []).filter(c => c && !isPocket(c));
+    // "mew" must not bring Mewtwo: keep the cards whose name has the word
+    // itself (Mew, Mew ex, Mew V), and only fall back to "contains" when
+    // nothing matches that way. (Moshe.)
+    const word = new RegExp("(^|[^a-z])" + name.trim().toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "([^a-z]|$)", "i");
+    const exact = list.filter(c => word.test(String(c.name || "")));
+    if (exact.length) list = exact;
     // Anything the main database is missing, the second one may have.
     if (!list.length) list = await searchSecondSource(name).catch(() => []);
   } else {
@@ -1912,36 +1945,51 @@ async function fullCard(id) {
 // picture, and a second row of choices once you are inside it.
 const KINDS = {
   regular: { label: "Regular", sub: "Plain, holo or reverse holo" },
-  EX:      { label: "EX", sub: "EX, Mega EX, and the new ex" },
+  EX:      { label: "EX", sub: "Every EX and ex — Mega or not" },
   gx:      { label: "GX", sub: "GX and Tag Team" },
   v:       { label: "V", sub: "" },
   vmax:    { label: "VMAX", sub: "" },
   vstar:   { label: "VSTAR", sub: "" },
-  special: { label: "Special", sub: "Full art, illustration rare, gold, promo…" }
+  special: { label: "Special", sub: "Ultra rare, illustration rare, gallery, gold, promo…" },
+  trainer: { label: "Trainer", sub: "Items, Supporters, Stadiums, Tools — and Energy" }
 };
-const KIND_ORDER = ["regular", "EX", "gx", "v", "vmax", "vstar", "special"];
+const KIND_ORDER = ["regular", "EX", "gx", "v", "vmax", "vstar", "special", "trainer"];
 // The choices inside a group. `test` says which cards match.
+const isMega = c => /^Mega\s|^M\s/i.test(String(c.name || ""));
 const SUBKINDS = {
+  // One EX category, one question: Mega or not. (Moshe.)
   EX: [
-    { key: "mega", label: "Mega", test: c => /^Mega\s|^M\s/i.test(c.name) },
-    { key: "EX", label: "EX (2012–2016)", test: c => c.family === "EX" && !/^Mega\s|^M\s/i.test(c.name) },
-    { key: "ex", label: "ex (2023 on)", test: c => c.family === "ex" && !/^Mega\s|^M\s/i.test(c.name) }
+    { key: "mega", label: "Mega", test: c => isMega(c) },
+    { key: "notmega", label: "Not Mega", test: c => !isMega(c) }
+  ],
+  trainer: [
+    { key: "item", label: "Item", test: c => /item/i.test(c.trainerType || "") },
+    { key: "supporter", label: "Supporter", test: c => /supporter/i.test(c.trainerType || "") },
+    { key: "stadium", label: "Stadium", test: c => /stadium/i.test(c.trainerType || "") },
+    { key: "tool", label: "Tool", test: c => /tool/i.test(c.trainerType || "") },
+    { key: "energy", label: "Energy", test: c => c.category === "Energy" },
+    { key: "othertrainer", label: "Other", test: c => c.category === "Trainer" && !/item|supporter|stadium|tool/i.test(c.trainerType || "") }
   ],
   gx: [
     { key: "tag", label: "Tag Team GX", test: c => /TAG TEAM/i.test(c.suffix || "") || /&/.test(c.name) },
     { key: "gx", label: "GX", test: c => !(/TAG TEAM/i.test(c.suffix || "") || /&/.test(c.name)) }
   ],
   special: [
-    { key: "fullart", label: "Full art", test: c => c.finish === "fullart" },
+    { key: "ultra", label: "Ultra rare", test: c => c.finish === "ultra" },
     { key: "ir", label: "Illustration rare", test: c => c.finish === "ir" },
     { key: "sir", label: "Special illustration rare", test: c => c.finish === "sir" },
+    { key: "gallery", label: "Trainer Gallery", test: c => c.finish === "gallery" },
+    { key: "amazing", label: "Amazing / Radiant", test: c => c.finish === "amazing" },
     { key: "gold", label: "Gold", test: c => c.finish === "gold" },
     { key: "shiny", label: "Shiny", test: c => c.finish === "shiny" },
     { key: "promo", label: "Promo", test: c => c.finish === "promo" },
-    { key: "other", label: "Other", test: c => !["fullart", "ir", "sir", "gold", "shiny", "promo"].includes(c.finish) }
+    { key: "other", label: "Other", test: c => !["ultra", "ir", "sir", "gallery", "amazing", "gold", "shiny", "promo"].includes(c.finish) }
   ]
 };
-const FINISH_WORDS = { fullart: "Full art", ir: "Illustration rare", sir: "Special illustration rare", gold: "Gold", shiny: "Shiny", ace: "ACE SPEC", promo: "Promo", holo: "Holo" };
+// The words a finish shows as. "Ultra rare" is what the card's own rarity
+// mark says; it is often, not always, a full art -- so it is no longer
+// called one (Moshe: "that's not a full art, 9/18 Greninja").
+const FINISH_WORDS = { ultra: "Ultra rare", fullart: "Ultra rare", ir: "Illustration rare", sir: "Special illustration rare", gallery: "Trainer Gallery", amazing: "Amazing rare", gold: "Gold", shiny: "Shiny", ace: "ACE SPEC", promo: "Promo", holo: "Holo" };
 // The pictures. Drawn here, one per group, so every card of a kind wears
 // the same mark everywhere -- the chip, the tile, the sheet.
 const KIND_ART = {
@@ -1951,6 +1999,7 @@ const KIND_ART = {
   v:       `<svg viewBox="0 0 48 48"><defs><linearGradient id="gV" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#9a9ab0"/></linearGradient></defs><rect x="2" y="9" width="44" height="30" rx="8" fill="url(#gV)" stroke="#55556a" stroke-width="2"/><text x="24" y="33" text-anchor="middle" font-family="Arial Black,Arial" font-weight="900" font-size="24" fill="#1c1c2e">V</text></svg>`,
   vmax:    `<svg viewBox="0 0 48 48"><defs><linearGradient id="gVM" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffd6d6"/><stop offset="1" stop-color="#d13a3a"/></linearGradient></defs><rect x="2" y="9" width="44" height="30" rx="8" fill="url(#gVM)" stroke="#8b1a1a" stroke-width="2"/><text x="24" y="31" text-anchor="middle" font-family="Arial Black,Arial" font-weight="900" font-size="15" fill="#3d0a0a">VMAX</text></svg>`,
   vstar:   `<svg viewBox="0 0 48 48"><defs><linearGradient id="gVS" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff6c8"/><stop offset="1" stop-color="#e0b230"/></linearGradient></defs><rect x="2" y="9" width="44" height="30" rx="8" fill="url(#gVS)" stroke="#8a6a00" stroke-width="2"/><text x="20" y="31" text-anchor="middle" font-family="Arial Black,Arial" font-weight="900" font-size="15" fill="#3d2b00">VSTAR</text><path d="M40 15l1.6 3.4 3.6.4-2.7 2.5.8 3.6-3.3-1.9-3.3 1.9.8-3.6-2.7-2.5 3.6-.4z" fill="#8a6a00"/></svg>`,
+  trainer: `<svg viewBox="0 0 48 48"><defs><linearGradient id="gTR" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d8f5e0"/><stop offset="1" stop-color="#2e9e5b"/></linearGradient></defs><rect x="6" y="6" width="36" height="36" rx="8" fill="url(#gTR)" stroke="#1b5e34" stroke-width="2"/><rect x="13" y="14" width="22" height="4" rx="2" fill="#0f3d21"/><rect x="13" y="22" width="22" height="4" rx="2" fill="#0f3d21"/><rect x="13" y="30" width="14" height="4" rx="2" fill="#0f3d21"/></svg>`,
   special: `<svg viewBox="0 0 48 48"><defs><linearGradient id="gSP" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffd1f4"/><stop offset="0.5" stop-color="#b5f2ff"/><stop offset="1" stop-color="#fff6b0"/></linearGradient></defs><circle cx="24" cy="24" r="21" fill="url(#gSP)" stroke="#8a6aa0" stroke-width="2"/><path d="M24 8l4.4 9.4 10.3 1.3-7.6 7 2 10.2L24 31l-9.1 4.9 2-10.2-7.6-7 10.3-1.3z" fill="#7a4fa0"/></svg>`
 };
 function kindArt(kind, size) { return `<span class="kind-art" style="width:${size || 44}px;height:${size || 44}px">${KIND_ART[kind] || KIND_ART.regular}</span>`; }
@@ -1958,7 +2007,8 @@ function kindArt(kind, size) { return `<span class="kind-art" style="width:${siz
 // illustration rare", "Mega EX", "Tag Team GX", "Holo".
 function kindWords(c) {
   const bits = [];
-  if (c.kind === "EX") bits.push((/^Mega\s|^M\s/i.test(c.name) ? "Mega " : "") + (c.family === "ex" ? "ex" : "EX"));
+  if (c.kind === "EX") bits.push((isMega(c) ? "Mega " : "") + (c.family === "ex" ? "ex" : "EX"));
+  else if (c.kind === "trainer") bits.push(c.category === "Energy" ? "Energy" : (c.trainerType ? c.trainerType : "Trainer"));
   else if (c.kind === "gx") bits.push(/TAG TEAM/i.test(c.suffix || "") || /&/.test(c.name) ? "Tag Team GX" : "GX");
   else if (c.kind === "special") bits.push(FINISH_WORDS[c.finish] || c.rarity || "Special");
   else if (c.kind === "regular") bits.push(c.finish === "holo" ? "Holo" : "Regular");
@@ -1981,13 +2031,17 @@ function familyOf(c) {
 }
 function finishOf(c) {
   const r = String(c.rarity || "").toLowerCase();
+  // Trainer Gallery / Galarian Gallery cards are numbered TG01, GG12 -- the
+  // database files them as plain Rare. (Moshe.)
+  if (/^(TG|GG)\d/i.test(String(c.localId || ""))) return "gallery";
+  if (/amazing|radiant/.test(r)) return "amazing";
   if (/hyper|rainbow|secret|gold/.test(r)) return "gold";
   if (/special illustration/.test(r)) return "sir";
   if (/illustration|trainer gallery|character/.test(r)) return "ir";
   if (/ace spec/.test(r)) return "ace";
   if (/shiny|radiant|amazing/.test(r)) return "shiny";
   if (/promo/.test(r)) return "promo";
-  if (/ultra|full art/.test(r)) return "fullart";
+  if (/ultra|full art/.test(r)) return "ultra";
   if (/holo/.test(r)) return "holo";
   return "";
 }
@@ -2001,7 +2055,8 @@ function decorate(c) {
   c.family = familyOf(c);
   c.finish = finishOf(c);
   const fam = c.family;
-  c.kind = (fam === "EX" || fam === "ex") ? "EX" : fam === "gx" ? "gx" : fam === "v" ? "v" : fam === "vmax" ? "vmax" : fam === "vstar" ? "vstar"
+  c.kind = (c.category === "Trainer" || c.category === "Energy") ? "trainer"
+         : (fam === "EX" || fam === "ex") ? "EX" : fam === "gx" ? "gx" : fam === "v" ? "v" : fam === "vmax" ? "vmax" : fam === "vstar" ? "vstar"
          : (c.finish && c.finish !== "holo") || fam === "other" ? "special" : "regular";
   c.year = c.set && c.set.releaseDate ? String(c.set.releaseDate).slice(0, 4) : "";
   // `total` is what the card itself prints (125/197 -- the official count);
@@ -2451,7 +2506,7 @@ async function runSearch(q, hint, fromScan) {
     subFilter = "all"; pendingFinish = "";
     if (bestId) fullCard(bestId).then(full => noteRecent(full, "scan")).catch(() => {});
     kindFilter = "all";
-    setStatus("find-status", results.length ? "" : "No card called “" + parsed.name + "”. Check the spelling on the card — it's printed at the top.", !results.length);
+    setStatus("find-status", results.length ? "" : (typeWord(parsed.name) ? "No " + typeWord(parsed.name) + " cards came back — try again in a moment." : "No card called “" + parsed.name + "”. Check the spelling on the card — it's printed at the top."), !results.length);
     renderResults();
   } catch (e) {
     if (seq !== searchSeq) return;
@@ -2540,6 +2595,7 @@ function renderGames() {
   $("games").innerHTML = GAMES.map(([k, n]) => `<button type="button" class="chip${game === k ? " on" : ""}" data-game="${k}">${n}</button>`).join("")
     + `<button type="button" class="chip" id="game-more" style="border-style:dashed">+ Ask for another game</button>`;
   $("langs").classList.toggle("hide", game !== "pokemon");
+  if ($("types")) $("types").classList.toggle("hide", game !== "pokemon");
   $("q").placeholder = game === "ygo" ? "Type a card name — e.g. Blue-Eyes White Dragon" : "Type a name — e.g. Charizard, or Pikachu 25/102";
 }
 $("games").addEventListener("click", e => {
@@ -2585,6 +2641,31 @@ function ygoFinish(c) {
   if (/ultra|gold/.test(r)) return "fullart";
   if (/super|rare/.test(r)) return "holo";
   return "";
+}
+// Search by type: tap a type, or type its name in the box. The database
+// lists cards by energy type; the newest sixty are shown. (Moshe.)
+const TYPES = ["Grass", "Fire", "Water", "Lightning", "Psychic", "Fighting", "Darkness", "Metal", "Fairy", "Dragon", "Colorless"];
+const TYPE_COLORS = { Grass: "#4caf50", Fire: "#ff5722", Water: "#2196f3", Lightning: "#ffc107", Psychic: "#9c27b0", Fighting: "#a0522d", Darkness: "#37474f", Metal: "#78909c", Fairy: "#e91e63", Dragon: "#ff9800", Colorless: "#9e9e9e" };
+function renderTypes() {
+  $("types").innerHTML = TYPES.map(t => `<button type="button" class="chip" data-type="${t}" style="border-color:${TYPE_COLORS[t]}"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${TYPE_COLORS[t]};margin-right:6px;vertical-align:middle"></span>${t}</button>`).join("");
+  $("types").classList.toggle("hide", game !== "pokemon");
+}
+$("types").addEventListener("click", e => {
+  const b = e.target.closest("[data-type]");
+  if (!b) return;
+  $("q").value = b.dataset.type; $("q-clear").classList.remove("hide");
+  runSearch(b.dataset.type, null, false);
+});
+renderTypes();
+function typeWord(q) { const t = TYPES.find(t => t.toLowerCase() === q.trim().toLowerCase()); return t || ""; }
+async function searchByType(type) {
+  const r = await fetch(DEX + "/en/cards?types=" + encodeURIComponent(type));
+  const brief = r.ok ? await r.json() : [];
+  // Newest first by set id order is not knowable from the brief list; the
+  // last sixty in the list are the latest sets the database added.
+  const pick = brief.slice(-60).reverse();
+  const full = await Promise.all(pick.map(x => fetch(DEX + "/en/cards/" + encodeURIComponent(x.id)).then(rr => rr.ok ? rr.json() : null).catch(() => null)));
+  return full.filter(c => c && !isPocket(c));
 }
 // Which language's printing. English is the database's main language; the
 // others are the same database in that language, searched by the Pokémon's
@@ -2645,7 +2726,7 @@ function tileHtml(c, extra) {
   // A div, not a <button>: the three small buttons live inside it, and a
   // button inside a button is not allowed -- the browser pushes the inner
   // ones out as separate grid cells.
-  return `<div class="tile" role="button" tabindex="0" data-card-id="${escapeAttr(c.id)}" ${extra && extra.entryId ? `data-item-id="${escapeAttr(extra.entryId)}"` : ""}>
+  return `<div class="tile${have ? " owned" : ""}" role="button" tabindex="0" data-card-id="${escapeAttr(c.id)}" ${extra && extra.entryId ? `data-item-id="${escapeAttr(extra.entryId)}"` : ""}>
     ${pic ? `<img class="pic" src="${escapeAttr(pic)}" alt="" loading="lazy" decoding="async" onerror="this.outerHTML='<div class=&quot;pic missing&quot;>No picture found</div>'">` : `<div class="pic missing">No picture yet</div>`}
     ${bestId === c.id ? `<div class="best">BEST MATCH</div>` : ""}
     ${have ? `<span class="have">✓${have > 1 ? " ×" + have : ""}</span>` : ""}
@@ -2690,7 +2771,7 @@ async function tileControl(e) {
   if (!plus && !minus && !sold) return false;
   e.stopPropagation();
   const id = (plus || minus || sold).dataset.tilePlus || (plus || minus || sold).dataset.tileMinus || (plus || minus || sold).dataset.tileSold;
-  if (plus) { try { addCard(await fullCard(id)); } catch (err) { addCard(results.find(c => c.id === id) || snapAsCard(id)); } return true; }
+  if (plus) { try { confirmThenAdd(await fullCard(id)); } catch (err) { confirmThenAdd(results.find(c => c.id === id) || snapAsCard(id)); } return true; }
   if (minus) { const en = who ? entryFor(id, who) : null; if (en) setQty(en.id, (Number(en.qty) || 1) - 1); return true; }
   await openCard(id);
   const sb = $("hero-sold"); if (sb && !sb.disabled) sb.click();
@@ -2718,6 +2799,33 @@ $("q").addEventListener("keydown", e => {
 });
 $("q-clear").addEventListener("click", () => {
   $("q").value = ""; $("q-clear").classList.add("hide"); results = []; bestId = null; $("scanned").classList.add("hide"); renderResults(); setStatus("find-status", ""); $("q").focus();
+});
+
+// ---------- Voice ----------
+// Say the card's name and it is searched. The phone's own listening
+// (nothing is recorded or sent by this page; Safari and Chrome do it).
+// (Moshe: "voice control".)
+const Recog = window.SpeechRecognition || window.webkitSpeechRecognition;
+if (!Recog) $("btn-voice").classList.add("hide");
+let listening = null;
+$("btn-voice").addEventListener("click", () => {
+  if (!Recog) return;
+  if (listening) { try { listening.stop(); } catch (e) {} return; }
+  const rec = new Recog();
+  rec.lang = "en-US"; rec.interimResults = false; rec.maxAlternatives = 1;
+  listening = rec;
+  $("btn-voice").style.background = "var(--accent)"; $("btn-voice").style.color = "#fff";
+  setStatus("find-status", "Listening… say the card's name, like “Charizard” or “Pikachu 58”.");
+  rec.onresult = e => {
+    const said = ((e.results[0] || [])[0] || {}).transcript || "";
+    if (!said) return;
+    $("q").value = said.replace(/\s+(\d+)\s+(of|slash|out of)\s+(\d+)/i, " $1/$3").trim(); $("q-clear").classList.remove("hide");
+    setStatus("find-status", "Heard “" + said + "”");
+    runSearch($("q").value, null, false);
+  };
+  rec.onerror = e => setStatus("find-status", e.error === "not-allowed" ? "The browser didn't get permission to use the microphone." : "Didn't catch that — try again.", true);
+  rec.onend = () => { listening = null; $("btn-voice").style.background = ""; $("btn-voice").style.color = ""; };
+  try { rec.start(); } catch (e) { listening = null; setStatus("find-status", "Couldn't start listening here.", true); }
 });
 
 // ---------- Scanning ----------
@@ -3711,7 +3819,9 @@ function rarityHint(c) {
   if (/special illustration/.test(r)) return "<b>two gold stars</b>, and the picture runs off the edges of the card";
   if (/illustration/.test(r)) return "<b>one gold star</b>, and the picture fills the whole card with no frame";
   if (/hyper|rainbow|secret/.test(r)) return "<b>three gold stars</b> (or a white star on older sets), and the number is <b>higher than the set's total</b> — like 230/197";
-  if (/ultra/.test(r)) return "<b>two silver stars</b> (a white star on older sets), and the whole card is shiny and textured";
+  if (/ultra/.test(r)) return "<b>two silver stars</b> (a white star on older sets); the whole card is shiny — sometimes a full art, sometimes just the picture";
+  if (/^(TG|GG)\d/i.test(String(c.localId || ""))) return "a <b>TG</b> or <b>GG</b> number at the bottom — a Trainer Gallery card from the back of the set";
+  if (/amazing|radiant/.test(r)) return "a <b>rainbow-swirl picture</b> with a black star — an Amazing or Radiant rare";
   if (/ace spec/.test(r)) return "a <b>pink star</b>";
   if (/promo/.test(r)) return "a black star with <b>PROMO</b> printed beside it";
   if (/holo/.test(r)) return "a black <b>star ★</b>, and the <b>picture</b> is shiny (a reverse holo has a shiny <i>frame</i> and a plain picture instead)";
@@ -3847,6 +3957,47 @@ function avatarOf(name) {
   const look = LOOKS.find(l => l.key === a.variant) || LOOKS[0];
   return cl.image ? { src: cl.image + "/low.webp", css: look.css } : null;
 }
+// Why the price is what it is, in plain words, from what is known about
+// the card: how rare, how hard to pull, how old, who is on it, and how it
+// compares to a plain card. A Gemini button for the story behind it.
+// (Moshe: "tell me why it's expensive".)
+const FAVORITES = /charizard|pikachu|mew\b|mewtwo|umbreon|gengar|lugia|rayquaza|eevee|blastoise|venusaur|dragonite|gardevoir|greninja|lucario|giratina|sylveon|espeon|snorlax|magikarp|gyarados/i;
+function whyHtml(c, price) {
+  const reasons = [];
+  const r = String(c.rarity || "").toLowerCase();
+  const fin = c.finish;
+  if (c.game === "ygo") reasons.push(`It's a <b>${escapeHtml(c.rarity || "printing")}</b> — the rarer the lettering and shine, the fewer were made.`);
+  if (fin === "sir") reasons.push("It's a <b>special illustration rare</b> — the art runs off the card, only a handful per set, about one in sixty packs.");
+  else if (fin === "ir") reasons.push("It's an <b>illustration rare</b> — full-picture art, about one in twelve packs.");
+  else if (fin === "gold") reasons.push("It's a <b>gold or secret rare</b> — numbered past the set's total, the hardest pull there is.");
+  else if (fin === "ultra") reasons.push("It's an <b>ultra rare</b> — shiny all over, about one in fourteen packs.");
+  else if (fin === "gallery") reasons.push("It's a <b>Trainer Gallery</b> card — a small bonus set at the back, not in every pack.");
+  else if (fin === "amazing") reasons.push("It's an <b>Amazing or Radiant rare</b> — a special swirl art, only a few per set.");
+  else if (fin === "shiny") reasons.push("It's a <b>shiny</b> — the Pokémon in its rare colours.");
+  else if (fin === "promo") reasons.push("It's a <b>promo</b> — it only came with a product or an event, never in packs.");
+  if (c.family === "EX" || c.family === "ex" || c.family === "gx" || c.family === "v" || c.family === "vmax" || c.family === "vstar") reasons.push(`It's a <b>${escapeHtml(kindWords(c).split(" · ")[0])}</b> — a big-hitter card, always in more demand than a plain one.`);
+  if (FAVORITES.test(c.name || "")) reasons.push(`It's <b>${escapeHtml(String(c.name).split(" ")[0])}</b> — one of the most collected Pokémon; anything with it on costs more.`);
+  const y = Number(c.year);
+  if (y && y <= 2003) reasons.push(`It's from <b>${y}</b> — a vintage card; fewer survive in good shape and collectors pay for that.`);
+  else if (y && y >= new Date().getFullYear() - 1) reasons.push(`It's from <b>${y}</b> — a current set, and the newest cards are the most hunted while everyone is opening them.`);
+  if (/^(common|uncommon)$/.test(r)) reasons.push("It's a <b>common or uncommon</b> — several in every pack, so it costs about as much as the paper.");
+  if (!reasons.length) reasons.push("It's a <b>plain rare</b> — one per pack, nothing special about the print.");
+  const verdict = price >= 100 ? "very expensive" : price >= 20 ? "expensive" : price >= 5 ? "worth a little" : "cheap";
+  return `<div class="box-title">${price ? "At " + money(price) + " it's " + verdict : "No price on file"}</div>
+    <ul class="check-list" style="margin-top:6px">${reasons.map(x => `<li>${x}</li>`).join("")}</ul>
+    <div id="why-more"><button type="button" class="btn secondary" id="btn-why" style="margin-top:8px">Ask Gemini for the full story</button></div>`;
+}
+const WHY_SYSTEM = "You explain to a kid, in four plain sentences and no markdown, why a specific Pokémon or Yu-Gi-Oh! card costs what it does today: its rarity and pull rate, how popular the character and the art are, how old and how many were printed, and anything special about that printing. Use web search for current facts.";
+async function askWhy(c, price) {
+  const box = $("why-more");
+  if (!box) return;
+  box.innerHTML = `<div class="status-line">Asking…</div>`;
+  try {
+    const out = await askGemini({ system: WHY_SYSTEM, search: true, parts: [{ text: `Why does the card "${c.name}" ${numberLabel(c)} from ${c.set ? c.set.name : ""} (${c.rarity || ""}, ${c.year || ""}) cost about ${money(price)}?` }] });
+    if (openCardId !== c.id) return;
+    box.innerHTML = `<p style="margin:10px 0 0;font-size:var(--body);color:var(--ink)">${escapeHtml(out.text)}</p>${sourcesHtml(out.sources)}`;
+  } catch (e) { box.innerHTML = `<div class="status-line err">${escapeHtml(e.message)}</div>`; }
+}
 // Everyone who has this card, with counts: "✓ Alex has this one · Sam has 2".
 function holdersHtml(cardId) {
   const counts = {};
@@ -3925,6 +4076,9 @@ function renderCardSheet(c, loading) {
       <div id="market-body">${market ? marketHtml(market) : `<button type="button" class="btn secondary" id="btn-market" style="margin-top:6px">Check eBay &amp; Google prices</button>`}</div>
     </div>
 
+    <h4>Why it costs what it costs</h4>
+    <div class="price-box" id="why-box">${whyHtml(c, headline)}</div>
+
     <h4>How many packs to get it</h4>
     <div class="packs-box" id="packs-box"><div class="big">Working it out…</div></div>
 
@@ -3947,7 +4101,9 @@ function renderCardSheet(c, loading) {
   }
   const mb = $("btn-market");
   if (mb) mb.addEventListener("click", () => checkMarket(c));
-  $("hero-plus").addEventListener("click", () => addCard(c));
+  $("hero-plus").addEventListener("click", () => confirmThenAdd(c));
+  const wb = $("btn-why");
+  if (wb) wb.addEventListener("click", () => askWhy(c, headline));
   const cb = $("claim-btn");
   if (cb) cb.addEventListener("click", () => { cb.remove(); openClaimLooks(c); });
   document.querySelectorAll("#card-body [data-trade-ask]").forEach(b => b.addEventListener("click", () => {
@@ -4082,6 +4238,38 @@ function nextOrder() {
   Object.values(state.cards).forEach(c => { if (c && !c.deletedAt && c.who === who && Number(c.order) > max) max = Number(c.order); });
   return max + 1;
 }
+// The set's letters (OBF, SVI, PAF) come from the set itself; fetched once.
+const abbrCache = new Map();
+async function setAbbr(setId) {
+  if (!setId) return "";
+  if (abbrCache.has(setId)) return abbrCache.get(setId);
+  let a = "";
+  try { const r = await fetch(DEX + "/en/sets/" + encodeURIComponent(setId)); const d = r.ok ? await r.json() : {}; a = (d.abbreviation && d.abbreviation.official) || ""; } catch (e) {}
+  abbrCache.set(setId, a);
+  return a;
+}
+let confirmFor = null;
+async function confirmThenAdd(c) {
+  if (!who) { openWho(); return; }
+  const existing = entryFor(c.id, who);
+  if (existing || c.game === "ygo") { addCard(c); return; }   // another of the same, or a game without set letters: no question
+  confirmFor = c;
+  $("confirm-abbr").textContent = "…";
+  $("confirm-num").textContent = numberLabel(c) || "—";
+  $("confirm-set").textContent = (c.set && c.set.name) || "—";
+  openSheet("confirm-sheet");
+  const a = await setAbbr(c.set && c.set.id);
+  if (confirmFor === c) $("confirm-abbr").textContent = a || "(none printed)";
+}
+$("confirm-yes").addEventListener("click", () => { const c = confirmFor; confirmFor = null; closeSheet("confirm-sheet"); if (c) addCard(c); });
+$("confirm-no").addEventListener("click", () => {
+  const c = confirmFor; confirmFor = null; closeSheet("confirm-sheet");
+  if (!c) return;
+  closeSheet("card-sheet");
+  setTab("find");
+  $("q").value = c.name; $("q-clear").classList.remove("hide");
+  runSearch(c.name, null, true);
+});
 function addCard(c) {
   if (!who) { openWho(); return; }
   if (!isOwner() && nameForEmail(currentUser && currentUser.email) !== who) return;
@@ -4157,7 +4345,7 @@ function purgeEntry(entryId) {
   renderAll();
 }
 const live = c => c && c.snap && !c.deletedAt;
-$("btn-add").addEventListener("click", () => { const c = openCardData || (openCardId && snapAsCard(openCardId)); if (c) addCard(c); });
+$("btn-add").addEventListener("click", () => { const c = openCardData || (openCardId && snapAsCard(openCardId)); if (c) confirmThenAdd(c); });
 $("qty-plus").addEventListener("click", () => { const e = who && openCardId ? entryFor(openCardId, who) : null; if (e) setQty(e.id, (Number(e.qty) || 1) + 1); });
 $("qty-minus").addEventListener("click", () => { const e = who && openCardId ? entryFor(openCardId, who) : null; if (e) setQty(e.id, (Number(e.qty) || 1) - 1); });
 let linkTimer = null;
@@ -4460,7 +4648,7 @@ function closeSheet(id) {
   if (id === "card-sheet") { openCardId = null; openCardData = null; }
   if (id === "cam-sheet") stopCamera();
 }
-["card-sheet", "who-sheet", "options-sheet", "cam-sheet", "money-sheet", "trade-add-sheet", "time-sheet"].forEach(id => {
+["card-sheet", "who-sheet", "options-sheet", "cam-sheet", "money-sheet", "trade-add-sheet", "time-sheet", "confirm-sheet"].forEach(id => {
   $(id).addEventListener("click", e => { if (e.target === $(id)) closeSheet(id); });
   attachSheetSwipe(id);
 });
@@ -4664,6 +4852,7 @@ function takeKeysFromLink() {
 // not seen yet, once. (Asked for: "when I go back on, it will say this was
 // updated, and who asked to update it.")
 const CHANGES = [
+  { id: 23, date: "2026-09-20", by: "Moshe", what: "Twelve things at once: search by type (tap a type or say/type Fire, Water…); \"Why it costs what it costs\" on every card, with an Ask Gemini button; one EX category that asks Mega or not; Trainer cards (and Energy) in their own category; Amazing/Radiant and Trainer Gallery in Special; \"Ultra rare\" instead of calling every one a full art; a microphone to say the card's name; owned cards outlined in green; a check of the set letters and number before a card is added; searching Mew no longer brings Mewtwo; a Sign out button at the bottom." },
   { id: 22, date: "2026-09-20", by: "Dad", what: "Swipe right to go back, on every screen: cards → the type question → the search; a set → the list of sets; any tab → Find." },
   { id: 21, date: "2026-09-20", by: "Moshe", what: "When you open the app it asks how long you want to use it (5, 15, 30 minutes, an hour, or no limit). When the time is up it asks if you want to keep going; No signs you out. Switch it off in Options if you don't want the question." },
   { id: 20, date: "2026-09-20", by: "Moshe", what: "Prices are kept correct: every card's price in My cards is refreshed from today's market when you open it, the totals follow, and the card page says when the store last updated its price. Dad also got an Approve all button for requests." },
@@ -4702,7 +4891,7 @@ renderWhatsNew();
 // anywhere: every sheet closed, the search cleared. (Asked for: "Home should
 // take me to the Poké Scan main page, not my Home app.")
 function goHome() {
-  ["card-sheet", "who-sheet", "options-sheet", "cam-sheet", "money-sheet", "trade-add-sheet", "time-sheet"].forEach(id => { if ($(id).classList.contains("show")) closeSheet(id); });
+  ["card-sheet", "who-sheet", "options-sheet", "cam-sheet", "money-sheet", "trade-add-sheet", "time-sheet", "confirm-sheet"].forEach(id => { if ($(id).classList.contains("show")) closeSheet(id); });
   $("q").value = ""; $("q-clear").classList.add("hide");
   results = []; bestId = null; $("scanned").classList.add("hide"); setStatus("find-status", "");
   renderResults();
