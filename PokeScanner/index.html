@@ -710,6 +710,7 @@
         <button class="pill-btn" id="btn-redo" type="button" disabled>Redo</button>
         <button class="pill-btn" id="btn-textsize" type="button" aria-label="Text size"><span class="size-glyph">Aa</span></button>
         <button class="pill-btn" id="btn-options" type="button">Options</button>
+        <button class="pill-btn" id="btn-logout-top" type="button">Log out</button>
         <span class="undo-what" id="undo-what"></span>
       </div>
     </header>
@@ -815,7 +816,7 @@
       <div class="status-line" id="req-status" style="text-align:left;padding:6px 0 0"></div>
       <div id="req-mine"></div>
     </div>
-    <div style="text-align:center;margin-top:18px"><button type="button" class="pill-btn" id="btn-signout-bottom">Sign out</button></div>
+    <div style="text-align:center;margin-top:18px"><button type="button" class="pill-btn" id="btn-signout-bottom">Log out</button></div>
   </div>
 
 </div>
@@ -1035,7 +1036,7 @@
         <p class="field-note">Used only when Gemini and Groq both can't. It costs money — a penny or two a card — so each family member needs your say-so, below. If you already saved a ChatGPT key in the LLMs app, it's used automatically.</p>
       </div>
       <div class="opt-row">
-        <div class="opt-text">Ask how long on open<small>Moshe's idea: pick a time when you open the app; when it's up, keep going or get signed out. On or off on this device.</small></div>
+        <div class="opt-text">Ask how long on open<small>Moshe's idea: pick a time when you open the app; when it's up, keep going or get signed out. On or off on this device. Dad isn't asked unless he turns this on.</small></div>
         <span class="switch">
           <input type="checkbox" id="opt-timer" role="switch">
           <span class="track"></span><span class="knob"></span>
@@ -1063,7 +1064,13 @@
       <div class="opt-row">
         <div class="opt-text">Push to your phone<small id="opt-ntfy-line">Your ntfy topic. Every new request is sent there straight away, with an Approve button. Only you see this.</small></div>
       </div>
+      <div class="opt-row" id="opt-mine-ntfy-row">
+        <div class="opt-text">My own notifications<small id="opt-mine-ntfy-line">Your ntfy topic on this phone: trades waiting for you and answers to your requests are pushed there.</small></div>
+        <button type="button" class="pill-btn" id="opt-ntfy-test">Send a test</button>
+      </div>
+      <input type="text" id="opt-mine-ntfy" placeholder="ntfy topic name (open the ntfy app, tap +, make one up)" autocomplete="off" autocapitalize="off">
       <input type="password" id="opt-ntfy" placeholder="ntfy topic name" autocomplete="off">
+      <div class="btn-row" style="margin-top:6px"><button type="button" class="pill-btn" id="opt-ntfy-owner-test">Send a test to the owner's phone</button></div>
       <p class="field-note">The same topic your reminders use. Leave it blank and requests only show here.</p>
     </div>
 
@@ -1289,6 +1296,7 @@ $("btn-reset").addEventListener("click", async () => {
 });
 $("btn-signout").addEventListener("click", () => { closeOptions(); signOut(authClient); });
 $("btn-signout-bottom").addEventListener("click", () => signOut(authClient));
+$("btn-logout-top").addEventListener("click", () => signOut(authClient));
 
 function creds() { return { email: $("in-email").value.trim(), pass: $("in-pass").value }; }
 function setStatus(id, msg, isError) {
@@ -1338,7 +1346,7 @@ getRedirectResult(authClient)
 //   requests.{id} = { by, text, at, status: new | approved | declined | done }   -- a family member asking the owner for a change
 //   trades.{id}   = { a, b, sideA: { cards: [entryIds], money }, sideB: {...}, turn, status, log: [...], at, updatedAt }
 //                    a started it; sideA is what a gives, sideB what b gives; turn = whose move; status = open | accepted | declined
-//   people.{name} = { addedAt, email }        -- the family, one name per sign-in email; only the owner edits this
+//   people.{name} = { addedAt, email, ntfy }  -- the family, one name per sign-in email; only the owner edits name/email; ntfy is each person's own push topic
 //   sharedWith    = [ emails ]                  -- the Firestore rule's list of who may open the document (kept in step with people)
 //   recent.{name} = [ { cardId, how, at, snap } ]  -- that person's last scans and look-ups, newest first
 // `snap` is what the card looked like when it was added, so the collection
@@ -1786,11 +1794,12 @@ applyTheme();
 // "Time's up -- keep going?"; No signs you out. Moshe asked for it.
 const TIMER_KEY = "pokescan-ask-time", TIMER_UNTIL = "pokescan-time-until";
 const TIME_SPANS = [["5", "5 minutes", 5], ["15", "15 minutes", 15], ["30", "30 minutes", 30], ["60", "An hour", 60], ["0", "No limit today", 0]];
-let timerOn = true;
-try { timerOn = localStorage.getItem(TIMER_KEY) !== "off"; } catch (e) {}
+let timerOn = true, timerOwnerToo = false;
+try { timerOn = localStorage.getItem(TIMER_KEY) !== "off"; timerOwnerToo = localStorage.getItem(TIMER_KEY + "-owner") === "on"; } catch (e) {}
 let timeTick = null;
 function askHowLong() {
   if (!timerOn) return;
+  if (isOwner() && !timerOwnerToo) return;      // Dad is never asked unless he switches it on
   let until = 0;
   try { until = Number(sessionStorage.getItem(TIMER_UNTIL)) || 0; } catch (e) {}
   if (until === -1) return;                       // "no limit today" already chosen this session
@@ -1825,13 +1834,19 @@ $("time-chips").addEventListener("click", e => {
   armTimer(until);
   showToast("You have " + (mins === 60 ? "an hour" : mins + " minutes") + " — I'll ask before it's up");
 });
-$("opt-timer").addEventListener("change", () => { timerOn = $("opt-timer").checked; try { localStorage.setItem(TIMER_KEY, timerOn ? "on" : "off"); } catch (e) {} if (!timerOn) clearTimeout(timeTick); });
+$("opt-timer").addEventListener("change", () => {
+  timerOn = $("opt-timer").checked;
+  try { localStorage.setItem(TIMER_KEY, timerOn ? "on" : "off"); if (isOwner()) localStorage.setItem(TIMER_KEY + "-owner", timerOn ? "on" : "off"); } catch (e) {}
+  if (isOwner()) timerOwnerToo = timerOn;
+  if (!timerOn) clearTimeout(timeTick);
+});
 
 // ---------- Tabs ----------
 let tab = "find";
-function setTab(next) {
+function setTab(next, quiet) {
   tab = next;
   ["find", "mine", "shop", "trade", "sets"].forEach(t => { $("tab-" + t).setAttribute("aria-selected", String(tab === t)); $(t + "-pane").classList.toggle("hide", tab !== t); });
+  if (quiet) return;
   if (tab === "mine") renderMine();
   if (tab === "shop") renderShop();
   if (tab === "trade") renderTrade();
@@ -2054,10 +2069,26 @@ function finishOf(c) {
   if (/holo/.test(r)) return "holo";
   return "";
 }
-// The main database has no release date for many sets; the second one
-// has a date for every set, matched by name.
+// The main database knows every set's date but does not attach it to the
+// cards it returns, so dates come from its own sets list (fetched once,
+// kept a day), with the second database's list as a fallback by name.
+const SET_DATES_KEY = "pokescan-set-dates-v1";
+let setDates = null;
+try { const r = JSON.parse(localStorage.getItem(SET_DATES_KEY) || "null"); if (r && r.at && Date.now() - r.at < 86400000 && r.map) setDates = r.map; } catch (e) {}
+async function loadSetDates() {
+  if (setDates) return setDates;
+  try {
+    const data = await gql(`{ sets { id releaseDate } }`);
+    const map = {};
+    (data.sets || []).forEach(x => { if (x && x.id && x.releaseDate) map[x.id] = String(x.releaseDate); });
+    if (Object.keys(map).length) { setDates = map; try { localStorage.setItem(SET_DATES_KEY, JSON.stringify({ at: Date.now(), map })); } catch (e) {} }
+  } catch (e) {}
+  return setDates || {};
+}
+loadSetDates().then(() => renderResults());
 function yearOf(c) {
   if (c.set && c.set.releaseDate) return String(c.set.releaseDate).slice(0, 4);
+  if (c.set && c.set.id && setDates && setDates[c.set.id]) return setDates[c.set.id].slice(0, 4);
   const hit = c.set && symbolMap && symbolMap[normName(c.set.name)];
   return hit && typeof hit === "object" && hit.date ? String(hit.date).slice(0, 4) : "";
 }
@@ -2514,7 +2545,7 @@ async function runSearch(q, hint, fromScan) {
   if (!parsed.name && parsed.year) {
     // A year on its own: every set from that year.
     results = []; renderResults();
-    setTab("sets"); setsOpen = null;
+    setsOpen = null; setTab("sets", true);
     await renderSets();
     const head = [...document.querySelectorAll("#sets-root .sets-year")].find(el => el.textContent.trim() === parsed.year);
     if (head) { head.scrollIntoView({ behavior: "smooth", block: "start" }); setStatus("sets-status", "The sets from " + parsed.year + "."); }
@@ -2532,7 +2563,7 @@ async function runSearch(q, hint, fromScan) {
       list = await searchCards(first);
       if (seq !== searchSeq) return;
     }
-    if (merged.year && !symbolMap) { try { await setSymbolUrl(""); } catch (e) {} }
+    if (!setDates) await loadSetDates();
     list.forEach(c => { if (!c.year) c.year = yearOf(c); });
     if (merged.year) { const inYear = list.filter(c => c.year === merged.year); if (inYear.length) list = inYear; else setStatus("find-status", "Nothing from " + merged.year + " — showing every year.", false); }
     results = rankResults(list, merged);
@@ -2540,7 +2571,7 @@ async function runSearch(q, hint, fromScan) {
     // Typing asks the type first; a scan already knows the card, so it
     // shows every printing straight away with a way back to the question.
     pickStep = (fromScan || game === "ygo") ? "cards" : "type";
-    subFilter = "all"; pendingFinish = "";
+    subFilter = "all"; pendingFinish = ""; etypeFilter = ""; yearFilter = "";
     if (bestId) fullCard(bestId).then(full => noteRecent(full, "scan")).catch(() => {});
     kindFilter = "all";
     setStatus("find-status", results.length ? (merged.year && results.every(c => c.year === merged.year) ? "Only " + merged.year + "." : "") : (typeWord(parsed.name) ? "No " + typeWord(parsed.name) + " cards came back — try again in a moment." : "No card called “" + parsed.name + "”. Check the spelling on the card — it's printed at the top."), !results.length);
@@ -2551,7 +2582,10 @@ async function runSearch(q, hint, fromScan) {
   }
 }
 
-let subFilter = "all";
+let subFilter = "all", etypeFilter = "", yearFilter = "";
+function energyTypeOf(c) { return (c.types || [])[0] || (String(c.name || "").match(/\b(Grass|Fire|Water|Lightning|Psychic|Fighting|Darkness|Metal|Fairy|Dragon|Colorless)\b/i) || [])[1] || "Other"; }
+function etypeMatch(c) { return !etypeFilter || energyTypeOf(c) === etypeFilter; }
+function yearMatch(c) { return !yearFilter || (c.year || "Unknown") === yearFilter; }
 // Where the type question stands: asking the type, asking the kind inside
 // it, or showing the cards. Typing a name asks; a scan goes straight to
 // the cards (it already knows which one) with a way back to the question.
@@ -2582,6 +2616,21 @@ function renderPicker() {
     pk.classList.remove("hide");
     return;
   }
+  if (pickStep === "etype" || pickStep === "year") {
+    // Energy asks two more questions (Moshe): which energy, then which year.
+    const inGroup = results.filter(c => c.kind === kindFilter && subkindMatch(c));
+    if (pickStep === "etype") {
+      const ts = {}; inGroup.forEach(c => { const t = (c.types || [])[0] || (String(c.name || "").match(/\b(Grass|Fire|Water|Lightning|Psychic|Fighting|Darkness|Metal|Fairy|Dragon|Colorless)\b/i) || [])[1] || "Other"; ts[t] = (ts[t] || 0) + 1; });
+      pk.innerHTML = `<h3>Which energy?</h3><p>The symbol in the middle of the card.</p><div class="pick-grid">${Object.keys(ts).sort().map(t => `<button type="button" class="pick" data-pick-etype="${escapeAttr(t)}"><span style="display:block;width:44px;height:44px;border-radius:50%;background:${TYPE_COLORS[t] || "#9e9e9e"}"></span><span class="pick-name">${escapeHtml(t)}</span><span class="pick-n">${ts[t]} card${ts[t] === 1 ? "" : "s"}</span></button>`).join("")}</div>
+        <div class="crumb"><button type="button" class="pill-btn" data-pick-back="sub">‹ Back</button></div>`;
+    } else {
+      const ys = {}; inGroup.filter(c => etypeMatch(c)).forEach(c => { const y = c.year || "Unknown"; ys[y] = (ys[y] || 0) + 1; });
+      pk.innerHTML = `<h3>Which year?</h3><p>The copyright line along the bottom edge says it.</p><div class="pick-grid">${Object.keys(ys).sort().reverse().map(y => `<button type="button" class="pick" data-pick-year="${escapeAttr(y)}"><span class="pick-name">${escapeHtml(y)}</span><span class="pick-n">${ys[y]} card${ys[y] === 1 ? "" : "s"}</span></button>`).join("")}</div>
+        <div class="crumb"><button type="button" class="pill-btn" data-pick-back="etype">‹ Back</button></div>`;
+    }
+    pk.classList.remove("hide");
+    return;
+  }
   if (pickStep === "sub") {
     const inGroup = results.filter(c => c.kind === kindFilter);
     let tiles = "";
@@ -2597,7 +2646,7 @@ function renderPicker() {
     return;
   }
   // cards: the breadcrumb says what was chosen, and lets you change it.
-  const subLabel = kindFilter === "regular" ? (pendingFinish || "") : subFilter !== "all" ? ((SUBKINDS[kindFilter] || []).find(x => x.key === subFilter) || {}).label || "" : "";
+  const subLabel = (kindFilter === "regular" ? (pendingFinish || "") : subFilter !== "all" ? ((SUBKINDS[kindFilter] || []).find(x => x.key === subFilter) || {}).label || "" : "") + (kindFilter === "energy" ? [etypeFilter, yearFilter].filter(Boolean).map(x => " · " + x).join("") : "");
   crumb.innerHTML = kindFilter === "all"
     ? `<button type="button" class="pill-btn" data-pick-back="type">${kindArt("regular", 20)} Choose a type</button><span class="undo-what" style="flex-basis:auto">Showing every printing</span>`
     : `<button type="button" class="pill-btn" data-pick-back="type">${kindArt(kindFilter, 22)} ${escapeHtml(KINDS[kindFilter].label)}${subLabel ? " · " + escapeHtml(subLabel) : ""} ‹ change</button>`;
@@ -2606,14 +2655,18 @@ function renderKinds() { renderPicker(); }
 $("picker").addEventListener("click", e => {
   const k = e.target.closest("[data-pick-kind]");
   if (k) {
-    kindFilter = k.dataset.pickKind; subFilter = "all";
+    kindFilter = k.dataset.pickKind; subFilter = "all"; etypeFilter = ""; yearFilter = "";
     pickStep = (kindFilter === "regular" || SUBKINDS[kindFilter]) ? "sub" : "cards";
     renderResults(); return;
   }
   const f = e.target.closest("[data-pick-finish]");
   if (f) { pendingFinish = f.dataset.pickFinish === "Regular" ? "" : f.dataset.pickFinish; pickStep = "cards"; renderResults(); return; }
   const sub = e.target.closest("[data-pick-sub]");
-  if (sub) { subFilter = sub.dataset.pickSub; pickStep = "cards"; renderResults(); return; }
+  if (sub) { subFilter = sub.dataset.pickSub; pickStep = kindFilter === "energy" ? "etype" : "cards"; renderResults(); return; }
+  const et = e.target.closest("[data-pick-etype]");
+  if (et) { etypeFilter = et.dataset.pickEtype; pickStep = "year"; renderResults(); return; }
+  const yr = e.target.closest("[data-pick-year]");
+  if (yr) { yearFilter = yr.dataset.pickYear; pickStep = "cards"; renderResults(); return; }
   const back = e.target.closest("[data-pick-back]");
   if (back) { pickStep = back.dataset.pickBack; renderResults(); }
 });
@@ -2783,7 +2836,7 @@ function renderResults() {
   renderKinds();
   renderRecent();
   const root = $("results");
-  const list = (kindFilter === "all" ? results : results.filter(c => c.kind === kindFilter)).filter(subkindMatch);
+  const list = (kindFilter === "all" ? results : results.filter(c => c.kind === kindFilter)).filter(subkindMatch).filter(c => kindFilter !== "energy" || (etypeMatch(c) && yearMatch(c)));
   if (!results.length || pickStep !== "cards") { root.innerHTML = ""; return; }
   root.innerHTML = `<div class="grid">${list.map(c => tileHtml(c)).join("")}</div>`;
   // Fill in prices as they arrive, without blocking the grid.
@@ -3385,6 +3438,25 @@ function ntfyTopic() { return typeof state.settings.ntfyTopic === "string" ? sta
 // The push has an Approve button on it (ntfy "view" action): it opens
 // this app with ?approve=<id>, which marks the request approved, copies
 // the line for Claude, and offers to open Claude with it filled in.
+function topicOf(name) {
+  const p = (state.people || {})[name];
+  if (p && typeof p.ntfy === "string" && p.ntfy.trim()) return p.ntfy.trim();
+  // The owner's request topic is the owner's phone too.
+  if (p && state.ownerEmail && lowerEmail(p.email) === lowerEmail(state.ownerEmail)) return ntfyTopic();
+  return "";
+}
+// A push to one family member, on their own topic (set in Options on
+// their phone). Trades waiting, requests answered. (Moshe: "notifications
+// are not coming through to the phone".)
+async function pushToPerson(name, title, text) {
+  const topic = topicOf(name);
+  if (!topic) return false;
+  const here = location.origin + location.pathname;
+  try {
+    const r = await fetch("https://ntfy.sh/" + encodeURIComponent(topic), { method: "POST", headers: { "Title": title, "Priority": "high", "Tags": "cards", "Actions": "view, Open Poké Scan, " + here + ", clear=true" }, body: text });
+    return r.ok;
+  } catch (e) { return false; }
+}
 async function pushToOwner(title, text, requestId) {
   const topic = ntfyTopic();
   if (!topic) return false;
@@ -3442,6 +3514,7 @@ function setRequestStatus(id, status) {
   const before = state.requests[id];
   if (!before) return;
   const after = { ...before, status, decidedAt: Date.now() };
+  if (before.by !== who) pushToPerson(before.by, "Poké Scan: your request was " + (status === "approved" ? "approved" : status === "declined" ? "declined" : "done"), before.text);
   pushAction({ label: (status === "approved" ? "Approved " : status === "declined" ? "Declined " : "Marked done: ") + before.by + "'s request", undo: [{ field: "requests", id, value: before }], redo: [{ field: "requests", id, value: after }] });
   state.requests = { ...state.requests, [id]: after };
   saveEntry("requests", id, after);
@@ -3498,6 +3571,25 @@ $("opt-req-list").addEventListener("click", async e => {
 // Whatever gets pasted, keep only the topic name: the notification that
 // hands it over says "...paste it into Poké Scan → Options → Push to your
 // phone: <topic>", and pasting the whole message is fine.
+$("opt-mine-ntfy").addEventListener("input", () => {
+  if (!who) return;
+  let v = $("opt-mine-ntfy").value.trim();
+  if (/^https?:\/\/ntfy\.sh\//i.test(v)) v = v.replace(/^https?:\/\/ntfy\.sh\//i, "").split(/[/?#]/)[0];
+  const prev = (state.people || {})[who] || {};
+  const person = { ...prev, ntfy: v };
+  state.people = { ...(state.people || {}), [who]: person };
+  save({ people: { [who]: { ntfy: v } } });
+  $("opt-mine-ntfy-line").textContent = v ? "Set. Trades waiting for you and answers to your requests are pushed to your phone." : "Not set.";
+});
+$("opt-ntfy-owner-test").addEventListener("click", async () => {
+  const ok = await pushToOwner("Poké Scan test", "If you can read this, requests will reach you here.", "");
+  showToast(ok ? "Sent — check your phone" : (ntfyTopic() ? "ntfy didn't take it — check the topic name" : "The owner's topic isn't set"));
+});
+$("opt-ntfy-test").addEventListener("click", async () => {
+  if (!who) return;
+  const ok = topicOf(who) ? await pushToPerson(who, "Poké Scan test", "If you can read this, " + who + "'s notifications work.") : false;
+  showToast(ok ? "Sent — check your phone" : (topicOf(who) ? "ntfy didn't take it — check the topic name" : "Type your topic name first"));
+});
 $("opt-ntfy").addEventListener("input", () => {
   if (!isOwner()) return;
   let v = $("opt-ntfy").value.trim();
@@ -3543,11 +3635,15 @@ function startTrade(other, theirEntryId) {
     log: [{ at: Date.now(), by: who, what: theirEntryId ? who + " asked " + other + " for " + ((state.cards[theirEntryId] || {}).snap || {}).name : who + " started a trade with " + other }] };
   state.trades = { ...(state.trades || {}), [id]: t };
   saveEntry("trades", id, t);
+  pushToPerson(other, "Poké Scan: " + who + " wants to trade", t.log[0].what);
   setTab("trade");
   openTradeAdd(id, "A");
 }
 function saveTrade(id, next, line) {
   const before = state.trades[id];
+  const other = next.a === who ? next.b : next.a;
+  if (other && next.status === "open" && next.turn === other) pushToPerson(other, "Poké Scan: your move in a trade with " + who, line || (who + " changed the trade"));
+  else if (other && next.status === "declined") pushToPerson(other, "Poké Scan: trade with " + who + " is off", line || (who + " declined"));
   next = { ...next, updatedAt: Date.now(), log: [...(next.log || []), ...(line ? [{ at: Date.now(), by: who, what: line }] : [])].slice(-30) };
   pushAction({ label: line || "Trade changed", undo: [{ field: "trades", id, value: before }], redo: [{ field: "trades", id, value: next }] });
   state.trades = { ...(state.trades || {}), [id]: next };
@@ -3644,6 +3740,7 @@ function acceptTrade(id) {
     state.money = { ...(state.money || {}), [name]: after };
   }
   const closed = { ...t, status: "accepted", updatedAt: Date.now(), log: [...(t.log || []), { at: Date.now(), by: who, what: who + " accepted — cards and money swapped" }] };
+  pushToPerson(other, "Poké Scan: " + who + " accepted your trade", "The cards and money have swapped.");
   undo.push({ field: "trades", id, value: t }); redo.push({ field: "trades", id, value: closed });
   state.trades = { ...state.trades, [id]: closed };
   pushAction({ label: "Trade with " + other + " accepted", undo, redo });
@@ -4618,10 +4715,12 @@ function openOptions() {
   $("opt-pack-price").value = packPrice().toFixed(2);
   $("opt-pack-price").disabled = !isOwner();
   $("opt-precheck").checked = precheckOn();
-  $("opt-timer").checked = timerOn;
+  $("opt-timer").checked = isOwner() ? timerOwnerToo : timerOn;
   $("opt-precheck").disabled = !isOwner();
   $("opt-gemini-key").value = ""; $("opt-groq-key").value = ""; $("opt-chatgpt-key").value = "";
   $("opt-ntfy").value = isOwner() ? ntfyTopic() : ""; $("opt-ntfy").disabled = !isOwner();
+  $("opt-mine-ntfy").value = who ? topicOf(who) : ""; $("opt-mine-ntfy").disabled = !who;
+  $("opt-mine-ntfy-line").textContent = who ? (topicOf(who) ? "Set. Trades waiting for you and answers to your requests are pushed to your phone." : "Not set — open the ntfy app on your phone, tap +, make up a topic name, subscribe, and type the same name here.") : "Pick a name first.";
   $("opt-ntfy-line").textContent = ntfyTopic() ? "Set. Every new request is pushed to your phone with an Approve button." : "NOT SET — requests only show here until you paste your ntfy topic (open the ntfy app on your phone; the topic name is at the top).";
   renderRequests();
   $("opt-account-line").textContent = currentUser && currentUser.email ? "as " + currentUser.email : "";
@@ -4793,7 +4892,9 @@ function attachSheetSwipe(id) {
 // language rows) and text boxes keep the gesture for themselves.
 function goBackOneStep() {
   if (tab === "find") {
-    if (results.length && pickStep === "cards") { pickStep = SUBKINDS[kindFilter] || kindFilter === "regular" ? "sub" : "type"; renderResults(); return true; }
+    if (results.length && pickStep === "cards") { pickStep = kindFilter === "energy" ? "year" : (SUBKINDS[kindFilter] || kindFilter === "regular") ? "sub" : "type"; renderResults(); return true; }
+    if (results.length && pickStep === "year") { pickStep = "etype"; renderResults(); return true; }
+    if (results.length && pickStep === "etype") { pickStep = "sub"; renderResults(); return true; }
     if (results.length && pickStep === "sub") { pickStep = "type"; renderResults(); return true; }
     if (results.length || $("q").value.trim()) { $("q").value = ""; $("q-clear").classList.add("hide"); results = []; bestId = null; $("scanned").classList.add("hide"); setStatus("find-status", ""); renderResults(); return true; }
     return false;
@@ -4889,6 +4990,7 @@ function takeKeysFromLink() {
 // not seen yet, once. (Asked for: "when I go back on, it will say this was
 // updated, and who asked to update it.")
 const CHANGES = [
+  { id: 25, date: "2026-09-20", by: "Moshe", what: "Everyone can get notifications: in Options, type your own ntfy topic (make one up in the ntfy app) and trades waiting for you and answers to your requests are pushed to your phone, with a Send a test button. Log out is at the top and the bottom. Dad isn't asked how long on open. Energy asks what you have, which energy, and which year before showing cards." },
   { id: 24, date: "2026-09-20", by: "Moshe", what: "Years: add a year after a name (charizard 2023) to see only that year's printings; a year on its own shows that year's sets. Energy is its own type on the type screen, and a type you can search." },
   { id: 23, date: "2026-09-20", by: "Moshe", what: "Twelve things at once: search by type (tap a type or say/type Fire, Water…); \"Why it costs what it costs\" on every card, with an Ask Gemini button; one EX category that asks Mega or not; Trainer cards (and Energy) in their own category; Amazing/Radiant and Trainer Gallery in Special; \"Ultra rare\" instead of calling every one a full art; a microphone to say the card's name; owned cards outlined in green; a check of the set letters and number before a card is added; searching Mew no longer brings Mewtwo; a Sign out button at the bottom." },
   { id: 22, date: "2026-09-20", by: "Dad", what: "Swipe right to go back, on every screen: cards → the type question → the search; a set → the list of sets; any tab → Find." },
