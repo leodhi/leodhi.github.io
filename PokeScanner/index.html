@@ -74,7 +74,9 @@
   }
 
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-  html, body { background: var(--bg); overscroll-behavior-y: contain; }
+  /* Nothing scrolls sideways but the rows built to (kinds, languages,
+     types) -- a wide element must never let the page or a sheet drift. */
+  html, body { background: var(--bg); overscroll-behavior-y: contain; overflow-x: hidden; }
   body {
     margin: 0; color: var(--ink); font-size: 16px; line-height: 1.4;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -116,7 +118,7 @@
   .home-link { flex: none; font: inherit; font-size: 12.5px; cursor: pointer; font-weight: 600; color: var(--ink-muted); text-decoration: none; border: 1px solid var(--line); background: var(--panel-2); border-radius: 999px; padding: 7px 12px; min-height: 36px; display: inline-flex; align-items: center; gap: 6px; touch-action: manipulation; }
   .home-link:active { transform: scale(0.94); }
   /* Stays put while the card scrolls, so Back is never off the top. */
-  .sheet-top { display: flex; justify-content: space-between; align-items: center; margin: -4px -18px 10px; padding: 4px 14px; position: sticky; top: -14px; z-index: 3; background: var(--panel); border-bottom: 1px solid var(--panel-2); }
+  .sheet-top { display: flex; justify-content: space-between; align-items: center; margin: -4px 0 10px; padding: 4px 0; position: sticky; top: -14px; z-index: 3; background: var(--panel); border-bottom: 1px solid var(--panel-2); }
   .sheet-top .link { padding: 6px 8px; min-height: 0; text-decoration: none; font-weight: 600; }
   /* The +, the −, and the money bag under the price beside the picture. */
   .hero-price { margin-top: 10px; font-size: 22px; font-weight: 900; letter-spacing: -0.02em; color: var(--ok); }
@@ -500,7 +502,7 @@
     padding: 14px 18px calc(18px + env(safe-area-inset-bottom));
     box-shadow: 0 -6px 24px rgba(0,0,0,0.5);
     transform: translateY(26px); transition: transform 0.28s cubic-bezier(.2,.9,.3,1.1);
-    max-height: 100%; overflow-y: auto; -webkit-overflow-scrolling: touch; touch-action: pan-y;
+    max-height: 100%; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; touch-action: pan-y;
   }
   .sheet-back.show .sheet { transform: translateY(0); }
   .sheet.sheet-dragging { transition: none; }
@@ -5052,6 +5054,7 @@ function takeKeysFromLink() {
 // not seen yet, once. (Asked for: "when I go back on, it will say this was
 // updated, and who asked to update it.")
 const CHANGES = [
+  { id: 27, date: "2026-09-20", by: "Dad", what: "Fixed: screens no longer slide sideways as you swipe (Options was drifting left)." },
   { id: 26, date: "2026-09-20", by: "Moshe", what: "An All choice on the type screen. Every language is back (Japanese, French, German, Spanish, Italian, Korean, Chinese) and a card's prices are that printing's own. Scanning: a bad key no longer stops the other readers, and Groq goes first by itself once its key is in. Screen modes in Options: Classic red, Ocean, Forest, Pikachu, Night, Ember. Dad's Approve button now sends a request straight into his Claude chat." },
   { id: 25, date: "2026-09-20", by: "Moshe", what: "Everyone can get notifications: in Options, type your own ntfy topic (make one up in the ntfy app) and trades waiting for you and answers to your requests are pushed to your phone, with a Send a test button. Log out is at the top and the bottom. Dad isn't asked how long on open. Energy asks what you have, which energy, and which year before showing cards." },
   { id: 24, date: "2026-09-20", by: "Moshe", what: "Years: add a year after a name (charizard 2023) to see only that year's printings; a year on its own shows that year's sets. Energy is its own type on the type screen, and a type you can search." },
