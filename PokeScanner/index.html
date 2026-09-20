@@ -1072,15 +1072,17 @@
         <div class="opt-text">Changes people asked for<small id="opt-req-line"></small></div>
       </div>
       <ul class="req-list" id="opt-req-list"></ul>
-      <div class="opt-row">
-        <div class="opt-text">Push to your phone<small id="opt-ntfy-line">Your ntfy topic. Every new request is sent there straight away, with an Approve button. Only you see this.</small></div>
-      </div>
       <div class="opt-row" id="opt-mine-ntfy-row">
         <div class="opt-text">My own notifications<small id="opt-mine-ntfy-line">Your ntfy topic on this phone: trades waiting for you and answers to your requests are pushed there.</small></div>
         <button type="button" class="pill-btn" id="opt-ntfy-test">Send a test</button>
       </div>
       <input type="text" id="opt-mine-ntfy" placeholder="ntfy topic name (open the ntfy app, tap +, make one up)" autocomplete="off" autocapitalize="off">
+      <div class="opt-row" id="opt-ntfy-row">
+        <div class="opt-text">Push to your phone (owner)<small id="opt-ntfy-line">Your ntfy topic. Every new request is sent there straight away, with an Approve button. Only you see this.</small></div>
+        <button type="button" class="pill-btn" id="opt-ntfy-owner-test">Send a test to the owner's phone</button>
+      </div>
       <input type="text" id="opt-ntfy" placeholder="ntfy topic name" autocomplete="off" autocapitalize="off">
+      <p class="field-note">The same topic your reminders use. Leave it blank and requests only show here.</p>
       <div class="opt-row">
         <div class="opt-text">Send approvals into my Claude Code chat<small>The "Send to Claude" button on the notification drops the request into this chat on the Mac (needs the phone on Tailscale). Blank chat id = whichever chat you touched last.</small></div>
       </div>
@@ -1088,8 +1090,6 @@
         <input type="text" id="opt-claude-host" placeholder="Mac address:port" autocomplete="off" autocapitalize="off" style="flex:1;min-width:0">
         <input type="text" id="opt-claude-session" placeholder="chat id" autocomplete="off" autocapitalize="off" style="flex:1.4;min-width:0">
       </div>
-      <div class="btn-row" style="margin-top:6px"><button type="button" class="pill-btn" id="opt-ntfy-owner-test">Send a test to the owner's phone</button></div>
-      <p class="field-note">The same topic your reminders use. Leave it blank and requests only show here.</p>
     </div>
 
     <div class="opt-section" data-words="download copy export backup save file">
@@ -5054,6 +5054,7 @@ function takeKeysFromLink() {
 // not seen yet, once. (Asked for: "when I go back on, it will say this was
 // updated, and who asked to update it.")
 const CHANGES = [
+  { id: 28, date: "2026-09-20", by: "Dad", what: "Options: each notification box now sits under its own heading with its own test button (the owner box had slipped under My own notifications)." },
   { id: 27, date: "2026-09-20", by: "Dad", what: "Fixed: screens no longer slide sideways as you swipe (Options was drifting left)." },
   { id: 26, date: "2026-09-20", by: "Moshe", what: "An All choice on the type screen. Every language is back (Japanese, French, German, Spanish, Italian, Korean, Chinese) and a card's prices are that printing's own. Scanning: a bad key no longer stops the other readers, and Groq goes first by itself once its key is in. Screen modes in Options: Classic red, Ocean, Forest, Pikachu, Night, Ember. Dad's Approve button now sends a request straight into his Claude chat." },
   { id: 25, date: "2026-09-20", by: "Moshe", what: "Everyone can get notifications: in Options, type your own ntfy topic (make one up in the ntfy app) and trades waiting for you and answers to your requests are pushed to your phone, with a Send a test button. Log out is at the top and the bottom. Dad isn't asked how long on open. Energy asks what you have, which energy, and which year before showing cards." },
