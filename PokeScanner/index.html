@@ -746,7 +746,7 @@
         <input type="file" id="file-scan" accept="image/*" capture="environment" class="hide">
         <input type="file" id="file-photo" accept="image/*" class="hide">
       </div>
-      <div class="search-hint" id="search-hint">Scan uses the camera on whatever you're on — a phone's camera app, or the webcam on a laptop. Typing the card's number after the name (like 25/102) narrows it down.</div>
+      <div class="search-hint" id="search-hint">Scan uses the camera on whatever you're on — a phone's camera app, or the webcam on a laptop. After the name you can add the number (25/102) or a year (2023) to narrow it down; a year on its own shows that year's sets.</div>
       <div class="langs" id="games"></div>
       <div class="langs" id="langs"></div>
       <div id="scanned" class="scanned hide"></div>
@@ -1854,7 +1854,7 @@ $("tab-sets").addEventListener("click", () => setTab("sets"));
 // the page works without it.
 const DEX = "https://api.tcgdex.net/v2";
 const DEX_GQL = "https://api.tcgdex.net/v2/graphql";
-const SYMBOLS_API = "https://api.pokemontcg.io/v2/sets?select=id,name&pageSize=250";
+const SYMBOLS_API = "https://api.pokemontcg.io/v2/sets?select=id,name,releaseDate&pageSize=250";
 
 async function gql(query) {
   const r = await fetch(DEX_GQL, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ query }) });
@@ -1881,6 +1881,9 @@ async function searchCards(name) {
     list = await searchYgo(name);
   } else if (lang === "en" && typeWord(name)) {
     list = await searchByType(typeWord(name));
+  } else if (lang === "en" && /^energy$/i.test(name.trim())) {
+    const data = await gql(`{ cards(filters:{category:"Energy"}, pagination:{page:1,itemsPerPage:120}) { id localId name rarity image category stage suffix regulationMark types trainerType set { id name releaseDate symbol logo cardCount { official total } } } }`);
+    list = (data.cards || []).filter(c => c && !isPocket(c));
   } else if (lang === "en") {
     const safe = name.trim().toLowerCase().replace(/\\/g, "\\\\").replace(/"/g, '\\"');
     const data = await gql(`{ cards(filters:{name:"${safe}"}) { id localId name rarity image category stage suffix regulationMark types trainerType set { id name releaseDate symbol logo cardCount { official total } } } }`);
@@ -1951,9 +1954,10 @@ const KINDS = {
   vmax:    { label: "VMAX", sub: "" },
   vstar:   { label: "VSTAR", sub: "" },
   special: { label: "Special", sub: "Ultra rare, illustration rare, gallery, gold, promo…" },
-  trainer: { label: "Trainer", sub: "Items, Supporters, Stadiums, Tools — and Energy" }
+  trainer: { label: "Trainer", sub: "Items, Supporters, Stadiums, Tools" },
+  energy:  { label: "Energy", sub: "Basic and special energy" }
 };
-const KIND_ORDER = ["regular", "EX", "gx", "v", "vmax", "vstar", "special", "trainer"];
+const KIND_ORDER = ["regular", "EX", "gx", "v", "vmax", "vstar", "special", "trainer", "energy"];
 // The choices inside a group. `test` says which cards match.
 const isMega = c => /^Mega\s|^M\s/i.test(String(c.name || ""));
 const SUBKINDS = {
@@ -1967,8 +1971,11 @@ const SUBKINDS = {
     { key: "supporter", label: "Supporter", test: c => /supporter/i.test(c.trainerType || "") },
     { key: "stadium", label: "Stadium", test: c => /stadium/i.test(c.trainerType || "") },
     { key: "tool", label: "Tool", test: c => /tool/i.test(c.trainerType || "") },
-    { key: "energy", label: "Energy", test: c => c.category === "Energy" },
     { key: "othertrainer", label: "Other", test: c => c.category === "Trainer" && !/item|supporter|stadium|tool/i.test(c.trainerType || "") }
+  ],
+  energy: [
+    { key: "basic", label: "Basic energy", test: c => /basic/i.test(c.name || "") || !/special|rare|prism|double|twin|triple|rainbow|counter|capture|jet|gift|reversal|luminous|therapeutic|neo|mist|treasure|legacy|medical|lucky|regenerative|elemental|enriching/i.test(c.name || "") },
+    { key: "specialenergy", label: "Special energy", test: c => !/basic/i.test(c.name || "") && /special|rare|prism|double|twin|triple|rainbow|counter|capture|jet|gift|reversal|luminous|therapeutic|neo|mist|treasure|legacy|medical|lucky|regenerative|elemental|enriching/i.test(c.name || "") }
   ],
   gx: [
     { key: "tag", label: "Tag Team GX", test: c => /TAG TEAM/i.test(c.suffix || "") || /&/.test(c.name) },
@@ -2000,6 +2007,7 @@ const KIND_ART = {
   vmax:    `<svg viewBox="0 0 48 48"><defs><linearGradient id="gVM" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffd6d6"/><stop offset="1" stop-color="#d13a3a"/></linearGradient></defs><rect x="2" y="9" width="44" height="30" rx="8" fill="url(#gVM)" stroke="#8b1a1a" stroke-width="2"/><text x="24" y="31" text-anchor="middle" font-family="Arial Black,Arial" font-weight="900" font-size="15" fill="#3d0a0a">VMAX</text></svg>`,
   vstar:   `<svg viewBox="0 0 48 48"><defs><linearGradient id="gVS" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff6c8"/><stop offset="1" stop-color="#e0b230"/></linearGradient></defs><rect x="2" y="9" width="44" height="30" rx="8" fill="url(#gVS)" stroke="#8a6a00" stroke-width="2"/><text x="20" y="31" text-anchor="middle" font-family="Arial Black,Arial" font-weight="900" font-size="15" fill="#3d2b00">VSTAR</text><path d="M40 15l1.6 3.4 3.6.4-2.7 2.5.8 3.6-3.3-1.9-3.3 1.9.8-3.6-2.7-2.5 3.6-.4z" fill="#8a6a00"/></svg>`,
   trainer: `<svg viewBox="0 0 48 48"><defs><linearGradient id="gTR" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d8f5e0"/><stop offset="1" stop-color="#2e9e5b"/></linearGradient></defs><rect x="6" y="6" width="36" height="36" rx="8" fill="url(#gTR)" stroke="#1b5e34" stroke-width="2"/><rect x="13" y="14" width="22" height="4" rx="2" fill="#0f3d21"/><rect x="13" y="22" width="22" height="4" rx="2" fill="#0f3d21"/><rect x="13" y="30" width="14" height="4" rx="2" fill="#0f3d21"/></svg>`,
+  energy:  `<svg viewBox="0 0 48 48"><defs><linearGradient id="gEN" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff59d"/><stop offset="1" stop-color="#f9a825"/></linearGradient></defs><circle cx="24" cy="24" r="20" fill="url(#gEN)" stroke="#8a5a00" stroke-width="2"/><path d="M26 9l-11 18h8l-3 12 12-18h-8z" fill="#5d3a00"/></svg>`,
   special: `<svg viewBox="0 0 48 48"><defs><linearGradient id="gSP" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffd1f4"/><stop offset="0.5" stop-color="#b5f2ff"/><stop offset="1" stop-color="#fff6b0"/></linearGradient></defs><circle cx="24" cy="24" r="21" fill="url(#gSP)" stroke="#8a6aa0" stroke-width="2"/><path d="M24 8l4.4 9.4 10.3 1.3-7.6 7 2 10.2L24 31l-9.1 4.9 2-10.2-7.6-7 10.3-1.3z" fill="#7a4fa0"/></svg>`
 };
 function kindArt(kind, size) { return `<span class="kind-art" style="width:${size || 44}px;height:${size || 44}px">${KIND_ART[kind] || KIND_ART.regular}</span>`; }
@@ -2008,7 +2016,8 @@ function kindArt(kind, size) { return `<span class="kind-art" style="width:${siz
 function kindWords(c) {
   const bits = [];
   if (c.kind === "EX") bits.push((isMega(c) ? "Mega " : "") + (c.family === "ex" ? "ex" : "EX"));
-  else if (c.kind === "trainer") bits.push(c.category === "Energy" ? "Energy" : (c.trainerType ? c.trainerType : "Trainer"));
+  else if (c.kind === "trainer") bits.push(c.trainerType ? c.trainerType : "Trainer");
+  else if (c.kind === "energy") bits.push("Energy");
   else if (c.kind === "gx") bits.push(/TAG TEAM/i.test(c.suffix || "") || /&/.test(c.name) ? "Tag Team GX" : "GX");
   else if (c.kind === "special") bits.push(FINISH_WORDS[c.finish] || c.rarity || "Special");
   else if (c.kind === "regular") bits.push(c.finish === "holo" ? "Holo" : "Regular");
@@ -2045,6 +2054,13 @@ function finishOf(c) {
   if (/holo/.test(r)) return "holo";
   return "";
 }
+// The main database has no release date for many sets; the second one
+// has a date for every set, matched by name.
+function yearOf(c) {
+  if (c.set && c.set.releaseDate) return String(c.set.releaseDate).slice(0, 4);
+  const hit = c.set && symbolMap && symbolMap[normName(c.set.name)];
+  return hit && typeof hit === "object" && hit.date ? String(hit.date).slice(0, 4) : "";
+}
 function decorate(c) {
   if (c.game === "ygo") {
     c.family = ""; c.finish = ygoFinish(c);
@@ -2055,10 +2071,10 @@ function decorate(c) {
   c.family = familyOf(c);
   c.finish = finishOf(c);
   const fam = c.family;
-  c.kind = (c.category === "Trainer" || c.category === "Energy") ? "trainer"
+  c.kind = c.category === "Energy" ? "energy" : c.category === "Trainer" ? "trainer"
          : (fam === "EX" || fam === "ex") ? "EX" : fam === "gx" ? "gx" : fam === "v" ? "v" : fam === "vmax" ? "vmax" : fam === "vstar" ? "vstar"
          : (c.finish && c.finish !== "holo") || fam === "other" ? "special" : "regular";
-  c.year = c.set && c.set.releaseDate ? String(c.set.releaseDate).slice(0, 4) : "";
+  c.year = yearOf(c);
   // `total` is what the card itself prints (125/197 -- the official count);
   // `realTotal` is how many cards the set actually has, secret ones included.
   c.total = c.set && c.set.cardCount ? (c.set.cardCount.official || c.set.cardCount.total || "") : "";
@@ -2074,7 +2090,8 @@ function finishText(c) { return ""; }
 // placeholder and fills in when a picture turns up.
 function altImgUrl(c, size) {
   if (!c || !c.set || !symbolMap) return "";
-  const id = symbolMap[normName(c.set.name)];
+  const hit = symbolMap[normName(c.set.name)];
+  const id = hit && (typeof hit === "string" ? hit : hit.id);
   if (!id) return "";
   const n = String(c.localId || "").replace(/^0+(?=\d)/, "");
   return n ? "https://images.pokemontcg.io/" + id + "/" + n + (size === "high" ? "_hires" : "") + ".png" : "";
@@ -2145,7 +2162,7 @@ function headlinePrice(c) {
 // pokemontcg.io's symbol pictures, matched by set NAME to whatever TCGdex
 // called the set. Fetched once and kept for a month; if that site is down
 // (it often is) the sheet shows the set's logo from TCGdex instead.
-const SYMBOLS_KEY = "pokescan-set-symbols-v1";
+const SYMBOLS_KEY = "pokescan-set-symbols-v2";
 let symbolMap = null;
 const normName = s => String(s || "").toLowerCase().replace(/&/g, "and").replace(/[^a-z0-9]+/g, "");
 async function setSymbolUrl(setName) {
@@ -2161,11 +2178,14 @@ async function setSymbolUrl(setName) {
       if (!r.ok) throw new Error(String(r.status));
       const body = await r.json();
       symbolMap = {};
-      (body.data || []).forEach(s => { symbolMap[normName(s.name)] = s.id; });
+      (body.data || []).forEach(s => { symbolMap[normName(s.name)] = { id: s.id, date: String(s.releaseDate || "").replace(/\//g, "-") }; });
+      // Dates arrived: the cards on screen may have been drawn without one.
+      renderResults();
       try { localStorage.setItem(SYMBOLS_KEY, JSON.stringify({ at: Date.now(), map: symbolMap })); } catch (e) {}
     } catch (e) { symbolMap = {}; }
   }
-  const id = symbolMap[normName(setName)];
+  const hit = symbolMap[normName(setName)];
+  const id = hit && (typeof hit === "string" ? hit : hit.id);
   return id ? "https://images.pokemontcg.io/" + id + "/symbol.png" : "";
 }
 
@@ -2461,10 +2481,14 @@ let bestId = null;         // the card a scan pointed at
 let searchSeq = 0;
 
 // "pikachu 25/102" or "charizard 4" -> a name and a number to rank by.
+// "charizard 2023" -> that name, that year; "2023" alone -> that year's sets.
+// (Moshe: "you should accept years".)
 function parseQuery(q) {
-  const m = /^(.*?)[\s#]+(\d{1,3}[a-z]?)(?:\s*\/\s*(\d{1,3}))?\s*$/i.exec(q.trim());
-  if (m && m[1].trim()) return { name: m[1].trim(), number: m[2], total: m[3] || "" };
-  return { name: q.trim(), number: "", total: "" };
+  let year = "";
+  q = q.trim().replace(/(^|\s)((?:19|20)\d\d)(?=\s|$)/, (m, sp, y) => { year = y; return sp; }).trim();
+  const m = /^(.*?)[\s#]+(\d{1,3}[a-z]?)(?:\s*\/\s*(\d{1,3}))?\s*$/i.exec(q);
+  if (m && m[1].trim()) return { name: m[1].trim(), number: m[2], total: m[3] || "", year };
+  return { name: q, number: "", total: "", year };
 }
 function rankResults(list, hint) {
   const num = hint && hint.number ? String(hint.number).replace(/^0+/, "").toLowerCase() : "";
@@ -2487,6 +2511,16 @@ async function runSearch(q, hint, fromScan) {
   const seq = ++searchSeq;
   const parsed = parseQuery(q);
   const merged = { ...parsed, ...(hint || {}) };
+  if (!parsed.name && parsed.year) {
+    // A year on its own: every set from that year.
+    results = []; renderResults();
+    setTab("sets"); setsOpen = null;
+    await renderSets();
+    const head = [...document.querySelectorAll("#sets-root .sets-year")].find(el => el.textContent.trim() === parsed.year);
+    if (head) { head.scrollIntoView({ behavior: "smooth", block: "start" }); setStatus("sets-status", "The sets from " + parsed.year + "."); }
+    else setStatus("sets-status", "No sets from " + parsed.year + ".", true);
+    return;
+  }
   if (!parsed.name) { results = []; renderResults(); return; }
   setStatus("find-status", "Looking up " + parsed.name + "…");
   try {
@@ -2498,6 +2532,9 @@ async function runSearch(q, hint, fromScan) {
       list = await searchCards(first);
       if (seq !== searchSeq) return;
     }
+    if (merged.year && !symbolMap) { try { await setSymbolUrl(""); } catch (e) {} }
+    list.forEach(c => { if (!c.year) c.year = yearOf(c); });
+    if (merged.year) { const inYear = list.filter(c => c.year === merged.year); if (inYear.length) list = inYear; else setStatus("find-status", "Nothing from " + merged.year + " — showing every year.", false); }
     results = rankResults(list, merged);
     bestId = fromScan && results.length && (merged.number || merged.set) ? results[0].id : null;
     // Typing asks the type first; a scan already knows the card, so it
@@ -2506,7 +2543,7 @@ async function runSearch(q, hint, fromScan) {
     subFilter = "all"; pendingFinish = "";
     if (bestId) fullCard(bestId).then(full => noteRecent(full, "scan")).catch(() => {});
     kindFilter = "all";
-    setStatus("find-status", results.length ? "" : (typeWord(parsed.name) ? "No " + typeWord(parsed.name) + " cards came back — try again in a moment." : "No card called “" + parsed.name + "”. Check the spelling on the card — it's printed at the top."), !results.length);
+    setStatus("find-status", results.length ? (merged.year && results.every(c => c.year === merged.year) ? "Only " + merged.year + "." : "") : (typeWord(parsed.name) ? "No " + typeWord(parsed.name) + " cards came back — try again in a moment." : "No card called “" + parsed.name + "”. Check the spelling on the card — it's printed at the top."), !results.length);
     renderResults();
   } catch (e) {
     if (seq !== searchSeq) return;
@@ -2645,9 +2682,9 @@ function ygoFinish(c) {
 // Search by type: tap a type, or type its name in the box. The database
 // lists cards by energy type; the newest sixty are shown. (Moshe.)
 const TYPES = ["Grass", "Fire", "Water", "Lightning", "Psychic", "Fighting", "Darkness", "Metal", "Fairy", "Dragon", "Colorless"];
-const TYPE_COLORS = { Grass: "#4caf50", Fire: "#ff5722", Water: "#2196f3", Lightning: "#ffc107", Psychic: "#9c27b0", Fighting: "#a0522d", Darkness: "#37474f", Metal: "#78909c", Fairy: "#e91e63", Dragon: "#ff9800", Colorless: "#9e9e9e" };
+const TYPE_COLORS = { Grass: "#4caf50", Fire: "#ff5722", Water: "#2196f3", Lightning: "#ffc107", Psychic: "#9c27b0", Fighting: "#a0522d", Darkness: "#37474f", Metal: "#78909c", Fairy: "#e91e63", Dragon: "#ff9800", Colorless: "#9e9e9e", Energy: "#f9a825" };
 function renderTypes() {
-  $("types").innerHTML = TYPES.map(t => `<button type="button" class="chip" data-type="${t}" style="border-color:${TYPE_COLORS[t]}"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${TYPE_COLORS[t]};margin-right:6px;vertical-align:middle"></span>${t}</button>`).join("");
+  $("types").innerHTML = TYPES.concat(["Energy"]).map(t => `<button type="button" class="chip" data-type="${t}" style="border-color:${TYPE_COLORS[t]}"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${TYPE_COLORS[t]};margin-right:6px;vertical-align:middle"></span>${t}</button>`).join("");
   $("types").classList.toggle("hide", game !== "pokemon");
 }
 $("types").addEventListener("click", e => {
@@ -2733,7 +2770,7 @@ function tileHtml(c, extra) {
     ${extra && extra.fav ? `<span class="fav">★</span>` : ""}
     ${extra && extra.how === "scan" ? `<span class="have" style="background:var(--accent)">scanned</span>` : ""}
     <div class="t-name">${escapeHtml(c.name)}</div>
-    <div class="t-sub">${escapeHtml((c.set && c.set.name) || "")}${c.year ? " · " + c.year : ""} · <span class="t-num">${escapeHtml(numberLabel(c))}</span></div>
+    <div class="t-sub">${escapeHtml((c.set && c.set.name) || "")}${(c.year || (c.year = yearOf(c))) ? " · " + c.year : ""} · <span class="t-num">${escapeHtml(numberLabel(c))}</span></div>
     <div class="t-kind">${kindArt(c.kind, 30)}<span>${escapeHtml(kindWords(c))}</span></div>
     ${c.rarity && !/^(common|uncommon|rare)$/i.test(c.rarity) && !kindWords(c).toLowerCase().includes(c.rarity.toLowerCase()) ? `<div class="t-rarity">${escapeHtml(c.rarity)}</div>` : ""}
     ${priceText ? `<div class="t-row"><span class="t-price">${priceText}</span><span class="t-sub" style="margin:0">market today${extra && Number(extra.qty) > 1 ? " · ×" + Number(extra.qty) : ""}</span></div>` : ""}
@@ -4852,6 +4889,7 @@ function takeKeysFromLink() {
 // not seen yet, once. (Asked for: "when I go back on, it will say this was
 // updated, and who asked to update it.")
 const CHANGES = [
+  { id: 24, date: "2026-09-20", by: "Moshe", what: "Years: add a year after a name (charizard 2023) to see only that year's printings; a year on its own shows that year's sets. Energy is its own type on the type screen, and a type you can search." },
   { id: 23, date: "2026-09-20", by: "Moshe", what: "Twelve things at once: search by type (tap a type or say/type Fire, Water…); \"Why it costs what it costs\" on every card, with an Ask Gemini button; one EX category that asks Mega or not; Trainer cards (and Energy) in their own category; Amazing/Radiant and Trainer Gallery in Special; \"Ultra rare\" instead of calling every one a full art; a microphone to say the card's name; owned cards outlined in green; a check of the set letters and number before a card is added; searching Mew no longer brings Mewtwo; a Sign out button at the bottom." },
   { id: 22, date: "2026-09-20", by: "Dad", what: "Swipe right to go back, on every screen: cards → the type question → the search; a set → the list of sets; any tab → Find." },
   { id: 21, date: "2026-09-20", by: "Moshe", what: "When you open the app it asks how long you want to use it (5, 15, 30 minutes, an hour, or no limit). When the time is up it asks if you want to keep going; No signs you out. Switch it off in Options if you don't want the question." },
