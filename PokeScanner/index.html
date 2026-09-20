@@ -3256,7 +3256,19 @@ $("opt-req-list").addEventListener("click", async e => {
   else if (cp) { const ok = await copyText(claudeLineFor(state.requests[cp.dataset.reqCopy])); showToast(ok ? "Copied — paste it into Claude" : "Couldn't copy here."); }
   else if (dn) setRequestStatus(dn.dataset.reqDone, "done");
 });
-$("opt-ntfy").addEventListener("input", () => { if (!isOwner()) return; const v = $("opt-ntfy").value.trim(); saveSettings({ ntfyTopic: v }); });
+// Whatever gets pasted, keep only the topic name: the notification that
+// hands it over says "...paste it into Poké Scan → Options → Push to your
+// phone: <topic>", and pasting the whole message is fine.
+$("opt-ntfy").addEventListener("input", () => {
+  if (!isOwner()) return;
+  let v = $("opt-ntfy").value.trim();
+  const m = /:\s*([A-Za-z0-9_-]{3,64})\s*$/.exec(v);
+  if (m && /paste|topic|ntfy/i.test(v)) v = m[1];
+  else if (/^https?:\/\/ntfy\.sh\//i.test(v)) v = v.replace(/^https?:\/\/ntfy\.sh\//i, "").split(/[/?#]/)[0];
+  if (v !== $("opt-ntfy").value) $("opt-ntfy").value = v;
+  saveSettings({ ntfyTopic: v });
+  $("opt-ntfy-line").textContent = v ? "Set. Every new request is pushed to your phone with an Approve button." : "NOT SET — requests only show here until you paste your ntfy topic.";
+});
 let reqNoticeShown = false;
 function requestNotice() {
   if (!isOwner() || reqNoticeShown) return;
