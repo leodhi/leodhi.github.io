@@ -142,6 +142,34 @@
   @keyframes claim-glow { 0%, 100% { box-shadow: 0 0 0 3px rgba(255,204,0,0.25), 0 6px 16px rgba(0,0,0,0.5); } 50% { box-shadow: 0 0 0 7px rgba(255,204,0,0.45), 0 6px 22px rgba(0,0,0,0.6); } }
   .who-chip .who-dot img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
   .hero { position: relative; }
+  /* ---------- Sets (master sets) ---------- */
+  .set-row { display: flex; align-items: center; gap: 12px; background: var(--panel); border: 1px solid var(--panel-2); border-radius: 14px; padding: 10px 12px; margin-top: 8px; cursor: pointer; touch-action: manipulation; transition: transform 0.12s cubic-bezier(.2,.9,.3,1.1); }
+  .set-row:active { transform: scale(0.98); }
+  .set-row.dark { opacity: 0.45; filter: grayscale(1); }
+  .set-row.lit { border-color: rgba(255,204,0,0.55); box-shadow: 0 0 0 3px rgba(255,204,0,0.12), var(--shadow); }
+  .set-row img { height: 34px; width: 90px; object-fit: contain; flex: none; }
+  .set-row .sr-main { flex: 1; min-width: 0; }
+  .set-row .sr-name { font-size: 15px; font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .set-row .sr-sub { font-size: 12px; color: var(--ink-muted); }
+  .set-row .sr-have { flex: none; text-align: right; font-size: 15px; font-weight: 900; font-variant-numeric: tabular-nums; }
+  .set-row .sr-have small { display: block; font-size: 11px; font-weight: 600; color: var(--ink-muted); }
+  .set-row.lit .sr-have { color: var(--gold); }
+  .sets-year { font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--ink-faint); margin: 18px 2px 4px; }
+  .master-head { display: flex; align-items: center; gap: 12px; margin-top: 12px; }
+  .master-head img { height: 40px; max-width: 45%; object-fit: contain; }
+  .master-head .mh-name { font-size: 18px; font-weight: 900; }
+  .master-head .mh-sub { font-size: 12.5px; color: var(--ink-muted); }
+  .master-bar { height: 8px; border-radius: 999px; background: var(--panel-2); overflow: hidden; margin-top: 10px; }
+  .master-bar div { height: 100%; background: linear-gradient(90deg, var(--ok), var(--gold)); }
+  .master { display: grid; grid-template-columns: repeat(var(--cols), minmax(0, 1fr)); gap: 8px; margin-top: 12px; }
+  .master .mc { position: relative; border-radius: 10px; overflow: hidden; background: var(--panel); border: none; padding: 0; cursor: pointer; touch-action: manipulation; font: inherit; color: var(--ink); text-align: left; }
+  .master .mc img, .master .mc .mc-blank { width: 100%; aspect-ratio: 63 / 88; object-fit: cover; display: block; background: var(--panel-2); }
+  .master .mc.none img { filter: grayscale(1) brightness(0.45); }
+  .master .mc .mc-num { position: absolute; top: 4px; left: 4px; font-size: 10px; font-weight: 800; background: rgba(0,0,0,0.6); color: #fff; border-radius: 6px; padding: 1px 5px; }
+  /* The little circle with the count, like the game's master-set view. */
+  .master .mc .mc-have { position: absolute; bottom: 5px; right: 5px; min-width: 24px; height: 24px; border-radius: 12px; padding: 0 6px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 900; background: var(--ok); color: #fff; box-shadow: 0 1px 4px rgba(0,0,0,0.5); }
+  .master .mc.none .mc-have { background: rgba(0,0,0,0.55); color: rgba(255,255,255,0.6); }
+  .master .mc .mc-name { font-size: 10.5px; padding: 4px 6px 5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   /* ---------- Requests ---------- */
   .req-bar { margin-top: 28px; background: var(--panel); border: 1px solid var(--panel-2); border-radius: 16px; padding: 14px; }
   .req-bar .req-title { font-size: 14px; font-weight: 800; margin-bottom: 8px; }
@@ -223,7 +251,7 @@
   /* ---------- Two tabs: Find, My cards ---------- */
   .seg { display: flex; background: var(--panel); border: 1px solid var(--panel-2); border-radius: 12px; padding: 3px; margin: 12px 0 14px; }
   .seg button {
-    flex: 1; font: inherit; font-size: 14px; font-weight: 700; border: none; border-radius: 9px; min-height: 40px;
+    flex: 1; font: inherit; font-size: 13px; padding: 0 2px; font-weight: 700; border: none; border-radius: 9px; min-height: 40px;
     background: transparent; color: var(--ink-muted); cursor: pointer; touch-action: manipulation;
     transition: background 0.15s ease, color 0.15s ease, transform 0.1s cubic-bezier(.2,.9,.3,1.1);
   }
@@ -686,10 +714,11 @@
 
     <div id="whats-new" class="whats-new hide"></div>
     <div class="seg" role="tablist">
-      <button type="button" role="tab" id="tab-find" aria-selected="true">Find a card</button>
+      <button type="button" role="tab" id="tab-find" aria-selected="true">Find</button>
       <button type="button" role="tab" id="tab-mine" aria-selected="false">My cards<span class="count" id="mine-count"></span></button>
       <button type="button" role="tab" id="tab-shop" aria-selected="false">Shop</button>
       <button type="button" role="tab" id="tab-trade" aria-selected="false">Trade<span class="count" id="trade-count"></span></button>
+      <button type="button" role="tab" id="tab-sets" aria-selected="false">Sets</button>
     </div>
 
     <section id="find-pane">
@@ -740,6 +769,11 @@
       <div class="summary" id="mine-summary"></div>
       <div class="reorder-hint" id="reorder-hint">Press and hold a card, then drag it to where you want it.</div>
       <div id="mine-root"></div>
+    </section>
+
+    <section id="sets-pane" class="hide">
+      <div id="sets-root"></div>
+      <div class="status-line" id="sets-status"></div>
     </section>
 
     <section id="trade-pane" class="hide">
@@ -1694,15 +1728,17 @@ applyTheme();
 let tab = "find";
 function setTab(next) {
   tab = next;
-  ["find", "mine", "shop", "trade"].forEach(t => { $("tab-" + t).setAttribute("aria-selected", String(tab === t)); $(t + "-pane").classList.toggle("hide", tab !== t); });
+  ["find", "mine", "shop", "trade", "sets"].forEach(t => { $("tab-" + t).setAttribute("aria-selected", String(tab === t)); $(t + "-pane").classList.toggle("hide", tab !== t); });
   if (tab === "mine") renderMine();
   if (tab === "shop") renderShop();
   if (tab === "trade") renderTrade();
+  if (tab === "sets") renderSets();
 }
 $("tab-find").addEventListener("click", () => setTab("find"));
 $("tab-mine").addEventListener("click", () => setTab("mine"));
 $("tab-shop").addEventListener("click", () => setTab("shop"));
 $("tab-trade").addEventListener("click", () => setTab("trade"));
+$("tab-sets").addEventListener("click", () => setTab("sets"));
 
 // =========================================================================
 // THE CARD DATABASE
@@ -1887,10 +1923,25 @@ function decorate(c) {
 }
 function badgeHtml(kind, large) { return kindArt(kind, large ? 40 : 26); }
 function finishText(c) { return ""; }
+// A card with no picture in the main database usually has one in the
+// second (images.pokemontcg.io, a plain address built from that database's
+// set id and the card number). The set-symbol map already knows those ids
+// by set name; while it loads, or for a set it lacks, the tile shows its
+// placeholder and fills in when a picture turns up.
+function altImgUrl(c, size) {
+  if (!c || !c.set || !symbolMap) return "";
+  const id = symbolMap[normName(c.set.name)];
+  if (!id) return "";
+  const n = String(c.localId || "").replace(/^0+(?=\d)/, "");
+  return n ? "https://images.pokemontcg.io/" + id + "/" + n + (size === "high" ? "_hires" : "") + ".png" : "";
+}
 function imgUrl(c, size) {
   if (c.ptcgImages) return (size === "high" ? c.ptcgImages.large : c.ptcgImages.small) || c.ptcgImages.small || "";
-  return c.image ? c.image + "/" + (size || "low") + ".webp" : "";
+  if (c.image) return c.image + "/" + (size || "low") + ".webp";
+  return altImgUrl(c, size);
 }
+// Make sure the map is there for the fallback; it loads once and is cached.
+setSymbolUrl("").catch(() => {});
 function numberLabel(c) { return c.localId ? (c.localId + (c.total ? "/" + c.total : "")) : ""; }
 
 // ---------- Prices from the stores ----------
@@ -2441,7 +2492,7 @@ function tileHtml(c, extra) {
   // button inside a button is not allowed -- the browser pushes the inner
   // ones out as separate grid cells.
   return `<div class="tile" role="button" tabindex="0" data-card-id="${escapeAttr(c.id)}" ${extra && extra.entryId ? `data-item-id="${escapeAttr(extra.entryId)}"` : ""}>
-    ${pic ? `<img class="pic" src="${escapeAttr(pic)}" alt="" loading="lazy" decoding="async">` : `<div class="pic missing">No picture yet</div>`}
+    ${pic ? `<img class="pic" src="${escapeAttr(pic)}" alt="" loading="lazy" decoding="async" onerror="this.outerHTML='<div class=&quot;pic missing&quot;>No picture found</div>'">` : `<div class="pic missing">No picture yet</div>`}
     ${bestId === c.id ? `<div class="best">BEST MATCH</div>` : ""}
     ${have ? `<span class="have">✓${have > 1 ? " ×" + have : ""}</span>` : ""}
     ${extra && extra.fav ? `<span class="fav">★</span>` : ""}
@@ -2940,6 +2991,88 @@ function sellCard(c, amount) {
 }
 
 // =========================================================================
+// SETS -- the master-set view
+// =========================================================================
+// Every set ever printed, newest at the top, from the card database (it
+// gains new sets by itself). A set you have nothing from is dark; one you
+// have something from is lit and says how many of the REAL total you hold
+// -- the true count including the secret cards past the printed number.
+// Tap a set for every card in it, in order, each with a circle saying how
+// many of it you own, like the game's own master-set screen.
+let allSets = null, allSetsAt = 0;
+async function everySet() {
+  if (allSets && Date.now() - allSetsAt < 3600000) return allSets;
+  const data = await gql(`{ sets { id name releaseDate logo cardCount { official total } serie { id name } } }`);
+  const list = (data.sets || []).filter(x => x && x.id && !/^(A\d|B\d|P-A|P-B)/i.test(x.id) && !/pocket/i.test((x.serie && x.serie.name) || ""));
+  list.sort((a, b) => String(b.releaseDate || "").localeCompare(String(a.releaseDate || "")) || b.id.localeCompare(a.id));
+  allSets = list; allSetsAt = Date.now();
+  return list;
+}
+function ownedInSet(setId, person) {
+  const per = {};
+  Object.values(state.cards).forEach(e => {
+    if (!live(e) || (person !== "*" && e.who !== person)) return;
+    const sid = (e.snap && e.snap.setId) || String(e.cardId || "").split("-")[0];
+    if (sid !== setId) return;
+    per[e.cardId] = (per[e.cardId] || 0) + (Number(e.qty) || 1);
+  });
+  return per;
+}
+let setsOpen = null;   // the set whose cards are showing
+async function renderSets() {
+  const root = $("sets-root");
+  if (setsOpen) return renderMasterSet(setsOpen);
+  setStatus("sets-status", allSets ? "" : "Loading every set…");
+  let sets;
+  try { sets = await everySet(); } catch (e) { setStatus("sets-status", "Couldn't load the sets: " + e.message, true); return; }
+  setStatus("sets-status", "");
+  const person = who || "*";
+  let html = "", year = "";
+  for (const x of sets) {
+    const y = String(x.releaseDate || "").slice(0, 4) || "Undated";
+    if (y !== year) { year = y; html += `<div class="sets-year">${escapeHtml(y)}</div>`; }
+    const owned = ownedInSet(x.id, person);
+    const have = Object.keys(owned).length;
+    const total = (x.cardCount && (x.cardCount.total || x.cardCount.official)) || 0;
+    html += `<div class="set-row ${have ? "lit" : "dark"}" data-set="${escapeAttr(x.id)}">
+      ${x.logo ? `<img src="${escapeAttr(x.logo + ".webp")}" alt="" loading="lazy">` : `<span style="width:90px;flex:none"></span>`}
+      <div class="sr-main"><div class="sr-name">${escapeHtml(x.name)}</div><div class="sr-sub">${escapeHtml(x.serie ? x.serie.name : "")}${x.releaseDate ? " · " + escapeHtml(new Date(x.releaseDate + "T00:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })) : ""}</div></div>
+      <div class="sr-have">${have} <small>of ${total}</small></div>
+    </div>`;
+  }
+  root.innerHTML = `<p class="search-hint" style="margin-top:12px">Every set, newest first. Lit means ${escapeHtml(person === "*" ? "someone" : who)} has something from it; the number is out of the real total, secret cards included.</p>` + html;
+}
+async function renderMasterSet(setId) {
+  const root = $("sets-root");
+  setStatus("sets-status", "Loading the set…");
+  let set;
+  try { const r = await fetch(DEX + "/en/sets/" + encodeURIComponent(setId)); if (!r.ok) throw new Error("set " + r.status); set = await r.json(); }
+  catch (e) { setStatus("sets-status", "Couldn't load that set: " + e.message, true); return; }
+  setStatus("sets-status", "");
+  const person = who || "*";
+  const owned = ownedInSet(setId, person);
+  const cards = (set.cards || []).slice().sort((a, b) => String(a.localId).localeCompare(String(b.localId), undefined, { numeric: true }));
+  const have = cards.filter(c => owned[c.id]).length;
+  const total = cards.length || (set.cardCount && set.cardCount.total) || 0;
+  root.innerHTML = `<div class="crumb" style="margin-top:12px"><button type="button" class="pill-btn" id="sets-back">‹ All sets</button></div>
+    <div class="master-head">${set.logo ? `<img src="${escapeAttr(set.logo + ".webp")}" alt="">` : ""}<div><div class="mh-name">${escapeHtml(set.name)}</div><div class="mh-sub">${escapeHtml(person === "*" ? "Everyone has" : who + " has")} <b>${have}</b> of <b>${total}</b>${set.releaseDate ? " · " + escapeHtml(new Date(set.releaseDate + "T00:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })) : ""}</div></div></div>
+    <div class="master-bar"><div style="width:${total ? Math.round(have / total * 100) : 0}%"></div></div>
+    <div class="master">${cards.map(c => {
+      const n = owned[c.id] || 0;
+      const brief = { id: c.id, localId: c.localId, name: c.name, image: c.image || "", set: { id: setId, name: set.name } };
+      const pic = imgUrl(brief, "low");
+      return `<button type="button" class="mc${n ? "" : " none"}" data-card-id="${escapeAttr(c.id)}">${pic ? `<img src="${escapeAttr(pic)}" alt="" loading="lazy" decoding="async">` : `<div class="mc-blank"></div>`}<span class="mc-num">${escapeHtml(c.localId)}</span><span class="mc-have">${n}</span><div class="mc-name">${escapeHtml(c.name)}</div></button>`;
+    }).join("")}</div>`;
+  $("sets-back").addEventListener("click", () => { setsOpen = null; renderSets(); window.scrollTo({ top: 0 }); });
+}
+$("sets-root").addEventListener("click", e => {
+  const row = e.target.closest("[data-set]");
+  if (row) { setsOpen = row.dataset.set; renderMasterSet(setsOpen); window.scrollTo({ top: 0 }); return; }
+  const mc = e.target.closest(".mc[data-card-id]");
+  if (mc) openCard(mc.dataset.cardId);
+});
+
+// =========================================================================
 // REQUESTS TO THE OWNER
 // =========================================================================
 // Anyone can ask for a change. It is written to the document, and -- when
@@ -3313,6 +3446,7 @@ async function openCard(cardId) {
   openCardId = cardId;
   openCardData = null;
   const brief = results.find(c => c.id === cardId) || snapAsCard(cardId);
+  if (brief.name === "Card" && setsOpen) { brief.set = { id: setsOpen, name: "" }; }
   renderCardSheet(brief, true);
   openSheet("card-sheet");
   try {
@@ -4219,6 +4353,7 @@ function takeKeysFromLink() {
 // not seen yet, once. (Asked for: "when I go back on, it will say this was
 // updated, and who asked to update it.")
 const CHANGES = [
+  { id: 17, date: "2026-09-19", by: "Dad", what: "A Sets tab: every set ever, newest first, lit when you have something from it with your count out of the real total; tap one for the master-set view with a circle on each card saying how many you own. Cards with no picture now get one from the second database." },
   { id: 16, date: "2026-09-19", by: "Dad", what: "Poké Scan also has a short address: leodhi.github.io/PokeScanner. Both addresses work and share your cards." },
   { id: 15, date: "2026-09-19", by: "Dad", what: "Hidden cards: on a valuable card, every third open by anyone shows a small glowing copy in a corner — the same corner for everyone. Tap it and pick a look (classic, pink, blue, retro, gold) nobody else took; it becomes your avatar in the name chip. Once someone has it, it shows every second open, then every open." },
   { id: 14, date: "2026-09-19", by: "Dad", what: "A request bar at the bottom: ask Dad for a change; he gets it on his phone and approves it in Options. ChatGPT permission can be for an hour, a day, a week, or always." },
