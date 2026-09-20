@@ -810,6 +810,17 @@
 
 </div>
 
+<!-- How long, and time's up. Moshe's idea. -->
+<div class="sheet-back" id="time-sheet">
+  <div class="sheet">
+    <div class="grabber"></div>
+    <h3 id="time-title">How long do you want to use it?</h3>
+    <p class="sheet-sub" id="time-sub">When the time is up you'll be asked if you want to keep going. No means you're signed out.</p>
+    <div class="chips" id="time-chips"></div>
+    <div class="sheet-actions" id="time-actions"></div>
+  </div>
+</div>
+
 <!-- Adding to a trade: your cards, or money. -->
 <div class="sheet-back" id="trade-add-sheet">
   <div class="sheet">
@@ -998,6 +1009,13 @@
       <div id="opt-chatgpt-edit">
         <input type="password" id="opt-chatgpt-key" placeholder="Paste a ChatGPT (OpenAI) API key" autocomplete="off">
         <p class="field-note">Used only when Gemini and Groq both can't. It costs money — a penny or two a card — so each family member needs your say-so, below. If you already saved a ChatGPT key in the LLMs app, it's used automatically.</p>
+      </div>
+      <div class="opt-row">
+        <div class="opt-text">Ask how long on open<small>Moshe's idea: pick a time when you open the app; when it's up, keep going or get signed out. On or off on this device.</small></div>
+        <span class="switch">
+          <input type="checkbox" id="opt-timer" role="switch">
+          <span class="track"></span><span class="knob"></span>
+        </span>
       </div>
       <div class="opt-row">
         <div class="opt-text">Check it's a card before sending<small>The phone reads the photo itself first (a couple of seconds). If it can't find card words — HP, the number, a stage — the picture never leaves the phone.</small></div>
@@ -1309,6 +1327,7 @@ let currentUser = null;
 function newId() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
 
 let pendingDeniedMessage = null;
+let askedHowLong = false;
 // Who is allowed: whoever claimed it first, plus anyone whose (verified)
 // email the owner added -- exactly what the Firestore rule enforces. This
 // copy only exists so a refusal can say why.
@@ -1344,6 +1363,8 @@ onAuthStateChanged(authClient, async user => {
   signedIn = !!user;
   currentUser = user || null;
   if (!user) {
+    askedHowLong = false;
+    clearTimeout(timeTick);
     setStage("signin");
     showScreen("signin");
     const msg = pendingDeniedMessage || stickySigninMessage || "";
@@ -1384,6 +1405,7 @@ onAuthStateChanged(authClient, async user => {
     showScreen("app");
     safely("keys", takeKeysFromLink);
     safely("approve", takeApproveFromLink);
+    if (!askedHowLong) { askedHowLong = true; safely("timer", askHowLong); }
   }, err => {
     if (/permission|insufficient/i.test(err && err.message ? err.message : "")) {
       pendingDeniedMessage = "This collection belongs to a different account. You're signed in as " + (user.email || "another account") + ".";
@@ -1734,6 +1756,52 @@ $("theme-chips").addEventListener("click", e => {
 });
 applyTheme();
 
+// ---------- How long do you want to use it? ----------
+// Asked on open (per device, switchable in Options); a countdown, then
+// "Time's up -- keep going?"; No signs you out. Moshe asked for it.
+const TIMER_KEY = "pokescan-ask-time", TIMER_UNTIL = "pokescan-time-until";
+const TIME_SPANS = [["5", "5 minutes", 5], ["15", "15 minutes", 15], ["30", "30 minutes", 30], ["60", "An hour", 60], ["0", "No limit today", 0]];
+let timerOn = true;
+try { timerOn = localStorage.getItem(TIMER_KEY) !== "off"; } catch (e) {}
+let timeTick = null;
+function askHowLong() {
+  if (!timerOn) return;
+  let until = 0;
+  try { until = Number(sessionStorage.getItem(TIMER_UNTIL)) || 0; } catch (e) {}
+  if (until === -1) return;                       // "no limit today" already chosen this session
+  if (until > Date.now()) { armTimer(until); return; }
+  $("time-title").textContent = "How long do you want to use it?";
+  $("time-sub").textContent = "When the time is up you'll be asked if you want to keep going. No means you're signed out.";
+  $("time-chips").innerHTML = TIME_SPANS.map(([k, label]) => `<button type="button" class="chip" data-time="${k}">${label}</button>`).join("");
+  $("time-actions").innerHTML = "";
+  openSheet("time-sheet");
+}
+function armTimer(until) {
+  clearTimeout(timeTick);
+  timeTick = setTimeout(timesUp, Math.max(0, until - Date.now()));
+}
+function timesUp() {
+  $("time-title").textContent = "Time's up — keep going?";
+  $("time-sub").textContent = "Yes picks a new time. No signs you out of Poké Scan on this device.";
+  $("time-chips").innerHTML = "";
+  $("time-actions").innerHTML = `<button type="button" class="btn-save" id="time-yes">Yes, keep going</button><button type="button" class="btn-danger" id="time-no">No — sign me out</button>`;
+  openSheet("time-sheet");
+  $("time-yes").addEventListener("click", () => { try { sessionStorage.removeItem(TIMER_UNTIL); } catch (e) {} askHowLong(); });
+  $("time-no").addEventListener("click", () => { try { sessionStorage.removeItem(TIMER_UNTIL); } catch (e) {} closeSheet("time-sheet"); signOut(authClient); });
+}
+$("time-chips").addEventListener("click", e => {
+  const b = e.target.closest("[data-time]");
+  if (!b) return;
+  const mins = Number(b.dataset.time);
+  if (!mins) { try { sessionStorage.setItem(TIMER_UNTIL, "-1"); } catch (e2) {} closeSheet("time-sheet"); return; }
+  const until = Date.now() + mins * 60000;
+  try { sessionStorage.setItem(TIMER_UNTIL, String(until)); } catch (e2) {}
+  closeSheet("time-sheet");
+  armTimer(until);
+  showToast("You have " + (mins === 60 ? "an hour" : mins + " minutes") + " — I'll ask before it's up");
+});
+$("opt-timer").addEventListener("change", () => { timerOn = $("opt-timer").checked; try { localStorage.setItem(TIMER_KEY, timerOn ? "on" : "off"); } catch (e) {} if (!timerOn) clearTimeout(timeTick); });
+
 // ---------- Tabs ----------
 let tab = "find";
 function setTab(next) {
@@ -1936,7 +2004,10 @@ function decorate(c) {
   c.kind = (fam === "EX" || fam === "ex") ? "EX" : fam === "gx" ? "gx" : fam === "v" ? "v" : fam === "vmax" ? "vmax" : fam === "vstar" ? "vstar"
          : (c.finish && c.finish !== "holo") || fam === "other" ? "special" : "regular";
   c.year = c.set && c.set.releaseDate ? String(c.set.releaseDate).slice(0, 4) : "";
+  // `total` is what the card itself prints (125/197 -- the official count);
+  // `realTotal` is how many cards the set actually has, secret ones included.
   c.total = c.set && c.set.cardCount ? (c.set.cardCount.official || c.set.cardCount.total || "") : "";
+  c.realTotal = c.set && c.set.cardCount ? (c.set.cardCount.total || c.set.cardCount.official || "") : "";
   return c;
 }
 function badgeHtml(kind, large) { return kindArt(kind, large ? 40 : 26); }
@@ -2584,7 +2655,7 @@ function tileHtml(c, extra) {
     <div class="t-sub">${escapeHtml((c.set && c.set.name) || "")}${c.year ? " · " + c.year : ""} · <span class="t-num">${escapeHtml(numberLabel(c))}</span></div>
     <div class="t-kind">${kindArt(c.kind, 30)}<span>${escapeHtml(kindWords(c))}</span></div>
     ${c.rarity && !/^(common|uncommon|rare)$/i.test(c.rarity) && !kindWords(c).toLowerCase().includes(c.rarity.toLowerCase()) ? `<div class="t-rarity">${escapeHtml(c.rarity)}</div>` : ""}
-    ${priceText ? `<div class="t-row"><span class="t-price">${priceText}</span><span class="t-sub" style="margin:0">market${extra && Number(extra.qty) > 1 ? " · ×" + Number(extra.qty) : ""}</span></div>` : ""}
+    ${priceText ? `<div class="t-row"><span class="t-price">${priceText}</span><span class="t-sub" style="margin:0">market today${extra && Number(extra.qty) > 1 ? " · ×" + Number(extra.qty) : ""}</span></div>` : ""}
     ${who && (!extra || !extra.noCtl) ? `<div class="t-ctl"><button type="button" class="plus" data-tile-plus="${escapeAttr(c.id)}" aria-label="Add one">+</button><button type="button" class="minus" data-tile-minus="${escapeAttr(c.id)}" aria-label="One fewer" ${have ? "" : "disabled"}>−</button><button type="button" class="sold" data-tile-sold="${escapeAttr(c.id)}" aria-label="Sold" ${have ? "" : "disabled"}>💰</button></div>` : ""}
     ${extra && extra.runningTotal !== undefined ? `<div class="t-row running"><span class="t-sub" style="margin:0">${extra.addedAt ? new Date(extra.addedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : ""}</span><span class="t-price">${money(extra.runningTotal)} <span class="t-sub" style="margin:0">so far</span></span></div>` : ""}
   </div>`;
@@ -3117,13 +3188,14 @@ async function renderSets() {
     const owned = ownedInSet(x.id, person);
     const have = Object.keys(owned).length;
     const total = (x.cardCount && (x.cardCount.total || x.cardCount.official)) || 0;
+    const printed = (x.cardCount && x.cardCount.official) || 0;
     html += `<div class="set-row ${have ? "lit" : "dark"}" data-set="${escapeAttr(x.id)}">
       ${x.logo ? `<img src="${escapeAttr(x.logo + ".webp")}" alt="" loading="lazy">` : `<span style="width:90px;flex:none"></span>`}
       <div class="sr-main"><div class="sr-name">${escapeHtml(x.name)}</div><div class="sr-sub">${escapeHtml(x.serie ? x.serie.name : "")}${x.releaseDate ? " · " + escapeHtml(new Date(x.releaseDate + "T00:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })) : ""}</div></div>
-      <div class="sr-have">${have} <small>of ${total}</small></div>
+      <div class="sr-have">${have} <small>of ${total}${printed && printed !== total ? " real" : ""}</small></div>
     </div>`;
   }
-  root.innerHTML = `<p class="search-hint" style="margin-top:12px">Every set, newest first. Lit means ${escapeHtml(person === "*" ? "someone" : who)} has something from it; the number is out of the real total, secret cards included.</p>` + html;
+  root.innerHTML = `<p class="search-hint" style="margin-top:12px">Every set, newest first. Lit means ${escapeHtml(person === "*" ? "someone" : who)} has something from it. The count is out of how many cards the set really has — not the number printed on the cards, which leaves out the secret ones.</p>` + html;
 }
 async function renderMasterSet(setId) {
   const root = $("sets-root");
@@ -3216,7 +3288,8 @@ function renderRequests() {
   if (!isOwner()) return;
   const all = allRequests();
   const open = all.filter(r => r.status === "new").length;
-  $("opt-req-line").textContent = all.length ? (open ? open + " waiting for you. " : "") + "Approve copies the request, ready to paste into Claude." : "Nothing asked for yet.";
+  $("opt-req-line").innerHTML = (all.length ? (open ? open + " waiting for you. " : "") + "Approve copies the request, ready to paste into Claude." : "Nothing asked for yet.")
+    + (open > 1 ? ` <button type="button" class="chip" id="req-approve-all" style="margin-left:6px">Approve all ${open}</button>` : "");
   $("opt-req-list").innerHTML = all.slice(0, 20).map(r => `<li><b>${escapeHtml(r.by)}</b>: ${escapeHtml(r.text)}<small><span class="req-state ${escapeAttr(r.status)}">${escapeHtml(REQ_STATE[r.status] || r.status)}</span> · ${escapeHtml(new Date(r.at).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }))}</small>
     <div class="chips">${r.status === "new" ? `<button type="button" class="chip" data-req-approve="${escapeAttr(r.id)}">Approve &amp; copy for Claude</button><button type="button" class="chip" data-req-decline="${escapeAttr(r.id)}">Decline</button>` : r.status === "approved" ? `<button type="button" class="chip" data-req-copy="${escapeAttr(r.id)}">Copy for Claude again</button><button type="button" class="chip" data-req-done="${escapeAttr(r.id)}">Mark done</button>` : ""}</div></li>`).join("");
 }
@@ -3246,6 +3319,27 @@ $("req-send").addEventListener("click", async () => {
   setStatus("req-status", "Sending…");
   const pushed = await pushToOwner("Poké Scan request from " + who, text, id);
   setStatus("req-status", pushed ? "Sent — it's on " + (state.ownerEmail ? state.ownerEmail.split("@")[0] : "the owner") + "'s phone now." : "Saved — " + (state.ownerEmail ? state.ownerEmail.split("@")[0] : "the owner") + " will see it in Options.");
+  renderRequests();
+});
+$("opt-req-line").addEventListener("click", async e => {
+  if (!isOwner() || !e.target.closest("#req-approve-all")) return;
+  const open = allRequests().filter(r => r.status === "new");
+  if (!open.length) return;
+  // One undo for the lot, one line for Claude with every request in it.
+  const undo = [], redo = [];
+  open.forEach(r => { const before = state.requests[r.id]; const after = { ...before, status: "approved", decidedAt: Date.now() }; undo.push({ field: "requests", id: r.id, value: before }); redo.push({ field: "requests", id: r.id, value: after }); state.requests[r.id] = after; });
+  pushAction({ label: "Approved " + open.length + " requests", undo, redo });
+  applySteps(redo);
+  const combined = open.map(r => claudeLineFor(r)).join("\n\n");
+  const ok = await copyText(combined);
+  closeOptions();
+  const box = $("whats-new");
+  box.innerHTML = `<div class="wn-title">Approved ${open.length} requests</div><ul>${open.map(r => `<li><b>${escapeHtml(r.by)}</b>: ${escapeHtml(r.text)}</li>`).join("")}</ul>
+    <div class="btn-row" style="margin-top:6px"><a class="btn" href="https://claude.ai/new?q=${encodeURIComponent(combined)}" target="_blank" rel="noopener" style="text-align:center;text-decoration:none;display:block">Open in Claude with all of them typed in</a><button type="button" class="btn secondary" id="approve-copy">Copy again</button></div>
+    <div class="field-note" style="margin-top:8px">${ok ? "They're on your clipboard too." : "Tap Copy again, then paste into any Claude chat."}</div><button type="button" class="link" id="approve-done">Done</button>`;
+  box.classList.remove("hide");
+  $("approve-copy").addEventListener("click", async () => { const k = await copyText(combined); showToast(k ? "Copied" : "Couldn't copy here"); });
+  $("approve-done").addEventListener("click", () => { box.classList.add("hide"); renderWhatsNew(); });
   renderRequests();
 });
 $("opt-req-list").addEventListener("click", async e => {
@@ -3785,7 +3879,7 @@ function renderCardSheet(c, loading) {
   const priceHtml = c.game === "ygo" ? (ygoRows(c).length ? `<div class="price-box"><div class="box-title">Stores <small>from the Yu-Gi-Oh! database · dollars</small></div>
       <table class="price-table"><thead><tr><th>Site</th><th class="num">Price</th></tr></thead><tbody>${ygoRows(c).map(r => `<tr><td class="site">${escapeHtml(r.site)}</td><td class="num big">${money(r.price)}</td></tr>`).join("")}</tbody></table></div>` : `<div class="status-line">No store price on file for this one.</div>`)
     : rows.length || cm ? `
-    ${rows.length ? `<div class="price-box"><div class="box-title">TCGplayer <small>US store · dollars${rows[0].updated ? "" : ""}</small></div>
+    ${rows.length ? `<div class="price-box"><div class="box-title">TCGplayer <small>US store · dollars${c.pricing && c.pricing.tcgplayer && c.pricing.tcgplayer.updated ? " · updated " + escapeHtml(new Date(c.pricing.tcgplayer.updated).toLocaleDateString(undefined, { month: "short", day: "numeric" })) : ""}</small></div>
       <table class="price-table"><thead><tr><th>Finish</th><th class="num">Lowest</th><th class="num">Market</th><th class="num">Highest</th></tr></thead><tbody>
       ${rows.map(r => `<tr><td class="site">${escapeHtml(r.finish)}</td><td class="num">${money(r.lowPrice)}</td><td class="num big">${money(r.marketPrice || r.midPrice)}</td><td class="num">${money(r.highPrice)}</td></tr>`).join("")}
       </tbody></table></div>` : ""}
@@ -3803,7 +3897,7 @@ function renderCardSheet(c, loading) {
       <div class="hero-text">
         <div class="hero-title"><h3 style="margin:0">${escapeHtml(c.name)}</h3></div>
         <div class="hero-line" style="display:flex;align-items:center;gap:8px;margin-top:6px">${kindArt(c.kind, 40)}<b>${escapeHtml(kindWords(c))}</b></div>
-        <div class="hero-line"><b>${escapeHtml((c.set && c.set.name) || "")}</b>${num ? " · " + escapeHtml(num) : ""}${c.year ? " · " + c.year : ""}</div>
+        <div class="hero-line"><b>${escapeHtml((c.set && c.set.name) || "")}</b>${num ? " · " + escapeHtml(num) : ""}${c.year ? " · " + c.year : ""}${c.realTotal && String(c.realTotal) !== String(c.total) ? `<br><small>the set really has <b>${escapeHtml(String(c.realTotal))}</b> cards — the ${escapeHtml(String(c.total))} on the card leaves out the secret ones</small>` : ""}</div>
         <div class="hero-line">${escapeHtml(c.rarity || "")}${c.regulationMark ? " · mark " + escapeHtml(c.regulationMark) : ""}${c.illustrator ? " · art by " + escapeHtml(c.illustrator) : ""}</div>
         ${c.set && c.set.logo ? `<img class="set-logo" src="${escapeAttr(c.set.logo + ".webp")}" alt="" loading="lazy">` : ""}
         <div class="have-people">${holdersHtml(c.id)}</div>
@@ -3979,7 +4073,7 @@ function snapshotOf(c) {
   return {
     name: c.name || "", set: (c.set && c.set.name) || "", setId: (c.set && c.set.id) || "", number: c.localId || "", total: c.total || "",
     year: c.year || "", rarity: c.rarity || "", suffix: c.suffix || "", kind: c.kind || "regular", family: c.family || "", finish: c.finish || "", image: c.image || "",
-    regulationMark: c.regulationMark || "", price: headlinePrice(c) || 0, priceAt: Date.now(), game: c.game || "pokemon",
+    regulationMark: c.regulationMark || "", price: headlinePrice(c) || 0, priceAt: Date.now(), game: c.game || "pokemon", realTotal: c.realTotal || "",
     ...(c.ptcgImages ? { picSmall: c.ptcgImages.small || "", picLarge: c.ptcgImages.large || "" } : {})
   };
 }
@@ -4119,9 +4213,36 @@ function mineEntries() {
   }
   return { list, person };
 }
+// A card's price was written down when it was added and never looked at
+// again, so the collection's value drifted from the truth. Now the cards
+// whose price is more than a day old are re-priced from the database when
+// My cards opens, a few at a time, and the totals move with them.
+// (Moshe: "the prices should be correct".)
+let repricing = false;
+async function repriceStale() {
+  if (repricing) return;
+  const stale = Object.entries(state.cards).filter(([id, e]) => live(e) && e.snap && (!e.snap.priceAt || Date.now() - e.snap.priceAt > 86400000) && !String(e.cardId).startsWith("ygo:") && !String(e.cardId).startsWith("ptcg:")).slice(0, 12);
+  if (!stale.length) return;
+  repricing = true;
+  try {
+    for (const [id, e] of stale) {
+      let full;
+      try { full = await fullCard(e.cardId); } catch (err) { continue; }
+      const rows = tcgplayerRows(full);
+      const frow = e.finish ? rows.find(r => r.finish === e.finish) : null;
+      const price = frow && (frow.marketPrice || frow.midPrice) ? (frow.marketPrice || frow.midPrice) : (headlinePrice(full) || 0);
+      const cur = state.cards[id];
+      if (!cur) continue;
+      const after = { ...cur, snap: { ...cur.snap, price, priceAt: Date.now() } };
+      state.cards[id] = after;
+      saveEntry("cards", id, after);
+    }
+  } finally { repricing = false; renderMine(); }
+}
 function renderMine() {
   const root = $("mine-root");
   const { list, person } = mineEntries();
+  repriceStale();
   const all = Object.values(state.cards).filter(c => live(c) && (person === "*" || c.who === person));
   const trashed = Object.entries(state.cards).map(([id, c]) => ({ id, ...c })).filter(c => c.snap && c.deletedAt && (person === "*" || c.who === person)).sort((a, b) => (b.deletedAt || 0) - (a.deletedAt || 0));
   const count = all.reduce((n, c) => n + (Number(c.qty) || 1), 0);
@@ -4130,7 +4251,7 @@ function renderMine() {
   const soldTotal = person === "*" ? Object.keys(state.money || {}).reduce((n, k) => n + moneyOf(k).log.filter(e => e.type === "sold").reduce((a, e) => a + (Number(e.amount) || 0), 0), 0)
                                    : moneyOf(person).log.filter(e => e.type === "sold").reduce((a, e) => a + (Number(e.amount) || 0), 0);
   $("mine-summary").innerHTML = all.length || soldTotal
-    ? `<span><b>${count}</b> card${count === 1 ? "" : "s"}${person === "*" ? " between everyone" : ""}</span><span>worth about <b>${money(value)}</b>${soldTotal ? ` · sold <b>${money(soldTotal)}</b> so far` : ""}</span>`
+    ? `<span><b>${count}</b> card${count === 1 ? "" : "s"}${person === "*" ? " between everyone" : ""}</span><span>worth <b>${money(value)}</b> <small>today's market prices</small>${soldTotal ? ` · sold <b>${money(soldTotal)}</b> so far` : ""}</span>`
     : "";
   $("reorder-hint").classList.toggle("hide", !(list.length > 1 && $("mine-sort").value === "order" && person !== "*"));
   if (!all.length) {
@@ -4272,6 +4393,7 @@ function openOptions() {
   $("opt-pack-price").value = packPrice().toFixed(2);
   $("opt-pack-price").disabled = !isOwner();
   $("opt-precheck").checked = precheckOn();
+  $("opt-timer").checked = timerOn;
   $("opt-precheck").disabled = !isOwner();
   $("opt-gemini-key").value = ""; $("opt-groq-key").value = ""; $("opt-chatgpt-key").value = "";
   $("opt-ntfy").value = isOwner() ? ntfyTopic() : ""; $("opt-ntfy").disabled = !isOwner();
@@ -4338,7 +4460,7 @@ function closeSheet(id) {
   if (id === "card-sheet") { openCardId = null; openCardData = null; }
   if (id === "cam-sheet") stopCamera();
 }
-["card-sheet", "who-sheet", "options-sheet", "cam-sheet", "money-sheet", "trade-add-sheet"].forEach(id => {
+["card-sheet", "who-sheet", "options-sheet", "cam-sheet", "money-sheet", "trade-add-sheet", "time-sheet"].forEach(id => {
   $(id).addEventListener("click", e => { if (e.target === $(id)) closeSheet(id); });
   attachSheetSwipe(id);
 });
@@ -4439,6 +4561,46 @@ function attachSheetSwipe(id) {
   sheet.addEventListener("touchcancel", endTouch);
 }
 
+// ---------- Swipe right to go back, anywhere ----------
+// Sheets already close on a swipe right. On the main screens the same
+// gesture steps back one level: cards -> the type question -> nothing; a
+// master set -> the list of sets. Rows that scroll sideways (the game,
+// language rows) and text boxes keep the gesture for themselves.
+function goBackOneStep() {
+  if (tab === "find") {
+    if (results.length && pickStep === "cards") { pickStep = SUBKINDS[kindFilter] || kindFilter === "regular" ? "sub" : "type"; renderResults(); return true; }
+    if (results.length && pickStep === "sub") { pickStep = "type"; renderResults(); return true; }
+    if (results.length || $("q").value.trim()) { $("q").value = ""; $("q-clear").classList.add("hide"); results = []; bestId = null; $("scanned").classList.add("hide"); setStatus("find-status", ""); renderResults(); return true; }
+    return false;
+  }
+  if (tab === "sets" && setsOpen) { setsOpen = null; renderSets(); return true; }
+  if (tab !== "find") { setTab("find"); return true; }
+  return false;
+}
+(function () {
+  let id = null, sx = 0, sy = 0, active = null;
+  document.addEventListener("touchstart", e => {
+    if (e.touches.length !== 1) { id = null; return; }
+    const t = e.touches[0];
+    if (e.target.closest(".sheet-back, .langs, .kinds, .subkinds, input, textarea, select, .gauge, .tile.lifted")) { id = null; return; }
+    id = t.identifier; sx = t.clientX; sy = t.clientY; active = null;
+  }, { passive: true });
+  document.addEventListener("touchmove", e => {
+    if (id === null) return;
+    const t = [...e.touches].find(x => x.identifier === id);
+    if (!t) return;
+    const dx = t.clientX - sx, dy = t.clientY - sy;
+    if (active === null && (Math.abs(dx) > 10 || Math.abs(dy) > 10)) active = dx > 0 && Math.abs(dx) > Math.abs(dy) * 1.5;
+  }, { passive: true });
+  document.addEventListener("touchend", e => {
+    if (id === null) return;
+    const t = [...e.changedTouches].find(x => x.identifier === id);
+    id = null;
+    if (!active || !t) return;
+    if (t.clientX - sx >= 90) { if (goBackOneStep()) window.scrollTo({ top: 0, behavior: "smooth" }); }
+  });
+})();
+
 // ---------- Everything that depends on the data ----------
 // Each piece draws on its own, so one that breaks cannot take the rest
 // down with it; what broke is said on screen, with the reason.
@@ -4502,6 +4664,10 @@ function takeKeysFromLink() {
 // not seen yet, once. (Asked for: "when I go back on, it will say this was
 // updated, and who asked to update it.")
 const CHANGES = [
+  { id: 22, date: "2026-09-20", by: "Dad", what: "Swipe right to go back, on every screen: cards → the type question → the search; a set → the list of sets; any tab → Find." },
+  { id: 21, date: "2026-09-20", by: "Moshe", what: "When you open the app it asks how long you want to use it (5, 15, 30 minutes, an hour, or no limit). When the time is up it asks if you want to keep going; No signs you out. Switch it off in Options if you don't want the question." },
+  { id: 20, date: "2026-09-20", by: "Moshe", what: "Prices are kept correct: every card's price in My cards is refreshed from today's market when you open it, the totals follow, and the card page says when the store last updated its price. Dad also got an Approve all button for requests." },
+  { id: 19, date: "2026-09-20", by: "Moshe", what: "Set counts are out of how many cards the set really has, not the number printed on the card. A card's page now says both: the printed 125/197 to identify it, and the real size of the set." },
   { id: 18, date: "2026-09-20", by: "Dad", what: "Yu-Gi-Oh! cards: a game switch above the search (Pokémon / Yu-Gi-Oh!) with eBay, TCGplayer, Cardmarket, Amazon and CoolStuffInc prices; + Ask for another game. Requests now push to Dad's phone with an Approve button that opens Claude with the request typed in. The person who started a trade can Cancel it." },
   { id: 17, date: "2026-09-19", by: "Dad", what: "A Sets tab: every set ever, newest first, lit when you have something from it with your count out of the real total; tap one for the master-set view with a circle on each card saying how many you own. Cards with no picture now get one from the second database." },
   { id: 16, date: "2026-09-19", by: "Dad", what: "Poké Scan also has a short address: leodhi.github.io/PokeScanner. Both addresses work and share your cards." },
@@ -4536,7 +4702,7 @@ renderWhatsNew();
 // anywhere: every sheet closed, the search cleared. (Asked for: "Home should
 // take me to the Poké Scan main page, not my Home app.")
 function goHome() {
-  ["card-sheet", "who-sheet", "options-sheet", "cam-sheet", "money-sheet", "trade-add-sheet"].forEach(id => { if ($(id).classList.contains("show")) closeSheet(id); });
+  ["card-sheet", "who-sheet", "options-sheet", "cam-sheet", "money-sheet", "trade-add-sheet", "time-sheet"].forEach(id => { if ($(id).classList.contains("show")) closeSheet(id); });
   $("q").value = ""; $("q-clear").classList.add("hide");
   results = []; bestId = null; $("scanned").classList.add("hide"); setStatus("find-status", "");
   renderResults();
