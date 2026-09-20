@@ -61,6 +61,11 @@
       --save-bg: #111114; --save-ink: #fff;
     }
   }
+  html[data-mode="ocean"] { --accent: #2f8cff; }
+  html[data-mode="forest"] { --accent: #2e9e5b; }
+  html[data-mode="pikachu"] { --accent: #e0a800; }
+  html[data-mode="night"] { --accent: #9b6bff; }
+  html[data-mode="ember"] { --accent: #ff7a1a; }
   html[data-theme="light"] {
     --bg: #f2f2f7; --panel: #ffffff; --panel-2: #e9e9ee; --line: #cfcfd6;
     --ink: #111114; --ink-muted: #5c5c66; --ink-faint: #8e8e96;
@@ -1003,6 +1008,10 @@
         <div class="opt-text">Appearance<small>Auto follows the phone's light or dark setting.</small></div>
         <div class="chips" id="theme-chips"></div>
       </div>
+      <div class="opt-row">
+        <div class="opt-text">Screen mode<small>The colour of the buttons and highlights.</small></div>
+        <div class="chips" id="mode-chips"></div>
+      </div>
     </div>
 
     <div class="opt-section" data-words="price prices pack packs cost dollars ebay google gemini groq chatgpt openai key ai worth scan backup permission">
@@ -1070,6 +1079,13 @@
       </div>
       <input type="text" id="opt-mine-ntfy" placeholder="ntfy topic name (open the ntfy app, tap +, make one up)" autocomplete="off" autocapitalize="off">
       <input type="password" id="opt-ntfy" placeholder="ntfy topic name" autocomplete="off">
+      <div class="opt-row">
+        <div class="opt-text">Send approvals into my Claude Code chat<small>The "Send to Claude" button on the notification drops the request into this chat on the Mac (needs the phone on Tailscale). Blank chat id = whichever chat you touched last.</small></div>
+      </div>
+      <div class="field-row" style="display:flex;gap:8px">
+        <input type="text" id="opt-claude-host" placeholder="Mac address:port" autocomplete="off" autocapitalize="off" style="flex:1;min-width:0">
+        <input type="text" id="opt-claude-session" placeholder="chat id" autocomplete="off" autocapitalize="off" style="flex:1.4;min-width:0">
+      </div>
       <div class="btn-row" style="margin-top:6px"><button type="button" class="pill-btn" id="opt-ntfy-owner-test">Send a test to the owner's phone</button></div>
       <p class="field-note">The same topic your reminders use. Leave it blank and requests only show here.</p>
     </div>
@@ -1768,6 +1784,18 @@ document.addEventListener("pointerdown", e => {
 }, { capture: true });
 applyTextSize();
 
+// ---------- Screen mode (colour) ----------
+const MODE_KEY = "pokescan-mode";
+const MODES = [["classic", "Classic red"], ["ocean", "Ocean"], ["forest", "Forest"], ["pikachu", "Pikachu"], ["night", "Night"], ["ember", "Ember"]];
+let mode = "classic";
+try { const m = localStorage.getItem(MODE_KEY); if (MODES.some(x => x[0] === m)) mode = m; } catch (e) {}
+function applyMode() {
+  if (mode === "classic") document.documentElement.removeAttribute("data-mode"); else document.documentElement.setAttribute("data-mode", mode);
+  $("mode-chips").innerHTML = MODES.map(([k, n]) => `<button type="button" class="chip${k === mode ? " on" : ""}" data-mode-pick="${k}">${n}</button>`).join("");
+}
+$("mode-chips").addEventListener("click", e => { const b = e.target.closest("[data-mode-pick]"); if (!b) return; mode = b.dataset.modePick; try { localStorage.setItem(MODE_KEY, mode); } catch (e2) {} applyMode(); });
+applyMode();
+
 // ---------- Appearance ----------
 // Auto follows the phone; Light and Dark pin it. Per device.
 const THEME_KEY = "pokescan-theme";
@@ -1913,8 +1941,9 @@ async function searchCards(name) {
     if (!list.length) list = await searchSecondSource(name).catch(() => []);
   } else {
     // The other languages: the brief list by that language's name, then
-    // each card's details (rarity, set) -- capped so a common Pokémon does
-    // not mean a hundred requests.
+    // each card's details (rarity, set, and that printing's own prices --
+    // a Japanese card is priced as the Japanese card, not the English one)
+    // -- capped so a common Pokémon does not mean a hundred requests.
     const local = await nameInLanguage(name.trim(), lang);
     const r = await fetch(DEX + "/" + lang + "/cards?name=" + encodeURIComponent(local));
     const brief = r.ok ? await r.json() : [];
@@ -2379,7 +2408,9 @@ function askForChatgpt() {
 const SCAN_ORDER_DEFAULT = ["gemini", "groq", "chatgpt"];
 const READER_NAMES = { gemini: "Gemini", groq: "Groq", chatgpt: "ChatGPT" };
 function scanOrder() {
-  const first = SCAN_ORDER_DEFAULT.includes(state.settings.scanFirst) ? state.settings.scanFirst : "gemini";
+  // Groq goes first by itself once its key is there (Moshe: "move to groq
+  // auto") -- it is free and fast; Gemini stays for the web searches.
+  const first = SCAN_ORDER_DEFAULT.includes(state.settings.scanFirst) ? state.settings.scanFirst : (groqKey() ? "groq" : "gemini");
   return [first, ...SCAN_ORDER_DEFAULT.filter(x => x !== first)];
 }
 function readerAvailable(id) {
@@ -2611,6 +2642,7 @@ function renderPicker() {
   results.forEach(c => { counts[c.kind] = (counts[c.kind] || 0) + 1; });
   if (pickStep === "type") {
     pk.innerHTML = `<h3>What type do you have?</h3><p>Look at the card in your hand: the mark after the name, or the finish.</p><div class="pick-grid">`
+      + `<button type="button" class="pick" data-pick-all="1"><span style="font-size:40px;line-height:44px">✱</span><span class="pick-name">All</span><span class="pick-sub">Every printing, no questions</span><span class="pick-n">${results.length} card${results.length === 1 ? "" : "s"}</span></button>`
       + KIND_ORDER.map(k => `<button type="button" class="pick" data-pick-kind="${k}" ${counts[k] ? "" : "disabled"}>${kindArt(k, 64)}<span class="pick-name">${escapeHtml(KINDS[k].label)}</span>${KINDS[k].sub ? `<span class="pick-sub">${escapeHtml(KINDS[k].sub)}</span>` : ""}<span class="pick-n">${counts[k] ? counts[k] + (counts[k] === 1 ? " card" : " cards") : "none of this card"}</span></button>`).join("")
       + `</div>`;
     pk.classList.remove("hide");
@@ -2653,6 +2685,7 @@ function renderPicker() {
 }
 function renderKinds() { renderPicker(); }
 $("picker").addEventListener("click", e => {
+  if (e.target.closest("[data-pick-all]")) { kindFilter = "all"; subFilter = "all"; etypeFilter = ""; yearFilter = ""; pickStep = "cards"; renderResults(); return; }
   const k = e.target.closest("[data-pick-kind]");
   if (k) {
     kindFilter = k.dataset.pickKind; subFilter = "all"; etypeFilter = ""; yearFilter = "";
@@ -2763,7 +2796,7 @@ async function searchByType(type) {
 // English, or Other -- which is Japanese, the only other printing that
 // matters here; the rest of the languages the database has are not
 // offered, at his request ("I don't know how to recognize the characters").
-const LANGS = [["en", "English"], ["ja", "Other (Japanese)"]];
+const LANGS = [["en", "English"], ["ja", "Japanese"], ["fr", "French"], ["de", "German"], ["es", "Spanish"], ["it", "Italian"], ["ko", "Korean"], ["zh-tw", "Chinese"]];
 let lang = "en";
 function renderLangs() {
   $("langs").innerHTML = LANGS.map(([k, n]) => `<button type="button" class="chip${lang === k ? " on" : ""}" data-lang="${k}">${n}</button>`).join("");
@@ -2788,7 +2821,7 @@ async function nameInLanguage(name, code) {
     const r = await fetch("https://pokeapi.co/api/v2/pokemon-species/" + encodeURIComponent(name.toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/-+$/, "")));
     if (r.ok) {
       const d = await r.json();
-      const want = code === "ja" ? ["ja", "ja-hrkt"] : [code];
+      const want = code === "ja" ? ["ja", "ja-hrkt"] : code === "zh-tw" ? ["zh-hant"] : [code];
       const hit = (d.names || []).find(n => want.includes(n.language && n.language.name));
       if (hit && hit.name) out = hit.name;
     }
@@ -3119,7 +3152,9 @@ async function readWithAnyone(shot, say) {
       if (id === "chatgpt") return { read: await readWithChatgpt(shot), by: id };
     } catch (e) {
       lastErr = e;
-      if (!(e && (e.quota || /allowance|refused|reach Google|kept failing|no model/i.test(e.message)))) throw e;
+      // Anything wrong with the reader itself -- allowance, key, reach --
+      // hands over to the next one; only "I looked and can't tell" stops.
+      if (!(e && (e.quota || /allowance|refused|isn't valid|not valid|reach Google|kept failing|no model|offered no model/i.test(e.message)))) throw e;
     }
   }
   if (!tried.length) return null;                      // nobody to ask: the on-device read
@@ -3451,9 +3486,14 @@ function topicOf(name) {
 async function pushToPerson(name, title, text) {
   const topic = topicOf(name);
   if (!topic) return false;
-  const here = location.origin + location.pathname;
+  return ntfyPublish(topic, title, text, [{ action: "view", label: "Open Poké Scan", url: location.origin + location.pathname, clear: true }]);
+}
+// ntfy's JSON form: headers can only carry plain ASCII, and a request has
+// dashes, accents and arrows in it -- as JSON everything goes through.
+async function ntfyPublish(topic, title, message, actions) {
   try {
-    const r = await fetch("https://ntfy.sh/" + encodeURIComponent(topic), { method: "POST", headers: { "Title": title, "Priority": "high", "Tags": "cards", "Actions": "view, Open Poké Scan, " + here + ", clear=true" }, body: text });
+    const r = await fetch("https://ntfy.sh/", { method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ topic, title, message, priority: 4, tags: ["cards"], ...(actions && actions.length ? { actions: actions.slice(0, 3) } : {}) }) });
     return r.ok;
   } catch (e) { return false; }
 }
@@ -3461,12 +3501,29 @@ async function pushToOwner(title, text, requestId) {
   const topic = ntfyTopic();
   if (!topic) return false;
   const here = location.origin + location.pathname;
-  const headers = { "Title": title, "Priority": "high", "Tags": "cards" };
-  if (requestId) headers["Actions"] = "view, Approve, " + here + "?approve=" + encodeURIComponent(requestId) + ", clear=true; view, Open Poké Scan, " + here;
-  try {
-    const r = await fetch("https://ntfy.sh/" + encodeURIComponent(topic), { method: "POST", headers, body: text });
-    return r.ok;
-  } catch (e) { return false; }
+  const actions = [];
+  if (requestId) {
+    // First button: straight into Dad's open Claude Code chat on the Mac,
+    // through the same relay Claude Talk uses (the phone talks to the Mac
+    // over Tailscale; nothing to sign in to). Second: approve in the app.
+    const relay = claudeRelay();
+    const line = claudeLineFor({ by: who, text, at: Date.now() });
+    if (relay.host) actions.push({ action: "http", label: "Send to Claude", url: "http://" + relay.host + "/claude/ask", method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text: "Poké Scan request approved by Dad from his phone. " + line, mode: "session", ...(relay.session ? { session: relay.session } : {}) }), clear: true });
+    actions.push({ action: "view", label: "Approve in app", url: here + "?approve=" + encodeURIComponent(requestId) });
+    if (actions.length < 3) actions.push({ action: "view", label: "Open Poké Scan", url: here });
+  }
+  return ntfyPublish(topic, title, text, actions);
+}
+// Where Dad's Claude Code chats live: the house Mac's service on Tailscale
+// (the address Claude Talk uses), and the chat to drop requests into. Set
+// in Options; the chat defaults to the one this app was built in, and an
+// empty chat id means "whichever chat he touched last".
+const CLAUDE_RELAY_DEFAULT = { host: "100.95.155.127:8787", session: "49f47eb1-7391-4d06-9c85-b0c92c20bee4" };
+function claudeRelay() {
+  const h = typeof state.settings.claudeHost === "string" ? state.settings.claudeHost.trim() : CLAUDE_RELAY_DEFAULT.host;
+  const sid = typeof state.settings.claudeSession === "string" ? state.settings.claudeSession.trim() : CLAUDE_RELAY_DEFAULT.session;
+  return { host: h, session: sid };
 }
 // Claude, with the request already typed in. claude.ai/new?q= prefills a
 // new conversation; on the phone that opens the Claude app if installed.
@@ -3590,6 +3647,8 @@ $("opt-ntfy-test").addEventListener("click", async () => {
   const ok = topicOf(who) ? await pushToPerson(who, "Poké Scan test", "If you can read this, " + who + "'s notifications work.") : false;
   showToast(ok ? "Sent — check your phone" : (topicOf(who) ? "ntfy didn't take it — check the topic name" : "Type your topic name first"));
 });
+$("opt-claude-host").addEventListener("input", () => { if (isOwner()) saveSettings({ claudeHost: $("opt-claude-host").value.trim() }); });
+$("opt-claude-session").addEventListener("input", () => { if (isOwner()) saveSettings({ claudeSession: $("opt-claude-session").value.trim() }); });
 $("opt-ntfy").addEventListener("input", () => {
   if (!isOwner()) return;
   let v = $("opt-ntfy").value.trim();
@@ -4164,6 +4223,7 @@ function renderCardSheet(c, loading) {
   const priceHtml = c.game === "ygo" ? (ygoRows(c).length ? `<div class="price-box"><div class="box-title">Stores <small>from the Yu-Gi-Oh! database · dollars</small></div>
       <table class="price-table"><thead><tr><th>Site</th><th class="num">Price</th></tr></thead><tbody>${ygoRows(c).map(r => `<tr><td class="site">${escapeHtml(r.site)}</td><td class="num big">${money(r.price)}</td></tr>`).join("")}</tbody></table></div>` : `<div class="status-line">No store price on file for this one.</div>`)
     : rows.length || cm ? `
+    ${c.lang && c.lang !== "en" ? `<div class="field-note" style="margin-bottom:8px">Prices below are for this <b>${escapeHtml((LANGS.find(l => l[0] === c.lang) || [])[1] || c.lang)}</b> printing.</div>` : ""}
     ${rows.length ? `<div class="price-box"><div class="box-title">TCGplayer <small>US store · dollars${c.pricing && c.pricing.tcgplayer && c.pricing.tcgplayer.updated ? " · updated " + escapeHtml(new Date(c.pricing.tcgplayer.updated).toLocaleDateString(undefined, { month: "short", day: "numeric" })) : ""}</small></div>
       <table class="price-table"><thead><tr><th>Finish</th><th class="num">Lowest</th><th class="num">Market</th><th class="num">Highest</th></tr></thead><tbody>
       ${rows.map(r => `<tr><td class="site">${escapeHtml(r.finish)}</td><td class="num">${money(r.lowPrice)}</td><td class="num big">${money(r.marketPrice || r.midPrice)}</td><td class="num">${money(r.highPrice)}</td></tr>`).join("")}
@@ -4719,6 +4779,8 @@ function openOptions() {
   $("opt-precheck").disabled = !isOwner();
   $("opt-gemini-key").value = ""; $("opt-groq-key").value = ""; $("opt-chatgpt-key").value = "";
   $("opt-ntfy").value = isOwner() ? ntfyTopic() : ""; $("opt-ntfy").disabled = !isOwner();
+  $("opt-claude-host").value = isOwner() ? claudeRelay().host : ""; $("opt-claude-host").disabled = !isOwner();
+  $("opt-claude-session").value = isOwner() ? claudeRelay().session : ""; $("opt-claude-session").disabled = !isOwner();
   $("opt-mine-ntfy").value = who ? topicOf(who) : ""; $("opt-mine-ntfy").disabled = !who;
   $("opt-mine-ntfy-line").textContent = who ? (topicOf(who) ? "Set. Trades waiting for you and answers to your requests are pushed to your phone." : "Not set — open the ntfy app on your phone, tap +, make up a topic name, subscribe, and type the same name here.") : "Pick a name first.";
   $("opt-ntfy-line").textContent = ntfyTopic() ? "Set. Every new request is pushed to your phone with an Approve button." : "NOT SET — requests only show here until you paste your ntfy topic (open the ntfy app on your phone; the topic name is at the top).";
@@ -4990,6 +5052,7 @@ function takeKeysFromLink() {
 // not seen yet, once. (Asked for: "when I go back on, it will say this was
 // updated, and who asked to update it.")
 const CHANGES = [
+  { id: 26, date: "2026-09-20", by: "Moshe", what: "An All choice on the type screen. Every language is back (Japanese, French, German, Spanish, Italian, Korean, Chinese) and a card's prices are that printing's own. Scanning: a bad key no longer stops the other readers, and Groq goes first by itself once its key is in. Screen modes in Options: Classic red, Ocean, Forest, Pikachu, Night, Ember. Dad's Approve button now sends a request straight into his Claude chat." },
   { id: 25, date: "2026-09-20", by: "Moshe", what: "Everyone can get notifications: in Options, type your own ntfy topic (make one up in the ntfy app) and trades waiting for you and answers to your requests are pushed to your phone, with a Send a test button. Log out is at the top and the bottom. Dad isn't asked how long on open. Energy asks what you have, which energy, and which year before showing cards." },
   { id: 24, date: "2026-09-20", by: "Moshe", what: "Years: add a year after a name (charizard 2023) to see only that year's printings; a year on its own shows that year's sets. Energy is its own type on the type screen, and a type you can search." },
   { id: 23, date: "2026-09-20", by: "Moshe", what: "Twelve things at once: search by type (tap a type or say/type Fire, Water…); \"Why it costs what it costs\" on every card, with an Ask Gemini button; one EX category that asks Mega or not; Trainer cards (and Energy) in their own category; Amazing/Radiant and Trainer Gallery in Special; \"Ultra rare\" instead of calling every one a full art; a microphone to say the card's name; owned cards outlined in green; a check of the set letters and number before a card is added; searching Mew no longer brings Mewtwo; a Sign out button at the bottom." },
