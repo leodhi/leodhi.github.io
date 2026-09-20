@@ -1078,7 +1078,7 @@
         <button type="button" class="pill-btn" id="opt-ntfy-test">Send a test</button>
       </div>
       <input type="text" id="opt-mine-ntfy" placeholder="ntfy topic name (open the ntfy app, tap +, make one up)" autocomplete="off" autocapitalize="off">
-      <input type="password" id="opt-ntfy" placeholder="ntfy topic name" autocomplete="off">
+      <input type="text" id="opt-ntfy" placeholder="ntfy topic name" autocomplete="off" autocapitalize="off">
       <div class="opt-row">
         <div class="opt-text">Send approvals into my Claude Code chat<small>The "Send to Claude" button on the notification drops the request into this chat on the Mac (needs the phone on Tailscale). Blank chat id = whichever chat you touched last.</small></div>
       </div>
@@ -3657,7 +3657,7 @@ $("opt-ntfy").addEventListener("input", () => {
   else if (/^https?:\/\/ntfy\.sh\//i.test(v)) v = v.replace(/^https?:\/\/ntfy\.sh\//i, "").split(/[/?#]/)[0];
   if (v !== $("opt-ntfy").value) $("opt-ntfy").value = v;
   saveSettings({ ntfyTopic: v });
-  $("opt-ntfy-line").textContent = v ? "Set. Every new request is pushed to your phone with an Approve button." : "NOT SET — requests only show here until you paste your ntfy topic.";
+  $("opt-ntfy-line").textContent = v ? "Set to “" + v + "”. Every new request is pushed there with an Approve button." : "NOT SET — requests only show here until you paste your ntfy topic.";
 });
 let reqNoticeShown = false;
 function requestNotice() {
@@ -4783,7 +4783,7 @@ function openOptions() {
   $("opt-claude-session").value = isOwner() ? claudeRelay().session : ""; $("opt-claude-session").disabled = !isOwner();
   $("opt-mine-ntfy").value = who ? topicOf(who) : ""; $("opt-mine-ntfy").disabled = !who;
   $("opt-mine-ntfy-line").textContent = who ? (topicOf(who) ? "Set. Trades waiting for you and answers to your requests are pushed to your phone." : "Not set — open the ntfy app on your phone, tap +, make up a topic name, subscribe, and type the same name here.") : "Pick a name first.";
-  $("opt-ntfy-line").textContent = ntfyTopic() ? "Set. Every new request is pushed to your phone with an Approve button." : "NOT SET — requests only show here until you paste your ntfy topic (open the ntfy app on your phone; the topic name is at the top).";
+  $("opt-ntfy-line").textContent = ntfyTopic() ? "Set to “" + ntfyTopic() + "”. Every new request is pushed there with an Approve button. If tests say Sent but nothing arrives, this name is not the one your phone listens to." : "NOT SET — requests only show here until you paste your ntfy topic.";
   renderRequests();
   $("opt-account-line").textContent = currentUser && currentUser.email ? "as " + currentUser.email : "";
   renderGeminiLine();
