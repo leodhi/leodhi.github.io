@@ -1053,6 +1053,9 @@
   window.__pokescanBooted = false;
   window.__pokescanStage = "code";
   window.__pokescanStart = Date.now();
+  window.__pokescanError = "";
+  window.addEventListener("error", function (e) { if (!window.__pokescanBooted) window.__pokescanError = (e && e.message) || "an error"; });
+  window.addEventListener("unhandledrejection", function (e) { if (!window.__pokescanBooted) window.__pokescanError = (e && e.reason && e.reason.message) || window.__pokescanError; });
   (function () {
     var MESSAGES = {
       code: "The app's code hasn't finished downloading — that's the part that comes from Google's servers.",
@@ -1065,7 +1068,8 @@
       if (!box) return;
       var secs = Math.round((Date.now() - window.__pokescanStart) / 1000);
       document.getElementById("boot-problem-text").textContent =
-        (MESSAGES[window.__pokescanStage] || MESSAGES.code) + " (" + secs + "s, step: " + window.__pokescanStage + ")";
+        (MESSAGES[window.__pokescanStage] || MESSAGES.code) + " (" + secs + "s, step: " + window.__pokescanStage + ")"
+        + (window.__pokescanError ? " — the page reported: " + window.__pokescanError : "");
       box.classList.remove("hide");
     }
     setTimeout(show, 6000);
@@ -1369,11 +1373,15 @@ onAuthStateChanged(authClient, async user => {
     state.avatars = d.avatars && typeof d.avatars === "object" ? d.avatars : {};
     state.ownerUid = d.ownerUid || ""; state.ownerEmail = d.ownerEmail || "";
     state.sharedWith = Array.isArray(d.sharedWith) ? d.sharedWith : [];
-    resolveWho();
+    // The screen comes up whatever happens below. A drawing error on one
+    // person's data used to leave the skeleton up for ever with "your cards
+    // haven't arrived" -- which was a lie: they had. Now the app shows, and
+    // the error is written where it can be read and reported.
+    safely("who", resolveWho);
     renderAll();
     setStage("ready");
     showScreen("app");
-    takeKeysFromLink();
+    safely("keys", takeKeysFromLink);
   }, err => {
     if (/permission|insufficient/i.test(err && err.message ? err.message : "")) {
       pendingDeniedMessage = "This collection belongs to a different account. You're signed in as " + (user.email || "another account") + ".";
@@ -4300,16 +4308,25 @@ function attachSheetSwipe(id) {
 }
 
 // ---------- Everything that depends on the data ----------
+// Each piece draws on its own, so one that breaks cannot take the rest
+// down with it; what broke is said on screen, with the reason.
+function reportDrawError(where, e) {
+  const msg = "Something didn't draw (" + where + "): " + (e && e.message ? e.message : e);
+  setStatus("app-status", msg, true);
+  try { console.error(where, e); } catch (e2) {}
+}
+function safely(where, fn) { try { fn(); } catch (e) { reportDrawError(where, e); } }
 function renderAll() {
-  renderWho();
-  renderMoney();
-  renderMine();
-  tradeNotice();
-  renderRequests();
-  requestNotice();
-  if (tab === "shop") renderShop();
-  if (tab === "trade") renderTrade();
-  if (results.length) renderResults(); else renderRecent();
+  safely("name", renderWho);
+  safely("money", renderMoney);
+  safely("my cards", renderMine);
+  safely("trades", tradeNotice);
+  safely("requests", renderRequests);
+  safely("requests", requestNotice);
+  if (tab === "shop") safely("shop", renderShop);
+  if (tab === "trade") safely("trade", renderTrade);
+  if (tab === "sets") safely("sets", renderSets);
+  safely("find", () => { if (results.length) renderResults(); else renderRecent(); });
 }
 
 // Keys handed over by the Keys iPhone app, on this page's own address:
