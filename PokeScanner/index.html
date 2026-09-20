@@ -739,6 +739,7 @@
         <input type="file" id="file-photo" accept="image/*" class="hide">
       </div>
       <div class="search-hint" id="search-hint">Scan uses the camera on whatever you're on — a phone's camera app, or the webcam on a laptop. Typing the card's number after the name (like 25/102) narrows it down.</div>
+      <div class="langs" id="games"></div>
       <div class="langs" id="langs"></div>
       <div id="scanned" class="scanned hide"></div>
       <div id="picker" class="picker hide"></div>
@@ -1018,7 +1019,7 @@
       </div>
       <ul class="req-list" id="opt-req-list"></ul>
       <div class="opt-row">
-        <div class="opt-text">Push to your phone<small>Your ntfy topic. Every new request is sent there straight away. Only you see this.</small></div>
+        <div class="opt-text">Push to your phone<small id="opt-ntfy-line">Your ntfy topic. Every new request is sent there straight away, with an Approve button. Only you see this.</small></div>
       </div>
       <input type="password" id="opt-ntfy" placeholder="ntfy topic name" autocomplete="off">
       <p class="field-note">The same topic your reminders use. Leave it blank and requests only show here.</p>
@@ -1382,6 +1383,7 @@ onAuthStateChanged(authClient, async user => {
     setStage("ready");
     showScreen("app");
     safely("keys", takeKeysFromLink);
+    safely("approve", takeApproveFromLink);
   }, err => {
     if (/permission|insufficient/i.test(err && err.message ? err.message : "")) {
       pendingDeniedMessage = "This collection belongs to a different account. You're signed in as " + (user.email || "another account") + ".";
@@ -1779,10 +1781,12 @@ const cardCache = new Map();   // id -> full card (with pricing)
 const searchCache = new Map(); // name -> cards
 
 async function searchCards(name) {
-  const key = lang + "|" + name.trim().toLowerCase();
+  const key = game + "|" + lang + "|" + name.trim().toLowerCase();
   if (searchCache.has(key)) return searchCache.get(key);
   let list = [];
-  if (lang === "en") {
+  if (game === "ygo") {
+    list = await searchYgo(name);
+  } else if (lang === "en") {
     const safe = name.trim().toLowerCase().replace(/\\/g, "\\\\").replace(/"/g, '\\"');
     const data = await gql(`{ cards(filters:{name:"${safe}"}) { id localId name rarity image category stage suffix regulationMark set { id name releaseDate symbol logo cardCount { official total } } } }`);
     list = (data.cards || []).filter(c => c && !isPocket(c));
@@ -1817,7 +1821,7 @@ async function searchSecondSource(name) {
 async function fullCard(id) {
   if (cardCache.has(id)) return cardCache.get(id);
   const brief = results.find(c => c.id === id);
-  if (id.startsWith("ptcg:") || (brief && brief.lang && brief.lang !== "en")) {
+  if (id.startsWith("ptcg:") || id.startsWith("ygo:") || (brief && brief.lang && brief.lang !== "en")) {
     // Nothing more to fetch: the search already brought everything.
     const c = brief || snapAsCard(id);
     cardCache.set(id, c);
@@ -1920,6 +1924,12 @@ function finishOf(c) {
   return "";
 }
 function decorate(c) {
+  if (c.game === "ygo") {
+    c.family = ""; c.finish = ygoFinish(c);
+    c.kind = c.finish && c.finish !== "holo" ? "special" : "regular";
+    c.year = ""; c.total = "";
+    return c;
+  }
   c.family = familyOf(c);
   c.finish = finishOf(c);
   const fam = c.family;
@@ -1988,7 +1998,15 @@ function tcgplayerRows(c) {
 function cardmarket(c) { return c.pricing && c.pricing.cardmarket ? c.pricing.cardmarket : null; }
 // The one number a tile shows: TCGplayer market price, the first finish
 // that has one. Kept in the collection snapshot too.
+function ygoRows(c) {
+  const p = c.ygoPrices || {};
+  const rows = [["TCGplayer", p.tcgplayer_price], ["eBay", p.ebay_price], ["Cardmarket (converted)", p.cardmarket_price ? usd(Number(p.cardmarket_price)) : null], ["Amazon", p.amazon_price], ["CoolStuffInc", p.coolstuffinc_price]]
+    .map(([site, v]) => ({ site, price: Number(v) || 0 })).filter(r => r.price > 0);
+  if (c.setPrice) rows.unshift({ site: "This printing (" + (c.rarity || "") + ")", price: c.setPrice });
+  return rows;
+}
 function headlinePrice(c) {
+  if (c.game === "ygo") { const r = ygoRows(c); if (!r.length) return null; return (r.find(x => /^This printing/.test(x.site)) || r.find(x => x.site === "TCGplayer") || r[0]).price; }
   const rows = tcgplayerRows(c);
   for (const r of rows) if (r.marketPrice) return r.marketPrice;
   for (const r of rows) if (r.midPrice) return r.midPrice;
@@ -2358,7 +2376,7 @@ async function runSearch(q, hint, fromScan) {
     bestId = fromScan && results.length && (merged.number || merged.set) ? results[0].id : null;
     // Typing asks the type first; a scan already knows the card, so it
     // shows every printing straight away with a way back to the question.
-    pickStep = fromScan ? "cards" : "type";
+    pickStep = (fromScan || game === "ygo") ? "cards" : "type";
     subFilter = "all"; pendingFinish = "";
     if (bestId) fullCard(bestId).then(full => noteRecent(full, "scan")).catch(() => {});
     kindFilter = "all";
@@ -2440,6 +2458,63 @@ $("crumb").addEventListener("click", e => {
   const back = e.target.closest("[data-pick-back]");
   if (back) { pickStep = back.dataset.pickBack; renderResults(); window.scrollTo({ top: 0, behavior: "smooth" }); }
 });
+// Which card game. Pokémon is the main one; Yu-Gi-Oh! comes from its own
+// free database (YGOPRODeck), which carries eBay, TCGplayer, Cardmarket,
+// Amazon and CoolStuffInc prices for every card. Asked for 2026-09-20:
+// "I have Yu-Gi-Oh cards and I want to add them". Other games: ask.
+const GAMES = [["pokemon", "Pokémon"], ["ygo", "Yu-Gi-Oh!"]];
+let game = "pokemon";
+try { const g = localStorage.getItem("pokescan-game"); if (GAMES.some(x => x[0] === g)) game = g; } catch (e) {}
+function renderGames() {
+  $("games").innerHTML = GAMES.map(([k, n]) => `<button type="button" class="chip${game === k ? " on" : ""}" data-game="${k}">${n}</button>`).join("")
+    + `<button type="button" class="chip" id="game-more" style="border-style:dashed">+ Ask for another game</button>`;
+  $("langs").classList.toggle("hide", game !== "pokemon");
+  $("q").placeholder = game === "ygo" ? "Type a card name — e.g. Blue-Eyes White Dragon" : "Type a name — e.g. Charizard, or Pikachu 25/102";
+}
+$("games").addEventListener("click", e => {
+  if (e.target.closest("#game-more")) { $("req-text").value = "Please add another card game: "; $("req-text").focus(); $("req-text").scrollIntoView({ behavior: "smooth", block: "center" }); return; }
+  const b = e.target.closest("[data-game]");
+  if (!b || b.dataset.game === game) return;
+  game = b.dataset.game;
+  try { localStorage.setItem("pokescan-game", game); } catch (e2) {}
+  renderGames();
+  searchCache.clear();
+  results = []; bestId = null; renderResults();
+  if ($("q").value.trim()) runSearch($("q").value, null, false);
+});
+renderGames();
+// A Yu-Gi-Oh! card, shaped like a Pokémon one so every screen works on it.
+// One database entry is one card with several printings (sets); each
+// printing is its own tile, so the number on the card matches.
+async function searchYgo(name) {
+  const r = await fetch("https://db.ygoprodeck.com/api/v7/cardinfo.php?fname=" + encodeURIComponent(name.trim()) + "&num=60&offset=0");
+  if (!r.ok) return [];
+  const body = await r.json().catch(() => ({}));
+  const out = [];
+  for (const c of body.data || []) {
+    const img = (c.card_images || [])[0] || {};
+    const prices = (c.card_prices || [])[0] || {};
+    const sets = (c.card_sets && c.card_sets.length) ? c.card_sets : [{ set_name: "", set_code: "", set_rarity: "" }];
+    sets.forEach((st, i) => {
+      out.push({
+        id: "ygo:" + c.id + (st.set_code ? ":" + st.set_code + ":" + i : ""), game: "ygo", name: c.name, localId: st.set_code || "", rarity: st.set_rarity || "", suffix: "",
+        ygoType: c.type, ygoDesc: c.desc || "", image: "", ptcgImages: { small: img.image_url_small || "", large: img.image_url || "" },
+        set: { id: st.set_code ? st.set_code.split("-")[0] : "", name: st.set_name || "", releaseDate: "", logo: "", cardCount: { official: "" } },
+        ygoPrices: prices, setPrice: Number(st.set_price) || 0
+      });
+    });
+  }
+  return out;
+}
+function ygoFinish(c) {
+  const r = String(c.rarity || "").toLowerCase();
+  if (/ghost|starlight|collector/.test(r)) return "sir";
+  if (/ultimate|prismatic|platinum/.test(r)) return "gold";
+  if (/secret/.test(r)) return "ir";
+  if (/ultra|gold/.test(r)) return "fullart";
+  if (/super|rare/.test(r)) return "holo";
+  return "";
+}
 // Which language's printing. English is the database's main language; the
 // others are the same database in that language, searched by the Pokémon's
 // name in that language (looked up once from PokéAPI, cached).
@@ -3090,13 +3165,46 @@ $("sets-root").addEventListener("click", e => {
 // 2026-09-19: "a request bar… he will get a notification… click on it to
 // approve and it'll copy it so I could take it to Claude".
 function ntfyTopic() { return typeof state.settings.ntfyTopic === "string" ? state.settings.ntfyTopic.trim() : ""; }
-async function pushToOwner(title, text) {
+// The push has an Approve button on it (ntfy "view" action): it opens
+// this app with ?approve=<id>, which marks the request approved, copies
+// the line for Claude, and offers to open Claude with it filled in.
+async function pushToOwner(title, text, requestId) {
   const topic = ntfyTopic();
   if (!topic) return false;
+  const here = location.origin + location.pathname;
+  const headers = { "Title": title, "Priority": "high", "Tags": "cards" };
+  if (requestId) headers["Actions"] = "view, Approve, " + here + "?approve=" + encodeURIComponent(requestId) + ", clear=true; view, Open Poké Scan, " + here;
   try {
-    const r = await fetch("https://ntfy.sh/" + encodeURIComponent(topic), { method: "POST", headers: { "Title": title, "Priority": "default", "Tags": "cards" }, body: text });
+    const r = await fetch("https://ntfy.sh/" + encodeURIComponent(topic), { method: "POST", headers, body: text });
     return r.ok;
   } catch (e) { return false; }
+}
+// Claude, with the request already typed in. claude.ai/new?q= prefills a
+// new conversation; on the phone that opens the Claude app if installed.
+function claudeUrlFor(r) { return "https://claude.ai/new?q=" + encodeURIComponent(claudeLineFor(r)); }
+let approveFromLink = null;
+(function () {
+  try { const u = new URL(location.href); const id = u.searchParams.get("approve"); if (id) { approveFromLink = id; u.searchParams.delete("approve"); history.replaceState(null, "", u.pathname + (u.searchParams.toString() ? "?" + u.searchParams.toString() : "") + u.hash); } } catch (e) {}
+})();
+async function takeApproveFromLink() {
+  if (!approveFromLink) return;
+  const id = approveFromLink; approveFromLink = null;
+  const r = (state.requests || {})[id];
+  if (!r) { setStatus("app-status", "That request isn't here any more.", true); return; }
+  if (!isOwner()) { setStatus("app-status", "Only " + (state.ownerEmail || "the owner") + " can approve requests.", true); return; }
+  if (r.status === "new") setRequestStatus(id, "approved");
+  const ok = await copyText(claudeLineFor(r));
+  showApproveBanner(r, ok);
+}
+function showApproveBanner(r, copied) {
+  const box = $("whats-new");
+  box.innerHTML = `<div class="wn-title">Approved: ${escapeHtml(r.by)}'s request</div><p style="margin:0 0 8px;font-size:14px">${escapeHtml(r.text)}</p>
+    <div class="btn-row" style="margin-top:6px"><a class="btn" href="${escapeAttr(claudeUrlFor(r))}" target="_blank" rel="noopener" style="text-align:center;text-decoration:none;display:block">Open in Claude with it typed in</a><button type="button" class="btn secondary" id="approve-copy">Copy again</button></div>
+    <div class="field-note" style="margin-top:8px">${copied ? "It's on your clipboard too — paste it into any Claude chat." : "Tap Copy again, then paste it into any Claude chat."}</div>
+    <button type="button" class="link" id="approve-done">Done</button>`;
+  box.classList.remove("hide");
+  $("approve-copy").addEventListener("click", async () => { const ok = await copyText(claudeLineFor(r)); showToast(ok ? "Copied" : "Couldn't copy here"); });
+  $("approve-done").addEventListener("click", () => { box.classList.add("hide"); renderWhatsNew(); });
 }
 function myRequests() { return Object.entries(state.requests || {}).map(([id, r]) => ({ id, ...r })).filter(r => r && r.by === who).sort((a, b) => (b.at || 0) - (a.at || 0)); }
 function allRequests() { return Object.entries(state.requests || {}).map(([id, r]) => ({ id, ...r })).filter(Boolean).sort((a, b) => (b.at || 0) - (a.at || 0)); }
@@ -3136,14 +3244,14 @@ $("req-send").addEventListener("click", async () => {
   saveEntry("requests", id, r);
   $("req-text").value = "";
   setStatus("req-status", "Sending…");
-  const pushed = await pushToOwner("Poké Scan request from " + who, text);
+  const pushed = await pushToOwner("Poké Scan request from " + who, text, id);
   setStatus("req-status", pushed ? "Sent — it's on " + (state.ownerEmail ? state.ownerEmail.split("@")[0] : "the owner") + "'s phone now." : "Saved — " + (state.ownerEmail ? state.ownerEmail.split("@")[0] : "the owner") + " will see it in Options.");
   renderRequests();
 });
 $("opt-req-list").addEventListener("click", async e => {
   if (!isOwner()) return;
   const ap = e.target.closest("[data-req-approve]"), dc = e.target.closest("[data-req-decline]"), cp = e.target.closest("[data-req-copy]"), dn = e.target.closest("[data-req-done]");
-  if (ap) { const r = state.requests[ap.dataset.reqApprove]; setRequestStatus(ap.dataset.reqApprove, "approved"); const ok = await copyText(claudeLineFor({ ...r })); showToast(ok ? "Approved and copied — paste it into Claude" : "Approved. Couldn't copy here; use Copy again."); }
+  if (ap) { const r = state.requests[ap.dataset.reqApprove]; setRequestStatus(ap.dataset.reqApprove, "approved"); const ok = await copyText(claudeLineFor({ ...r })); closeOptions(); showApproveBanner({ ...r }, ok); }
   else if (dc) setRequestStatus(dc.dataset.reqDecline, "declined");
   else if (cp) { const ok = await copyText(claudeLineFor(state.requests[cp.dataset.reqCopy])); showToast(ok ? "Copied — paste it into Claude" : "Couldn't copy here."); }
   else if (dn) setRequestStatus(dn.dataset.reqDone, "done");
@@ -3217,7 +3325,7 @@ function tradeCardHtml(t) {
   const myTurn = t.status === "open" && t.turn === me;
   const state_ = t.status === "accepted" ? "Done — accepted" : t.status === "declined" ? "Declined" : myTurn ? "Your move" : "Waiting for " + other;
   const sideHtml = (side, name, editable) => `<div class="side"><div class="side-name"><span>${escapeHtml(name)} gives</span><span class="side-worth">${money(tradeWorth(side))}</span></div>
-    ${(side.cards || []).map(id => { const e = state.cards[id]; if (!e || !e.snap) return ""; return `<div class="side-item">${e.snap.image ? `<img src="${escapeAttr(e.snap.image + "/low.webp")}" alt="">` : ""}<span class="si-name">${escapeHtml(e.snap.name)}<br><small>${money(e.snap.price)}</small></span>${editable && t.status === "open" ? `<button type="button" class="si-x" data-trade-drop="${escapeAttr(t.id)}" data-entry="${escapeAttr(id)}" data-side="${name === me ? "mine" : "theirs"}">×</button>` : ""}</div>`; }).join("")}
+    ${(side.cards || []).map(id => { const e = state.cards[id]; if (!e || !e.snap) return ""; return `<div class="side-item">${snapPic(e.snap) ? `<img src="${escapeAttr(snapPic(e.snap))}" alt="">` : ""}<span class="si-name">${escapeHtml(e.snap.name)}<br><small>${money(e.snap.price)}</small></span>${editable && t.status === "open" ? `<button type="button" class="si-x" data-trade-drop="${escapeAttr(t.id)}" data-entry="${escapeAttr(id)}" data-side="${name === me ? "mine" : "theirs"}">×</button>` : ""}</div>`; }).join("")}
     ${Number(side.money) ? `<div class="side-money">+ ${money(side.money)} cash</div>` : ""}
     ${!(side.cards || []).length && !Number(side.money) ? `<div class="side-empty">nothing yet</div>` : ""}</div>`;
   return `<div class="trade-card${myTurn ? " attention" : ""}" data-trade="${escapeAttr(t.id)}">
@@ -3229,7 +3337,7 @@ function tradeCardHtml(t) {
       <button type="button" class="pill-btn" data-trade-edit="${escapeAttr(t.id)}" data-which="mine">Change what I give</button>
       <button type="button" class="pill-btn" data-trade-edit="${escapeAttr(t.id)}" data-which="theirs">Ask ${escapeHtml(other)} for more</button>
       ${myTurn ? `<button type="button" class="pill-btn" style="border-color:var(--ok);color:var(--ok)" data-trade-accept="${escapeAttr(t.id)}">Accept</button>` : ""}
-      <button type="button" class="pill-btn" style="color:var(--delete)" data-trade-decline="${escapeAttr(t.id)}">${t.a === me && t.turn === me && (t.log || []).length <= 1 ? "Cancel" : "Decline"}</button>
+      <button type="button" class="pill-btn" style="color:var(--delete)" data-trade-decline="${escapeAttr(t.id)}">${t.a === me ? "Cancel this trade" : "Decline"}</button>
     </div>` : `<div class="trade-actions"><button type="button" class="pill-btn" data-trade-hide="${escapeAttr(t.id)}">Hide</button></div>`}
     <ul class="trade-log">${(t.log || []).slice(-4).reverse().map(l => `<li>${escapeHtml(l.what)} <small>· ${escapeHtml(new Date(l.at).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }))}</small></li>`).join("")}</ul>
   </div>`;
@@ -3246,7 +3354,7 @@ function openTradeAdd(id, whichSide) {
   $("trade-add-sub").textContent = which === "mine" ? "Your cards and money. Tap a card to put it in or take it out." : person + "'s cards. Tap what you want; add money if you want cash too.";
   $("trade-add-money").value = Number(side.money) ? Number(side.money).toFixed(2) : "";
   const theirCards = Object.entries(state.cards).map(([eid, e]) => ({ eid, ...e })).filter(e => live(e) && e.who === person).sort((x, y) => (Number(y.snap.price) || 0) - (Number(x.snap.price) || 0));
-  $("trade-add-cards").innerHTML = theirCards.length ? theirCards.map(e => `<button type="button" class="pc${(side.cards || []).includes(e.eid) ? " on" : ""}" data-pc="${escapeAttr(e.eid)}">${e.snap.image ? `<img src="${escapeAttr(e.snap.image + "/low.webp")}" alt="">` : ""}<div class="pc-t">${escapeHtml(e.snap.name)}</div><div class="pc-p">${money(e.snap.price)}</div></button>`).join("") : `<div class="side-empty" style="grid-column:1/-1">${escapeHtml(person)} has no cards yet.</div>`;
+  $("trade-add-cards").innerHTML = theirCards.length ? theirCards.map(e => `<button type="button" class="pc${(side.cards || []).includes(e.eid) ? " on" : ""}" data-pc="${escapeAttr(e.eid)}">${snapPic(e.snap) ? `<img src="${escapeAttr(snapPic(e.snap))}" alt="">` : ""}<div class="pc-t">${escapeHtml(e.snap.name)}</div><div class="pc-p">${money(e.snap.price)}</div></button>`).join("") : `<div class="side-empty" style="grid-column:1/-1">${escapeHtml(person)} has no cards yet.</div>`;
   openSheet("trade-add-sheet");
 }
 $("trade-add-cards").addEventListener("click", e => { const b = e.target.closest("[data-pc]"); if (b) b.classList.toggle("on"); });
@@ -3296,7 +3404,7 @@ $("trade-root").addEventListener("click", e => {
   const st = e.target.closest("[data-trade-start]"); if (st) { startTrade(st.dataset.tradeStart, null); return; }
   const ed = e.target.closest("[data-trade-edit]"); if (ed) { openTradeAdd(ed.dataset.tradeEdit, ed.dataset.which); return; }
   const ac = e.target.closest("[data-trade-accept]"); if (ac) { if (confirm("Accept this trade? The cards and money swap right away (Undo is there if it's a mistake).")) acceptTrade(ac.dataset.tradeAccept); return; }
-  const dc = e.target.closest("[data-trade-decline]"); if (dc) { const t = state.trades[dc.dataset.tradeDecline]; if (t) saveTrade(dc.dataset.tradeDecline, { ...t, status: "declined" }, who + " declined"); return; }
+  const dc = e.target.closest("[data-trade-decline]"); if (dc) { const t = state.trades[dc.dataset.tradeDecline]; if (t) saveTrade(dc.dataset.tradeDecline, { ...t, status: "declined" }, t.a === who ? who + " cancelled the trade" : who + " declined"); return; }
   const hd = e.target.closest("[data-trade-hide]"); if (hd) { const t = state.trades[hd.dataset.tradeHide]; if (t) saveTrade(hd.dataset.tradeHide, { ...t, status: "gone" }, ""); return; }
   const dr = e.target.closest("[data-trade-drop]"); if (dr) {
     const t = state.trades[dr.dataset.tradeDrop]; if (!t || t.status !== "open") return;
@@ -3479,7 +3587,8 @@ function snapAsCard(cardId) {
   for (const c of pool) {
     if (c && c.cardId === cardId && c.snap) {
       const s = c.snap;
-      const built = decorate({ id: cardId, name: s.name, localId: s.number, rarity: s.rarity, suffix: s.suffix || "", image: s.image || "", regulationMark: s.regulationMark || "",
+      const built = decorate({ id: cardId, name: s.name, localId: s.number, rarity: s.rarity, suffix: s.suffix || "", image: s.image || "", regulationMark: s.regulationMark || "", game: s.game || "pokemon",
+        ...(s.picSmall ? { ptcgImages: { small: s.picSmall, large: s.picLarge || s.picSmall } } : {}),
         set: { id: s.setId, name: s.set, releaseDate: s.year ? s.year + "-01-01" : "", cardCount: { official: s.total } } });
       built.snapPrice = Number(s.price) || 0;
       return built;
@@ -3647,7 +3756,12 @@ function renderCardSheet(c, loading) {
   const headline = headlinePrice(c) || (c.snapPrice || 0);
   const rows = tcgplayerRows(c);
   const cm = cardmarket(c);
-  const identity = [
+  const identity = c.game === "ygo" ? [
+    `The set code at the bottom right reads <b>${escapeHtml(c.localId || "?")}</b> (that is the set and the card's number in it).`,
+    `The rarity is <b>${escapeHtml(c.rarity || "?")}</b> — look at the name's lettering and the picture's shine.`,
+    `The card type is <b>${escapeHtml(c.ygoType || "?")}</b>.`,
+    `The 8-digit passcode at the bottom left is <b>${escapeHtml(String(c.id || "").split(":")[1] || "")}</b>.`
+  ] : [
     `The number at the bottom reads <b>${escapeHtml(num || "?")}</b>${c.set && c.set.name ? ` and the set symbol next to it is <b>${escapeHtml(c.set.name)}</b>'s <span id="set-symbol-slot"></span>` : ""}.`,
     `The rarity mark by the number is ${rarityHint(c)}.`,
     familyHint(c),
@@ -3656,7 +3770,9 @@ function renderCardSheet(c, loading) {
     rows.length > 1 ? `This printing comes in <b>${rows.length} finishes</b> (${rows.map(r => r.finish.toLowerCase()).join(", ")}) with different prices — check whether yours has a shiny picture, a shiny frame, or neither.` : ""
   ].filter(Boolean);
 
-  const priceHtml = rows.length || cm ? `
+  const priceHtml = c.game === "ygo" ? (ygoRows(c).length ? `<div class="price-box"><div class="box-title">Stores <small>from the Yu-Gi-Oh! database · dollars</small></div>
+      <table class="price-table"><thead><tr><th>Site</th><th class="num">Price</th></tr></thead><tbody>${ygoRows(c).map(r => `<tr><td class="site">${escapeHtml(r.site)}</td><td class="num big">${money(r.price)}</td></tr>`).join("")}</tbody></table></div>` : `<div class="status-line">No store price on file for this one.</div>`)
+    : rows.length || cm ? `
     ${rows.length ? `<div class="price-box"><div class="box-title">TCGplayer <small>US store · dollars${rows[0].updated ? "" : ""}</small></div>
       <table class="price-table"><thead><tr><th>Finish</th><th class="num">Lowest</th><th class="num">Market</th><th class="num">Highest</th></tr></thead><tbody>
       ${rows.map(r => `<tr><td class="site">${escapeHtml(r.finish)}</td><td class="num">${money(r.lowPrice)}</td><td class="num big">${money(r.marketPrice || r.midPrice)}</td><td class="num">${money(r.highPrice)}</td></tr>`).join("")}
@@ -3758,6 +3874,7 @@ function renderCardSheet(c, loading) {
 async function fillPacks(c) {
   const box = $("packs-box");
   if (!box) return;
+  if (c.game === "ygo") { box.innerHTML = `<div class="big">Comes in ${escapeHtml((c.set && c.set.name) || "its set")}</div><p>Yu-Gi-Oh! sets don't publish pull rates; ${escapeHtml(c.rarity || "this rarity")} is the mark to look for. Buying the single is usually cheaper than the packs.</p>`; return; }
   let count = 0;
   try { if (c.set && c.set.id && c.rarity) count = await rarityCountInSet(c.set.id, c.rarity); } catch (e) { count = 0; }
   if (openCardId !== c.id || !$("packs-box")) return;
@@ -3845,11 +3962,13 @@ $("card-body").addEventListener("click", e => {
 });
 
 // ---------- Adding, counting, favorites, removing ----------
+function snapPic(snap) { return snap ? (snap.image ? snap.image + "/low.webp" : snap.picSmall || "") : ""; }
 function snapshotOf(c) {
   return {
     name: c.name || "", set: (c.set && c.set.name) || "", setId: (c.set && c.set.id) || "", number: c.localId || "", total: c.total || "",
     year: c.year || "", rarity: c.rarity || "", suffix: c.suffix || "", kind: c.kind || "regular", family: c.family || "", finish: c.finish || "", image: c.image || "",
-    regulationMark: c.regulationMark || "", price: headlinePrice(c) || 0, priceAt: Date.now()
+    regulationMark: c.regulationMark || "", price: headlinePrice(c) || 0, priceAt: Date.now(), game: c.game || "pokemon",
+    ...(c.ptcgImages ? { picSmall: c.ptcgImages.small || "", picLarge: c.ptcgImages.large || "" } : {})
   };
 }
 function nextOrder() {
@@ -4037,7 +4156,7 @@ function buildTrashBlock(trashed) {
   block.className = "trash-block" + (trashOpen ? " open" : "");
   const inner = trashed.map(c => `
     <div class="trash-row">
-      ${c.snap.image ? `<img src="${escapeAttr(c.snap.image + "/low.webp")}" alt="" loading="lazy">` : `<span style="width:34px;height:47px;flex:none"></span>`}
+      ${snapPic(c.snap) ? `<img src="${escapeAttr(snapPic(c.snap))}" alt="" loading="lazy">` : `<span style="width:34px;height:47px;flex:none"></span>`}
       <span class="trash-name">${escapeHtml(c.snap.name)}${Number(c.qty) > 1 ? " ×" + Number(c.qty) : ""}<small>${escapeHtml([c.who, c.snap.set, c.snap.number].filter(Boolean).join(" · "))}</small></span>
       <button type="button" class="trash-restore" data-restore="${escapeAttr(c.id)}">Restore</button>
       <button type="button" class="trash-purge" data-purge="${escapeAttr(c.id)}">Delete forever</button>
@@ -4144,6 +4263,7 @@ function openOptions() {
   $("opt-precheck").disabled = !isOwner();
   $("opt-gemini-key").value = ""; $("opt-groq-key").value = ""; $("opt-chatgpt-key").value = "";
   $("opt-ntfy").value = isOwner() ? ntfyTopic() : ""; $("opt-ntfy").disabled = !isOwner();
+  $("opt-ntfy-line").textContent = ntfyTopic() ? "Set. Every new request is pushed to your phone with an Approve button." : "NOT SET — requests only show here until you paste your ntfy topic (open the ntfy app on your phone; the topic name is at the top).";
   renderRequests();
   $("opt-account-line").textContent = currentUser && currentUser.email ? "as " + currentUser.email : "";
   renderGeminiLine();
@@ -4370,6 +4490,7 @@ function takeKeysFromLink() {
 // not seen yet, once. (Asked for: "when I go back on, it will say this was
 // updated, and who asked to update it.")
 const CHANGES = [
+  { id: 18, date: "2026-09-20", by: "Dad", what: "Yu-Gi-Oh! cards: a game switch above the search (Pokémon / Yu-Gi-Oh!) with eBay, TCGplayer, Cardmarket, Amazon and CoolStuffInc prices; + Ask for another game. Requests now push to Dad's phone with an Approve button that opens Claude with the request typed in. The person who started a trade can Cancel it." },
   { id: 17, date: "2026-09-19", by: "Dad", what: "A Sets tab: every set ever, newest first, lit when you have something from it with your count out of the real total; tap one for the master-set view with a circle on each card saying how many you own. Cards with no picture now get one from the second database." },
   { id: 16, date: "2026-09-19", by: "Dad", what: "Poké Scan also has a short address: leodhi.github.io/PokeScanner. Both addresses work and share your cards." },
   { id: 15, date: "2026-09-19", by: "Dad", what: "Hidden cards: on a valuable card, every third open by anyone shows a small glowing copy in a corner — the same corner for everyone. Tap it and pick a look (classic, pink, blue, retro, gold) nobody else took; it becomes your avatar in the name chip. Once someone has it, it shows every second open, then every open." },
