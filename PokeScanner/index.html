@@ -2100,6 +2100,21 @@ const KIND_ART = {
   special: `<svg viewBox="0 0 48 48"><defs><linearGradient id="gSP" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffd1f4"/><stop offset="0.5" stop-color="#b5f2ff"/><stop offset="1" stop-color="#fff6b0"/></linearGradient></defs><circle cx="24" cy="24" r="21" fill="url(#gSP)" stroke="#8a6aa0" stroke-width="2"/><path d="M24 8l4.4 9.4 10.3 1.3-7.6 7 2 10.2L24 31l-9.1 4.9 2-10.2-7.6-7 10.3-1.3z" fill="#7a4fa0"/></svg>`
 };
 function kindArt(kind, size) { return `<span class="kind-art" style="width:${size || 44}px;height:${size || 44}px">${KIND_ART[kind] || KIND_ART.regular}</span>`; }
+// A Yu-Gi-Oh! card's mark. The Poké Ball is Pokémon's own, so a Yu-Gi-Oh!
+// card with a plain finish gets a plain card shape instead (drawn here, no
+// logo): silver with a flat picture box, and a rainbow picture box when the
+// picture is shiny ("Holo"). Rarer finishes keep the same purple star every
+// special card wears, whatever the game.
+const YGO_ART = {
+  plain: `<svg viewBox="0 0 48 48"><defs><linearGradient id="gYC" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f4f4f7"/><stop offset="1" stop-color="#b9b9c6"/></linearGradient></defs><g transform="rotate(-10 24 24)"><rect x="11" y="4" width="26" height="40" rx="3" fill="url(#gYC)" stroke="#55556a" stroke-width="2"/><rect x="15.5" y="10" width="17" height="15" rx="1" fill="#8f96a8"/><rect x="15.5" y="29" width="17" height="2.6" rx="1.3" fill="#55556a"/><rect x="15.5" y="34" width="11" height="2.6" rx="1.3" fill="#55556a"/></g></svg>`,
+  holo:  `<svg viewBox="0 0 48 48"><defs><linearGradient id="gYH" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f4f4f7"/><stop offset="1" stop-color="#b9b9c6"/></linearGradient><linearGradient id="gYR" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffb3e6"/><stop offset=".35" stop-color="#9fe7ff"/><stop offset=".7" stop-color="#fff39a"/><stop offset="1" stop-color="#b8ffc9"/></linearGradient></defs><g transform="rotate(-10 24 24)"><rect x="11" y="4" width="26" height="40" rx="3" fill="url(#gYH)" stroke="#55556a" stroke-width="2"/><rect x="15.5" y="10" width="17" height="15" rx="1" fill="url(#gYR)" stroke="#8a6aa0" stroke-width="1"/><rect x="15.5" y="29" width="17" height="2.6" rx="1.3" fill="#55556a"/><rect x="15.5" y="34" width="11" height="2.6" rx="1.3" fill="#55556a"/></g></svg>`
+};
+const isYgo = c => !!c && (c.game === "ygo" || String(c.id || "").startsWith("ygo:"));
+// The mark beside a card's finish, everywhere a card shows one.
+function cardMark(c, size) {
+  if (isYgo(c) && c.kind !== "special") return `<span class="kind-art" style="width:${size || 44}px;height:${size || 44}px">${YGO_ART[c.finish === "holo" ? "holo" : "plain"]}</span>`;
+  return kindArt(c.kind, size);
+}
 // Every card wears its full words, never a two-letter code: "Special
 // illustration rare", "Mega EX", "Tag Team GX", "Holo".
 function kindWords(c) {
@@ -2689,7 +2704,8 @@ const REGULAR_FINISHES = [
 function renderPicker() {
   const pk = $("picker"), crumb = $("crumb");
   if (!results.length || pickStep === "cards") { pk.classList.add("hide"); pk.innerHTML = ""; }
-  crumb.classList.toggle("hide", !results.length || pickStep !== "cards");
+  // Yu-Gi-Oh! has no type question (EX, GX… are Pokémon's), so no way back to one.
+  crumb.classList.toggle("hide", !results.length || pickStep !== "cards" || game === "ygo");
   if (!results.length) return;
   const counts = {};
   results.forEach(c => { counts[c.kind] = (counts[c.kind] || 0) + 1; });
@@ -2824,7 +2840,9 @@ function ygoFinish(c) {
   if (/ultimate|prismatic|platinum/.test(r)) return "gold";
   if (/secret/.test(r)) return "ir";
   if (/ultra|gold/.test(r)) return "fullart";
-  if (/super|rare/.test(r)) return "holo";
+  // Super Rare is the shiny picture, and the foils (Starfoil, Mosaic,
+  // Shatterfoil, Parallel) shine all over; a plain "Rare" only has a silver name.
+  if (/super|starfoil|mosaic|shatterfoil|parallel/.test(r)) return "holo";
   return "";
 }
 // Search by type: tap a type, or type its name in the box. The database
@@ -2919,7 +2937,7 @@ function tileHtml(c, extra) {
     ${extra && extra.how === "scan" ? `<span class="have" style="background:var(--accent)">scanned</span>` : ""}
     <div class="t-name">${escapeHtml(c.name)}</div>
     <div class="t-sub">${escapeHtml((c.set && c.set.name) || "")}${(c.year || (c.year = yearOf(c))) ? " · " + c.year : ""} · <span class="t-num">${escapeHtml(numberLabel(c))}</span></div>
-    <div class="t-kind">${kindArt(c.kind, 30)}<span>${escapeHtml(kindWithFinish(c, extra && extra.finish))}</span></div>
+    <div class="t-kind">${cardMark(c, 30)}<span>${escapeHtml(kindWithFinish(c, extra && extra.finish))}</span></div>
     ${c.rarity && !/^(common|uncommon|rare)$/i.test(c.rarity) && !kindWords(c).toLowerCase().includes(c.rarity.toLowerCase()) ? `<div class="t-rarity">${escapeHtml(c.rarity)}</div>` : ""}
     ${ypNote(c) ? `<div class="art-note">${escapeHtml(ypNote(c))}</div>` : ""}
     ${priceText ? `<div class="t-row"><span class="t-price">${priceText}</span><span class="t-sub" style="margin:0">market today${extra && Number(extra.qty) > 1 ? " · ×" + Number(extra.qty) : ""}</span></div>` : ""}
@@ -3354,6 +3372,8 @@ function renderRecent() {
   $("recent-title").textContent = who + "'s recent scans and look-ups";
   root.innerHTML = `<div class="grid">${list.map(r => {
     const c = decorate({ id: r.cardId, name: r.snap.name, localId: r.snap.number, rarity: r.snap.rarity, suffix: r.snap.suffix || "", image: r.snap.image || "",
+      game: r.snap.game || (String(r.cardId).startsWith("ygo:") ? "ygo" : "pokemon"),
+      ...(r.snap.picSmall ? { ptcgImages: { small: r.snap.picSmall, large: r.snap.picLarge || r.snap.picSmall } } : {}),
       set: { id: r.snap.setId, name: r.snap.set, releaseDate: r.snap.year ? r.snap.year + "-01-01" : "", cardCount: { official: r.snap.total } } });
     c.snapPrice = r.snap.price || 0;
     return tileHtml(c, { how: r.how, noCtl: true });
@@ -4318,7 +4338,7 @@ function renderCardSheet(c, loading) {
       ${hero ? `<img class="card-pic" src="${escapeAttr(hero)}" alt="">` : `<div class="card-pic"></div>`}
       <div class="hero-text">
         <div class="hero-title"><h3 style="margin:0">${escapeHtml(c.name)}</h3></div>
-        <div class="hero-line" style="display:flex;align-items:center;gap:8px;margin-top:6px">${kindArt(c.kind, 40)}<b>${escapeHtml(kindWords(c))}</b></div>
+        <div class="hero-line" style="display:flex;align-items:center;gap:8px;margin-top:6px">${cardMark(c, 40)}<b>${escapeHtml(kindWords(c))}</b></div>
         <div class="hero-line"><b>${escapeHtml((c.set && c.set.name) || "")}</b>${num ? " · " + escapeHtml(num) : ""}${c.year ? " · " + c.year : ""}${c.realTotal && String(c.realTotal) !== String(c.total) ? `<br><small>the set really has <b>${escapeHtml(String(c.realTotal))}</b> cards — the ${escapeHtml(String(c.total))} on the card leaves out the secret ones</small>` : ""}</div>
         <div class="hero-line">${escapeHtml(c.rarity || "")}${c.regulationMark ? " · mark " + escapeHtml(c.regulationMark) : ""}${c.illustrator ? " · art by " + escapeHtml(c.illustrator) : ""}</div>
         ${c.set && c.set.logo ? `<img class="set-logo" src="${escapeAttr(c.set.logo + ".webp")}" alt="" loading="lazy">` : ""}
@@ -5757,6 +5777,7 @@ function takeKeysFromLink() {
 // not seen yet, once. (Asked for: "when I go back on, it will say this was
 // updated, and who asked to update it.")
 const CHANGES = [
+  { id: 32, date: "2026-09-22", by: "Dad", what: "Yu-Gi-Oh! cards no longer wear the Poké Ball: a plain card shape marks a regular one (with a rainbow picture when it is Super Rare shiny), and the rarer ones keep the purple star. A Yu-Gi-Oh! Rare is now called Regular, not Holo — its picture isn't shiny, only its name." },
   { id: 31, date: "2026-09-22", by: "Dad", what: "Yu-Gi-Oh! cards printed in more than one picture (Blue-Eyes White Dragon, Dark Magician…) now show each printing's own picture, from Yugipedia — in the search and on the card page. A printing Yugipedia has no picture for says \"Picture may differ\"." },
   { id: 30, date: "2026-09-22", by: "Dad", what: "Finishes read in plain words everywhere (Reverse holo, not reverse-holofoil), My cards says which finish you have, and a card added as Reverse holo from the type screen now gets the reverse holo price (it was getting the regular one). A Yu-Gi-Oh! card printed with several different pictures no longer claims all its printings look the same, and its page keeps the picture it had." },
   { id: 29, date: "2026-09-22", by: "Moshe", what: "Cards that look the same: a card's page now shows the other printings with the same picture right beside it, and a \"How to tell them apart\" list says where to look — the set symbol, the number, the rarity mark, the shine, the year and the price. Tap one to open it; Back takes you back." },
