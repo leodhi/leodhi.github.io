@@ -43,12 +43,12 @@
     /* How many cards across. The picker in Options writes this. */
     --cols: 3;
     /* Text size. "m" is these values; the Aa control steps either side. */
-    --t-name: 13px; --t-sub: 11px; --t-price: 12px; --body: 13.5px; --sheet-title: 20px; --big: 26px;
+    --t-name: calc(13px * var(--scale, 1)); --t-sub: calc(11px * var(--scale, 1)); --t-price: calc(12px * var(--scale, 1)); --body: calc(13.5px * var(--scale, 1)); --sheet-title: calc(20px * var(--scale, 1)); --big: calc(26px * var(--scale, 1));
   }
-  html[data-text-size="xs"] { --t-name: 11px; --t-sub: 9.5px; --t-price: 10px; --body: 12px; --sheet-title: 17px; --big: 22px; }
-  html[data-text-size="s"]  { --t-name: 12px; --t-sub: 10px; --t-price: 11px; --body: 12.5px; --sheet-title: 18px; --big: 24px; }
-  html[data-text-size="l"]  { --t-name: 15px; --t-sub: 12.5px; --t-price: 14px; --body: 15.5px; --sheet-title: 23px; --big: 30px; }
-  html[data-text-size="xl"] { --t-name: 17px; --t-sub: 14px; --t-price: 16px; --body: 17.5px; --sheet-title: 26px; --big: 34px; }
+  /* One continuous scale, not five rungs -- his standing rule: the text size is
+     a slider in every app, 0.55 to 2.0. The "m" sizes in :root are scaled
+     against it, so every setting in between is reachable. */
+  html { font-size: calc(16px * var(--scale, 1)); }
 
   /* Light, when the phone is set to light (or Options says so). The other
      household apps are dark only; this one follows the Appearance setting
@@ -78,25 +78,28 @@
      types) -- a wide element must never let the page or a sheet drift. */
   html, body { background: var(--bg); overscroll-behavior-y: contain; overflow-x: hidden; }
   body {
-    margin: 0; color: var(--ink); font-size: 16px; line-height: 1.4;
+    margin: 0; color: var(--ink); font-size: calc(16px * var(--scale, 1)); line-height: 1.4;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   }
   .wrap { max-width: 720px; margin: 0 auto; padding: calc(16px + env(safe-area-inset-top)) 14px calc(40px + env(safe-area-inset-bottom)); }
   .hide { display: none !important; }
 
   header { margin-bottom: 12px; }
-  header h1 { font-weight: 800; font-size: 28px; margin: 0; letter-spacing: -0.015em; }
-  header p.tagline { margin: 2px 0 10px; color: var(--ink-muted); font-size: 13px; }
+  header h1 { font-weight: 800; font-size: calc(28px * var(--scale, 1)); margin: 0; letter-spacing: -0.015em; }
+  header p.tagline { margin: 2px 0 10px; color: var(--ink-muted); font-size: calc(13px * var(--scale, 1)); }
   .top-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
   /* The name in the corner. Tapping it is how you say who you are. */
   .who-chip {
-    flex: 0 1 auto; font: inherit; cursor: pointer; border-radius: 999px; border: 1px solid var(--line);
+    /* max-width so the name shortens instead of the header pushing the page
+       sideways at the top of the text-size slider. */
+    flex: 0 1 auto; max-width: 100%; min-width: 0;
+    font: inherit; cursor: pointer; border-radius: 999px; border: 1px solid var(--line);
     background: var(--panel-2); color: var(--ink); padding: 7px 12px 7px 10px; min-height: 36px;
-    font-size: 13px; font-weight: 700; touch-action: manipulation; display: flex; align-items: center; gap: 7px;
+    font-size: calc(13px * var(--scale, 1)); font-weight: 700; touch-action: manipulation; display: flex; align-items: center; gap: 7px;
     max-width: 100%; min-width: 0; transition: transform 0.1s cubic-bezier(.2,.9,.3,1.1), border-color 0.15s ease;
   }
   .who-chip:active { transform: scale(0.94); border-color: var(--accent); }
-  .who-chip .who-dot { width: 20px; height: 20px; border-radius: 50%; background: var(--accent); color: #fff; font-size: 11px; display: flex; align-items: center; justify-content: center; flex: none; }
+  .who-chip .who-dot { width: 20px; height: 20px; border-radius: 50%; background: var(--accent); color: #fff; font-size: calc(11px * var(--scale, 1)); display: flex; align-items: center; justify-content: center; flex: none; }
   .who-chip .who-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .who-chip.nobody { border-color: var(--accent); color: var(--accent); }
   .who-chip.nobody .who-dot { background: transparent; border: 1.5px dashed var(--accent); color: var(--accent); }
@@ -105,38 +108,38 @@
   .pill-btn {
     font: inherit; cursor: pointer; border-radius: 999px; border: 1px solid var(--line);
     background: var(--panel-2); color: var(--ink); padding: 7px 13px; min-height: 36px;
-    font-size: 12.5px; font-weight: 600; touch-action: manipulation;
+    font-size: calc(12.5px * var(--scale, 1)); font-weight: 600; touch-action: manipulation;
     transition: border-color 0.15s ease, color 0.15s ease, transform 0.1s cubic-bezier(.2,.9,.3,1.1);
   }
   .pill-btn:not(:disabled):active { transform: scale(0.94); border-color: var(--accent); color: var(--accent); }
   .pill-btn:disabled { opacity: 0.4; cursor: default; }
-  .undo-what { font-size: 11.5px; color: var(--ink-faint); flex-basis: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .undo-what { font-size: calc(11.5px * var(--scale, 1)); color: var(--ink-faint); flex-basis: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
   .money-chip { border-color: rgba(52,199,89,0.5); color: var(--ok); max-width: none; flex: none; }
   .money-chip .who-name { overflow: visible; }
   .money-chip .who-dot { background: var(--ok); }
-  .home-link { flex: none; font: inherit; font-size: 12.5px; cursor: pointer; font-weight: 600; color: var(--ink-muted); text-decoration: none; border: 1px solid var(--line); background: var(--panel-2); border-radius: 999px; padding: 7px 12px; min-height: 36px; display: inline-flex; align-items: center; gap: 6px; touch-action: manipulation; }
+  .home-link { flex: none; font: inherit; font-size: calc(12.5px * var(--scale, 1)); cursor: pointer; font-weight: 600; color: var(--ink-muted); text-decoration: none; border: 1px solid var(--line); background: var(--panel-2); border-radius: 999px; padding: 7px 12px; min-height: 36px; display: inline-flex; align-items: center; gap: 6px; touch-action: manipulation; }
   .home-link:active { transform: scale(0.94); }
   /* Stays put while the card scrolls, so Back is never off the top. */
   .sheet-top { display: flex; justify-content: space-between; align-items: center; margin: -4px 0 10px; padding: 4px 0; position: sticky; top: -14px; z-index: 3; background: var(--panel); border-bottom: 1px solid var(--panel-2); }
   .sheet-top .link { padding: 6px 8px; min-height: 0; text-decoration: none; font-weight: 600; max-width: 72%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   /* The +, the −, and the money bag under the price beside the picture. */
-  .hero-price { margin-top: 10px; font-size: 22px; font-weight: 900; letter-spacing: -0.02em; color: var(--ok); }
-  .hero-price small { font-size: 12px; font-weight: 600; color: var(--ink-muted); letter-spacing: 0; margin-left: 4px; }
-  .hero-price.none { color: var(--ink-faint); font-size: 15px; }
+  .hero-price { margin-top: 10px; font-size: calc(22px * var(--scale, 1)); font-weight: 900; letter-spacing: -0.02em; color: var(--ok); }
+  .hero-price small { font-size: calc(12px * var(--scale, 1)); font-weight: 600; color: var(--ink-muted); letter-spacing: 0; margin-left: 4px; }
+  .hero-price.none { color: var(--ink-faint); font-size: calc(15px * var(--scale, 1)); }
   .hero-ctl { display: flex; gap: 8px; margin-top: 10px; }
-  .hero-ctl button { flex: 1; min-height: 44px; border: none; border-radius: 12px; font: inherit; font-size: 20px; font-weight: 800; cursor: pointer; touch-action: manipulation; background: var(--panel-2); color: var(--ink); transition: transform 0.1s cubic-bezier(.2,.9,.3,1.1); display: flex; align-items: center; justify-content: center; gap: 6px; }
+  .hero-ctl button { flex: 1; min-height: 44px; border: none; border-radius: 12px; font: inherit; font-size: calc(20px * var(--scale, 1)); font-weight: 800; cursor: pointer; touch-action: manipulation; background: var(--panel-2); color: var(--ink); transition: transform 0.1s cubic-bezier(.2,.9,.3,1.1); display: flex; align-items: center; justify-content: center; gap: 6px; }
   .hero-ctl button:active { transform: scale(0.94); }
   .hero-ctl button:disabled { opacity: 0.35; }
   .hero-ctl .plus { background: var(--ok); color: #fff; }
   .hero-ctl .minus { background: var(--delete); color: #fff; }
-  .hero-ctl .sold { background: linear-gradient(180deg, #ffd54f, #f0a500); color: #3d2b00; font-size: 18px; }
-  .hero-ctl small { font-size: 11px; font-weight: 700; }
+  .hero-ctl .sold { background: linear-gradient(180deg, #ffd54f, #f0a500); color: #3d2b00; font-size: calc(18px * var(--scale, 1)); }
+  .hero-ctl small { font-size: calc(11px * var(--scale, 1)); font-weight: 700; }
   .sold-form { margin-top: 10px; background: var(--panel-2); border-radius: 12px; padding: 10px 12px; }
   .sold-form .row { display: flex; gap: 8px; align-items: center; margin-top: 8px; }
   .sold-form input { flex: 1; min-width: 0; }
   .sold-form .btn-row { margin-top: 8px; }
-  .have-people { margin-top: 10px; font-size: 13px; font-weight: 700; color: var(--ok); line-height: 1.5; }
+  .have-people { margin-top: 10px; font-size: calc(13px * var(--scale, 1)); font-weight: 700; color: var(--ok); line-height: 1.5; }
   .have-people .none { color: var(--ink-faint); font-weight: 600; }
   /* ---------- The hidden card you can claim ---------- */
   .claim {
@@ -145,7 +148,7 @@
     animation: claim-glow 1.6s ease-in-out infinite; transform: rotate(-8deg);
   }
   .claim img { width: 100%; height: 100%; object-fit: cover; display: block; }
-  .claim .claim-tag { position: absolute; left: 0; right: 0; bottom: 0; background: var(--gold); color: #3d2b00; font-size: 9px; font-weight: 900; text-align: center; letter-spacing: 0.05em; padding: 2px 0; }
+  .claim .claim-tag { position: absolute; left: 0; right: 0; bottom: 0; background: var(--gold); color: #3d2b00; font-size: calc(9px * var(--scale, 1)); font-weight: 900; text-align: center; letter-spacing: 0.05em; padding: 2px 0; }
   @keyframes claim-glow { 0%, 100% { box-shadow: 0 0 0 3px rgba(255,204,0,0.25), 0 6px 16px rgba(0,0,0,0.5); } 50% { box-shadow: 0 0 0 7px rgba(255,204,0,0.45), 0 6px 22px rgba(0,0,0,0.6); } }
   .who-chip .who-dot img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
   .hero { position: relative; }
@@ -156,35 +159,35 @@
   .set-row.lit { border-color: rgba(255,204,0,0.55); box-shadow: 0 0 0 3px rgba(255,204,0,0.12), var(--shadow); }
   .set-row img { height: 34px; width: 90px; object-fit: contain; flex: none; }
   .set-row .sr-main { flex: 1; min-width: 0; }
-  .set-row .sr-name { font-size: 15px; font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .set-row .sr-sub { font-size: 12px; color: var(--ink-muted); }
-  .set-row .sr-have { flex: none; text-align: right; font-size: 15px; font-weight: 900; font-variant-numeric: tabular-nums; }
-  .set-row .sr-have small { display: block; font-size: 11px; font-weight: 600; color: var(--ink-muted); }
+  .set-row .sr-name { font-size: calc(15px * var(--scale, 1)); font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .set-row .sr-sub { font-size: calc(12px * var(--scale, 1)); color: var(--ink-muted); }
+  .set-row .sr-have { flex: none; text-align: right; font-size: calc(15px * var(--scale, 1)); font-weight: 900; font-variant-numeric: tabular-nums; }
+  .set-row .sr-have small { display: block; font-size: calc(11px * var(--scale, 1)); font-weight: 600; color: var(--ink-muted); }
   .set-row.lit .sr-have { color: var(--gold); }
-  .sets-year { font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--ink-faint); margin: 18px 2px 4px; }
+  .sets-year { font-size: calc(11.5px * var(--scale, 1)); font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--ink-faint); margin: 18px 2px 4px; }
   .master-head { display: flex; align-items: center; gap: 12px; margin-top: 12px; }
   .master-head img { height: 40px; max-width: 45%; object-fit: contain; }
-  .master-head .mh-name { font-size: 18px; font-weight: 900; }
-  .master-head .mh-sub { font-size: 12.5px; color: var(--ink-muted); }
+  .master-head .mh-name { font-size: calc(18px * var(--scale, 1)); font-weight: 900; }
+  .master-head .mh-sub { font-size: calc(12.5px * var(--scale, 1)); color: var(--ink-muted); }
   .master-bar { height: 8px; border-radius: 999px; background: var(--panel-2); overflow: hidden; margin-top: 10px; }
   .master-bar div { height: 100%; background: linear-gradient(90deg, var(--ok), var(--gold)); }
   .master { display: grid; grid-template-columns: repeat(var(--cols), minmax(0, 1fr)); gap: 8px; margin-top: 12px; }
   .master .mc { position: relative; border-radius: 10px; overflow: hidden; background: var(--panel); border: none; padding: 0; cursor: pointer; touch-action: manipulation; font: inherit; color: var(--ink); text-align: left; }
   .master .mc img, .master .mc .mc-blank { width: 100%; aspect-ratio: 63 / 88; object-fit: cover; display: block; background: var(--panel-2); }
   .master .mc.none img { filter: grayscale(1) brightness(0.45); }
-  .master .mc .mc-num { position: absolute; top: 4px; left: 4px; font-size: 10px; font-weight: 800; background: rgba(0,0,0,0.6); color: #fff; border-radius: 6px; padding: 1px 5px; }
+  .master .mc .mc-num { position: absolute; top: 4px; left: 4px; font-size: calc(10px * var(--scale, 1)); font-weight: 800; background: rgba(0,0,0,0.6); color: #fff; border-radius: 6px; padding: 1px 5px; }
   /* The little circle with the count, like the game's master-set view. */
-  .master .mc .mc-have { position: absolute; bottom: 5px; right: 5px; min-width: 24px; height: 24px; border-radius: 12px; padding: 0 6px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 900; background: var(--ok); color: #fff; box-shadow: 0 1px 4px rgba(0,0,0,0.5); }
+  .master .mc .mc-have { position: absolute; bottom: 5px; right: 5px; min-width: 24px; height: 24px; border-radius: 12px; padding: 0 6px; display: flex; align-items: center; justify-content: center; font-size: calc(12px * var(--scale, 1)); font-weight: 900; background: var(--ok); color: #fff; box-shadow: 0 1px 4px rgba(0,0,0,0.5); }
   .master .mc.none .mc-have { background: rgba(0,0,0,0.55); color: rgba(255,255,255,0.6); }
-  .master .mc .mc-name { font-size: 10.5px; padding: 4px 6px 5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .master .mc .mc-name { font-size: calc(10.5px * var(--scale, 1)); padding: 4px 6px 5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   /* ---------- Requests ---------- */
   .req-bar { margin-top: 28px; background: var(--panel); border: 1px solid var(--panel-2); border-radius: 16px; padding: 14px; }
-  .req-bar .req-title { font-size: 14px; font-weight: 800; margin-bottom: 8px; }
-  .req-bar textarea { width: 100%; background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px; padding: 12px; color: var(--ink); font-size: 16px; font-family: inherit; line-height: 1.4; resize: vertical; }
+  .req-bar .req-title { font-size: calc(14px * var(--scale, 1)); font-weight: 800; margin-bottom: 8px; }
+  .req-bar textarea { width: 100%; background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px; padding: 12px; color: var(--ink); font-size: calc(16px * var(--scale, 1)); font-family: inherit; line-height: 1.4; resize: vertical; }
   .req-bar textarea:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
   .req-list { margin: 8px 0 0; padding: 0; list-style: none; }
-  .req-list li { padding: 8px 0; border-top: 1px solid var(--panel-2); font-size: 13.5px; line-height: 1.4; }
-  .req-list li small { display: block; color: var(--ink-muted); font-size: 12px; margin-top: 2px; }
+  .req-list li { padding: 8px 0; border-top: 1px solid var(--panel-2); font-size: calc(13.5px * var(--scale, 1)); line-height: 1.4; }
+  .req-list li small { display: block; color: var(--ink-muted); font-size: calc(12px * var(--scale, 1)); margin-top: 2px; }
   .req-list .req-state { font-weight: 800; }
   .req-list .req-state.new { color: var(--accent); }
   .req-list .req-state.approved, .req-list .req-state.done { color: var(--ok); }
@@ -194,77 +197,113 @@
   .trade-card { background: var(--panel); border: 1px solid var(--panel-2); border-radius: 16px; padding: 14px; margin-top: 12px; box-shadow: var(--shadow); }
   .trade-card.attention { border-color: var(--accent); }
   .trade-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
-  .trade-head .trade-who { font-size: 16px; font-weight: 800; }
-  .trade-head .trade-state { font-size: 12px; font-weight: 700; color: var(--ink-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+  .trade-head .trade-who { font-size: calc(16px * var(--scale, 1)); font-weight: 800; }
+  .trade-head .trade-state { font-size: calc(12px * var(--scale, 1)); font-weight: 700; color: var(--ink-muted); text-transform: uppercase; letter-spacing: 0.05em; }
   .trade-head .trade-state.turn { color: var(--accent); }
   /* The gauge. Nobody moves it: it shows who is giving more. */
   .gauge { position: relative; height: 14px; border-radius: 999px; background: linear-gradient(90deg, var(--ok), var(--panel-2) 50%, var(--accent)); margin: 14px 0 4px; }
   .gauge .needle { position: absolute; top: -5px; width: 24px; height: 24px; border-radius: 50%; background: #fff; border: 3px solid var(--ink); box-shadow: 0 2px 6px rgba(0,0,0,0.4); transform: translateX(-50%); transition: left 0.3s cubic-bezier(.2,.9,.3,1.1); }
-  .gauge-labels { display: flex; justify-content: space-between; font-size: 12px; font-weight: 700; }
+  .gauge-labels { display: flex; justify-content: space-between; font-size: calc(12px * var(--scale, 1)); font-weight: 700; }
   .gauge-labels .even { color: var(--ok); }
   .sides { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
   .side { background: var(--panel-2); border-radius: 12px; padding: 10px; min-height: 90px; }
-  .side .side-name { font-size: 13px; font-weight: 800; margin-bottom: 6px; display: flex; justify-content: space-between; }
+  .side .side-name { font-size: calc(13px * var(--scale, 1)); font-weight: 800; margin-bottom: 6px; display: flex; justify-content: space-between; }
   .side .side-worth { color: var(--ok); }
-  .side .side-item { display: flex; align-items: center; gap: 8px; font-size: 12.5px; margin: 5px 0; }
+  .side .side-item { display: flex; align-items: center; gap: 8px; font-size: calc(12.5px * var(--scale, 1)); margin: 5px 0; }
   .side .side-item img { width: 28px; height: 39px; border-radius: 4px; object-fit: cover; background: var(--panel); flex: none; }
   .side .side-item .si-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .side .side-item .si-x { flex: none; font: inherit; border: none; background: none; color: var(--delete); font-weight: 800; cursor: pointer; padding: 2px 6px; }
-  .side .side-empty { font-size: 12px; color: var(--ink-faint); }
-  .side .side-money { font-size: 13px; font-weight: 800; }
+  .side .side-empty { font-size: calc(12px * var(--scale, 1)); color: var(--ink-faint); }
+  .side .side-money { font-size: calc(13px * var(--scale, 1)); font-weight: 800; }
   .trade-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
-  .trade-log { margin: 10px 0 0; padding: 0; list-style: none; font-size: 12px; color: var(--ink-muted); }
+  .trade-log { margin: 10px 0 0; padding: 0; list-style: none; font-size: calc(12px * var(--scale, 1)); color: var(--ink-muted); }
   .trade-log li { padding: 3px 0; border-top: 1px dashed var(--panel-2); }
   .pick-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 10px; }
   .pick-cards .pc { border: 2px solid transparent; border-radius: 10px; overflow: hidden; background: var(--panel-2); cursor: pointer; padding: 0; font: inherit; color: var(--ink); text-align: left; }
   .pick-cards .pc.on { border-color: var(--ok); }
   .pick-cards .pc img { width: 100%; aspect-ratio: 63 / 88; object-fit: cover; display: block; }
-  .pick-cards .pc .pc-t { font-size: 11px; padding: 4px 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .pick-cards .pc .pc-p { font-size: 11px; font-weight: 800; color: var(--ok); padding: 0 6px 5px; }
+  .pick-cards .pc .pc-t { font-size: calc(11px * var(--scale, 1)); padding: 4px 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pick-cards .pc .pc-p { font-size: calc(11px * var(--scale, 1)); font-weight: 800; color: var(--ok); padding: 0 6px 5px; }
+  /* ---------- Trade check ---------- */
+  /* Is it fair? Each side's cards at today's store price, before anyone
+     swaps anything. The gauge's green middle is the fair zone. */
+  .check-card { border-color: rgba(52,199,89,0.45); }
+  .check-card .trade-head .trade-state { color: var(--ok); }
+  .check-other { display: flex; align-items: center; gap: 8px; margin-top: 10px; min-width: 0; }
+  .check-other label { font-size: calc(12px * var(--scale, 1)); font-weight: 700; color: var(--ink-muted); flex: none; }
+  .check-other input { flex: 1; min-width: 0; background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; color: var(--ink); font-family: inherit; }
+  .check-other input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .gauge.fair-zone { background: linear-gradient(90deg, var(--accent), var(--panel-2) 36%, var(--ok) 45%, var(--ok) 55%, var(--panel-2) 64%, var(--accent)); }
+  .check-verdict { margin-top: 12px; border-radius: 12px; padding: 10px 12px; background: var(--panel-2); }
+  .check-verdict .cv-big { font-size: calc(19px * var(--scale, 1)); font-weight: 900; letter-spacing: -0.01em; overflow-wrap: anywhere; }
+  .check-verdict .cv-sub { font-size: calc(12.5px * var(--scale, 1)); color: var(--ink-muted); margin-top: 3px; line-height: 1.35; overflow-wrap: anywhere; }
+  .check-verdict.fair { background: rgba(52,199,89,0.14); }
+  .check-verdict.fair .cv-big { color: var(--ok); }
+  .check-verdict.lopsided { background: rgba(255,90,78,0.12); }
+  .check-verdict.lopsided .cv-big { color: var(--accent); }
+  .sides.check-sides { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .check-sides .side { min-width: 0; display: flex; flex-direction: column; }
+  .check-sides .side-name span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+  .check-sides .side-item { align-items: flex-start; }
+  .check-sides .si-name { white-space: normal !important; overflow-wrap: anywhere; }
+  .check-sides .si-name small { color: var(--ink-muted); }
+  .check-sides .si-price { font-weight: 800; color: var(--ok); }
+  .check-sides .si-price.none { color: var(--accent); }
+  .check-sides .si-price.guess { color: var(--gold); }
+  .check-sides .si-type { font: inherit; font-size: calc(12px * var(--scale, 1)); border: none; background: none; color: var(--accent); text-decoration: underline; padding: 2px 0; cursor: pointer; }
+  .check-sides .si-typed { display: flex; gap: 4px; margin-top: 3px; }
+  .check-sides .si-typed input { width: 0; flex: 1; min-width: 0; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 5px 6px; color: var(--ink); font-family: inherit; font-size: max(16px, 1rem); }
+  .check-sides .si-typed button { font: inherit; font-size: calc(12px * var(--scale, 1)); font-weight: 700; border: none; border-radius: 8px; background: var(--ok); color: #fff; padding: 0 9px; cursor: pointer; }
+  .check-add { display: flex; gap: 6px; margin-top: auto; padding-top: 8px; flex-wrap: wrap; }
+  .check-add .pill-btn { flex: 1 1 auto; padding: 6px 8px; }
+  .check-banner { display: flex; align-items: center; gap: 10px; background: rgba(52,199,89,0.14); border: 1px solid rgba(52,199,89,0.45); border-radius: 14px; padding: 10px 12px; margin-top: 12px; font-size: calc(13px * var(--scale, 1)); line-height: 1.35; }
+  .check-banner .cb-text { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+  .check-put { width: 100%; margin: 0 0 12px; background: var(--ok) !important; color: #fff !important; }
+  .check-put:disabled { opacity: 0.55; }
   /* ---------- Shop ---------- */
   .shop-balance { background: linear-gradient(135deg, rgba(52,199,89,0.16), rgba(255,204,0,0.12)); border: 1px solid rgba(52,199,89,0.35); border-radius: 14px; padding: 12px 14px; margin-top: 12px; display: flex; justify-content: space-between; align-items: center; gap: 10px; }
-  .shop-balance .big { font-size: 26px; font-weight: 900; letter-spacing: -0.02em; }
-  .shop-balance .big small { font-size: 13px; font-weight: 600; color: var(--ink-muted); letter-spacing: 0; display: block; }
+  .shop-balance .big { font-size: calc(26px * var(--scale, 1)); font-weight: 900; letter-spacing: -0.02em; }
+  .shop-balance .big small { font-size: calc(13px * var(--scale, 1)); font-weight: 600; color: var(--ink-muted); letter-spacing: 0; display: block; }
   .set-head { display: flex; align-items: center; gap: 10px; margin: 18px 2px 8px; }
   .set-head img { height: 30px; max-width: 45%; object-fit: contain; }
-  .set-head .set-name { font-size: 15px; font-weight: 800; }
-  .set-head .set-date { font-size: 12px; color: var(--ink-muted); }
+  .set-head .set-name { font-size: calc(15px * var(--scale, 1)); font-weight: 800; }
+  .set-head .set-date { font-size: calc(12px * var(--scale, 1)); color: var(--ink-muted); }
   .product { display: flex; align-items: center; gap: 10px; background: var(--panel); border: 1px solid var(--panel-2); border-radius: 12px; padding: 10px 12px; margin-bottom: 8px; }
   .product .p-main { flex: 1; min-width: 0; }
-  .product .p-name { font-size: 14.5px; font-weight: 700; }
-  .product .p-sub { font-size: 12px; color: var(--ink-muted); margin-top: 2px; }
-  .product .p-price { font-size: 16px; font-weight: 800; white-space: nowrap; text-align: right; }
-  .product .p-can { display: block; font-size: 11px; font-weight: 700; }
+  .product .p-name { font-size: calc(14.5px * var(--scale, 1)); font-weight: 700; }
+  .product .p-sub { font-size: calc(12px * var(--scale, 1)); color: var(--ink-muted); margin-top: 2px; }
+  .product .p-price { font-size: calc(16px * var(--scale, 1)); font-weight: 800; white-space: nowrap; text-align: right; }
+  .product .p-can { display: block; font-size: calc(11px * var(--scale, 1)); font-weight: 700; }
   .product .p-can.yes { color: var(--ok); }
   .product .p-can.no { color: var(--ink-faint); }
   .product .p-buy { flex: none; }
   .product.cant { opacity: 0.75; }
   .money-log { margin: 0; padding: 0; list-style: none; }
-  .money-log li { display: flex; justify-content: space-between; gap: 10px; padding: 9px 0; border-top: 1px solid var(--panel-2); font-size: 13.5px; }
+  .money-log li { display: flex; justify-content: space-between; gap: 10px; padding: 9px 0; border-top: 1px solid var(--panel-2); font-size: calc(13.5px * var(--scale, 1)); }
   .money-log li:first-child { border-top: none; }
   .money-log .m-what { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .money-log .m-what small { display: block; color: var(--ink-faint); font-size: 11.5px; }
+  .money-log .m-what small { display: block; color: var(--ink-faint); font-size: calc(11.5px * var(--scale, 1)); }
   .money-log .m-amt { font-weight: 800; white-space: nowrap; font-variant-numeric: tabular-nums; }
   .money-log .m-amt.in { color: var(--ok); }
   .money-log .m-amt.out { color: var(--delete); }
 
   /* "This was updated": shown once per change, on the next open. */
   .whats-new { background: linear-gradient(135deg, rgba(52,199,89,0.16), rgba(255,204,0,0.10)); border: 1px solid rgba(52,199,89,0.35); border-radius: 14px; padding: 12px 14px; margin: 12px 0 0; }
-  .whats-new .wn-title { font-size: 13px; font-weight: 800; color: var(--ok); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; }
-  .whats-new ul { margin: 0; padding-left: 18px; font-size: 13.5px; line-height: 1.45; }
+  .whats-new .wn-title { font-size: calc(13px * var(--scale, 1)); font-weight: 800; color: var(--ok); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; }
+  .whats-new ul { margin: 0; padding-left: 18px; font-size: calc(13.5px * var(--scale, 1)); line-height: 1.45; }
   .whats-new li { margin: 3px 0; }
   .whats-new li small { color: var(--ink-muted); }
   .whats-new .link { padding: 6px 0 0; min-height: 0; }
   /* ---------- Two tabs: Find, My cards ---------- */
   .seg { display: flex; background: var(--panel); border: 1px solid var(--panel-2); border-radius: 12px; padding: 3px; margin: 12px 0 14px; }
   .seg button {
-    flex: 1; font: inherit; font-size: 13px; padding: 0 2px; font-weight: 700; border: none; border-radius: 9px; min-height: 40px;
+    flex: 1; font: inherit; font-size: calc(13px * var(--scale, 1)); padding: 0 2px; font-weight: 700; border: none; border-radius: 9px; min-height: 40px;
     background: transparent; color: var(--ink-muted); cursor: pointer; touch-action: manipulation;
     transition: background 0.15s ease, color 0.15s ease, transform 0.1s cubic-bezier(.2,.9,.3,1.1);
   }
   .seg button:active { transform: scale(0.96); }
   .seg button[aria-selected="true"] { background: var(--panel-2); color: var(--ink); }
-  .seg .count { display: inline-block; min-width: 20px; padding: 0 6px; margin-left: 6px; border-radius: 999px; background: var(--accent); color: #fff; font-size: 11px; line-height: 18px; }
+  .seg .count { display: inline-block; min-width: 20px; padding: 0 6px; margin-left: 6px; border-radius: 999px; background: var(--accent); color: #fff; font-size: calc(11px * var(--scale, 1)); line-height: 18px; }
   .seg .count:empty { display: none; }
 
   /* ---------- Find: the search row ---------- */
@@ -272,17 +311,17 @@
   .search-box { flex: 1; position: relative; min-width: 0; }
   .search-box input {
     width: 100%; background: var(--panel-2); border: 1px solid var(--line); border-radius: 12px;
-    padding: 12px 40px 12px 14px; color: var(--ink); font-size: 16px; font-family: inherit; min-height: 48px;
+    padding: 12px 40px 12px 14px; color: var(--ink); font-size: calc(16px * var(--scale, 1)); font-family: inherit; min-height: 48px;
     -webkit-appearance: none; appearance: none;
   }
   .search-box input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
   .search-box input::placeholder { color: var(--ink-faint); }
   .search-clear {
     position: absolute; right: 6px; top: 50%; transform: translateY(-50%); width: 32px; height: 32px; border-radius: 50%;
-    border: none; background: var(--line); color: var(--ink); font-size: 16px; cursor: pointer; touch-action: manipulation;
+    border: none; background: var(--line); color: var(--ink); font-size: calc(16px * var(--scale, 1)); cursor: pointer; touch-action: manipulation;
   }
   .scan-btn {
-    flex: none; font: inherit; font-size: 14px; font-weight: 700; border: none; border-radius: 12px; min-height: 48px;
+    flex: none; font: inherit; font-size: calc(14px * var(--scale, 1)); font-weight: 700; border: none; border-radius: 12px; min-height: 48px;
     padding: 0 16px; background: var(--accent); color: #fff; cursor: pointer; touch-action: manipulation;
     display: flex; align-items: center; gap: 7px; transition: transform 0.1s cubic-bezier(.2,.9,.3,1.1);
   }
@@ -291,12 +330,12 @@
   .scan-btn.secondary { background: var(--panel-2); color: var(--ink); border: 1px solid var(--line); padding: 0 12px; }
   /* Four things in one row on a phone: the words go, the icons stay. */
   @media (max-width: 420px) { .scan-btn.secondary { font-size: 0; gap: 0; } }
-  .search-hint { font-size: 12.5px; color: var(--ink-faint); margin: 8px 2px 0; }
+  .search-hint { font-size: calc(12.5px * var(--scale, 1)); color: var(--ink-faint); margin: 8px 2px 0; }
 
   /* What the camera saw, above the results it produced. */
   .scanned { display: flex; align-items: center; gap: 12px; background: var(--panel); border: 1px solid var(--panel-2); border-radius: 14px; padding: 10px 12px; margin-top: 12px; }
   .scanned img { width: 44px; height: 60px; object-fit: cover; border-radius: 6px; background: var(--panel-2); flex: none; }
-  .scanned .scanned-text { flex: 1; min-width: 0; font-size: 13.5px; line-height: 1.35; }
+  .scanned .scanned-text { flex: 1; min-width: 0; font-size: calc(13.5px * var(--scale, 1)); line-height: 1.35; }
   .scanned .scanned-text b { color: var(--ink); }
   .scanned .scanned-text span { color: var(--ink-muted); }
   .scanned .spinner { width: 22px; height: 22px; border-radius: 50%; border: 3px solid var(--line); border-top-color: var(--accent); animation: spin 0.9s linear infinite; flex: none; }
@@ -308,7 +347,7 @@
   .kinds::-webkit-scrollbar { display: none; }
   .kind-chip {
     flex: none; font: inherit; display: flex; align-items: center; gap: 7px; padding: 7px 12px 7px 8px; border-radius: 999px;
-    border: 1px solid var(--line); background: var(--panel-2); color: var(--ink-muted); font-size: 13px; font-weight: 600;
+    border: 1px solid var(--line); background: var(--panel-2); color: var(--ink-muted); font-size: calc(13px * var(--scale, 1)); font-weight: 600;
     cursor: pointer; touch-action: manipulation; transition: transform 0.12s cubic-bezier(.2,.9,.3,1.1);
   }
   .kind-chip:active { transform: scale(0.94); }
@@ -318,8 +357,8 @@
 
   /* The type screens: big pictures, one question at a time. */
   .picker { margin-top: 14px; }
-  .picker h3 { margin: 0 0 4px; font-size: 20px; letter-spacing: -0.01em; }
-  .picker p { margin: 0 0 12px; font-size: 13px; color: var(--ink-muted); }
+  .picker h3 { margin: 0 0 4px; font-size: calc(20px * var(--scale, 1)); letter-spacing: -0.01em; }
+  .picker p { margin: 0 0 12px; font-size: calc(13px * var(--scale, 1)); color: var(--ink-muted); }
   .pick-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
   @media (min-width: 520px) { .pick-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
   .pick {
@@ -329,9 +368,9 @@
   }
   .pick:active { transform: scale(0.96); }
   .pick:disabled { opacity: 0.35; cursor: default; }
-  .pick .pick-name { font-size: 16px; font-weight: 800; }
-  .pick .pick-sub { font-size: 12px; color: var(--ink-muted); line-height: 1.3; }
-  .pick .pick-n { font-size: 12px; font-weight: 700; color: var(--accent); }
+  .pick .pick-name { font-size: calc(16px * var(--scale, 1)); font-weight: 800; }
+  .pick .pick-sub { font-size: calc(12px * var(--scale, 1)); color: var(--ink-muted); line-height: 1.3; }
+  .pick .pick-n { font-size: calc(12px * var(--scale, 1)); font-weight: 700; color: var(--accent); }
   .crumb { display: flex; align-items: center; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
   .crumb .pill-btn { display: inline-flex; align-items: center; gap: 6px; }
   .kind-art { display: inline-block; flex: none; vertical-align: middle; }
@@ -343,26 +382,26 @@
   .subkinds .chip { flex: none; }
   .langs { display: flex; gap: 8px; overflow-x: auto; padding: 10px 0 0; scrollbar-width: none; }
   .langs::-webkit-scrollbar { display: none; }
-  .langs .chip { flex: none; font-size: 12.5px; padding: 7px 12px; }
+  .langs .chip { flex: none; font-size: calc(12.5px * var(--scale, 1)); padding: 7px 12px; }
   .tile .t-kind { display: flex; align-items: center; gap: 6px; margin: 6px 8px 0; font-size: var(--t-sub); color: var(--ink); font-weight: 700; line-height: 1.2; }
   .tile .t-rarity { font-size: var(--t-sub); color: var(--ink-muted); margin: 2px 8px 0; line-height: 1.2; }
   .tile .t-ctl { display: flex; gap: 4px; margin: 8px 8px 0; }
-  .tile .t-ctl button { flex: 1; min-height: 32px; border: none; border-radius: 8px; font: inherit; font-weight: 800; font-size: 15px; cursor: pointer; touch-action: manipulation; background: var(--panel-2); color: var(--ink); }
+  .tile .t-ctl button { flex: 1; min-height: 32px; border: none; border-radius: 8px; font: inherit; font-weight: 800; font-size: calc(15px * var(--scale, 1)); cursor: pointer; touch-action: manipulation; background: var(--panel-2); color: var(--ink); }
   .tile .t-ctl .plus { background: var(--ok); color: #fff; }
   .tile .t-ctl .minus { background: var(--delete); color: #fff; }
-  .tile .t-ctl .sold { background: linear-gradient(180deg, #ffd54f, #f0a500); color: #3d2b00; font-size: 14px; }
+  .tile .t-ctl .sold { background: linear-gradient(180deg, #ffd54f, #f0a500); color: #3d2b00; font-size: calc(14px * var(--scale, 1)); }
   .tile .t-ctl button:disabled { opacity: 0.3; }
   /* The badge a kind wears: "ex", "EX", "GX", "V", or the plain ball for a
      regular card. Drawn, not downloaded -- the same badge everywhere it appears. */
   .badge {
     display: inline-flex; align-items: center; justify-content: center; height: 22px; min-width: 26px; padding: 0 6px;
-    border-radius: 6px; font-size: 11px; font-weight: 900; letter-spacing: 0.02em; line-height: 1; color: #111;
+    border-radius: 6px; font-size: calc(11px * var(--scale, 1)); font-weight: 900; letter-spacing: 0.02em; line-height: 1; color: #111;
     background: linear-gradient(180deg, #ffffff, #d5d5da); box-shadow: 0 1px 0 rgba(0,0,0,0.35); flex: none;
     font-family: "Avenir Next", "Segoe UI", Arial, sans-serif;
   }
   .badge.regular { background: radial-gradient(circle at 50% 42%, #fff 0 22%, #111 23% 30%, #ff3b30 31% 100%); min-width: 22px; width: 22px; padding: 0; border-radius: 50%; }
   .badge.holo { background: linear-gradient(120deg, #ffd1f4, #b5f2ff 35%, #fff6b0 65%, #c9ffd8); }
-  .badge.ex { background: linear-gradient(180deg, #ffe066, #d99a00); font-style: italic; text-transform: lowercase; font-size: 12.5px; }
+  .badge.ex { background: linear-gradient(180deg, #ffe066, #d99a00); font-style: italic; text-transform: lowercase; font-size: calc(12.5px * var(--scale, 1)); }
   .badge.EX { background: linear-gradient(180deg, #e8e8ee, #9a9aa8); font-style: italic; }
   .badge.gx { background: linear-gradient(180deg, #d5e9ff, #6f9ddf); font-style: italic; }
   .badge.v { background: linear-gradient(180deg, #f2f2f6, #b9b9c6); }
@@ -376,12 +415,29 @@
   .badge.promo { background: linear-gradient(180deg, #333, #111); color: #fff; }
   .badge.ace { background: linear-gradient(180deg, #ff9ad5, #d63384); color: #fff; }
   .badge.other { background: linear-gradient(180deg, #d8d8dd, #a1a1a8); }
-  .badge.lg { height: 28px; min-width: 34px; font-size: 14px; border-radius: 8px; }
+  .badge.lg { height: 28px; min-width: 34px; font-size: calc(14px * var(--scale, 1)); border-radius: 8px; }
   .badge.regular.lg { width: 28px; min-width: 28px; border-radius: 50%; }
 
   /* The text-size strip, hidden until the Aa button is tapped. */
   .size-wrap { padding: 0 0 10px; display: none; }
   .size-wrap.show { display: block; }
+  .size-row { display: flex; align-items: center; gap: 12px; }
+  .size-end { color: var(--ink-muted); line-height: 1; }
+  .size-end.small { font-size: 13px; }
+  .size-end.big { font-size: 26px; }
+  #text-size, #size-chips {
+    -webkit-appearance: none; appearance: none; flex: 1 1 auto; min-width: 0;
+    height: 30px; background: none; cursor: pointer;
+  }
+  #text-size::-webkit-slider-runnable-track, #size-chips::-webkit-slider-runnable-track {
+    height: 6px; border-radius: 999px; background: var(--panel-2); border: 1px solid var(--line); }
+  #text-size::-webkit-slider-thumb, #size-chips::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none; width: 28px; height: 28px; margin-top: -12px;
+    border-radius: 50%; background: var(--accent); border: 2px solid var(--panel); }
+  #text-size::-moz-range-thumb, #size-chips::-moz-range-thumb {
+    width: 28px; height: 28px; border-radius: 50%; background: var(--accent); border: 2px solid var(--panel); }
+  /* iOS zooms the page when a field under 16px is focused. */
+  body input[type=text], body input[type=search], body textarea, body select { font-size: max(16px, 1rem); }
   .size-scale { display: flex; align-items: center; justify-content: space-between; gap: 6px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 6px; }
   .size-step { flex: 1; display: flex; align-items: center; justify-content: center; min-height: 44px; border: none; border-radius: 9px; background: transparent; color: var(--ink-muted); font-family: inherit; font-weight: 700; cursor: pointer; touch-action: manipulation; transition: background 0.15s ease, color 0.15s ease, transform 0.12s ease; }
   .size-step:active { transform: scale(0.94); }
@@ -391,7 +447,7 @@
   /* Recently deleted: a quiet collapsed row at the bottom of My cards, the
      same shape Renewals and My Lists use. */
   .trash-block { margin-top: 24px; }
-  .trash-toggle { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; font: inherit; font-size: 13px; font-weight: 600; color: var(--ink-muted); background: none; border: none; padding: 10px 4px; cursor: pointer; touch-action: manipulation; }
+  .trash-toggle { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; font: inherit; font-size: calc(13px * var(--scale, 1)); font-weight: 600; color: var(--ink-muted); background: none; border: none; padding: 10px 4px; cursor: pointer; touch-action: manipulation; }
   .trash-chev { display: inline-block; transition: transform 0.2s cubic-bezier(.2,.9,.3,1.1); opacity: 0.7; }
   .trash-block.open .trash-chev { transform: rotate(90deg); }
   .trash-items { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 0.25s cubic-bezier(.2,.9,.3,1.1); }
@@ -399,9 +455,9 @@
   .trash-items > * { overflow: hidden; }
   .trash-row { display: flex; align-items: center; gap: 10px; background: var(--panel); border: 1px solid var(--panel-2); border-radius: 10px; padding: 8px 10px 8px 8px; margin-bottom: 8px; }
   .trash-row img { width: 34px; height: 47px; border-radius: 4px; object-fit: cover; background: var(--panel-2); flex: none; }
-  .trash-name { flex: 1; min-width: 0; font-size: 14px; color: var(--ink-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .trash-name small { display: block; font-size: 11.5px; color: var(--ink-faint); }
-  .trash-restore, .trash-purge { font: inherit; font-size: 13px; font-weight: 700; background: none; border: none; cursor: pointer; padding: 7px 8px; flex: none; touch-action: manipulation; }
+  .trash-name { flex: 1; min-width: 0; font-size: calc(14px * var(--scale, 1)); color: var(--ink-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .trash-name small { display: block; font-size: calc(11.5px * var(--scale, 1)); color: var(--ink-faint); }
+  .trash-restore, .trash-purge { font: inherit; font-size: calc(13px * var(--scale, 1)); font-weight: 700; background: none; border: none; cursor: pointer; padding: 7px 8px; flex: none; touch-action: manipulation; }
   .trash-restore { color: var(--accent); }
   .trash-purge { color: var(--delete); }
 
@@ -420,7 +476,7 @@
   .master .mc:not(.none) { outline: 3px solid var(--ok); outline-offset: -3px; }
   .tile.gap { opacity: 0.35; }
   .tile .pic { width: 100%; aspect-ratio: 63 / 88; background: var(--panel-2); display: block; object-fit: cover; }
-  .tile .pic.missing { display: flex; align-items: center; justify-content: center; color: var(--ink-faint); font-size: 12px; text-align: center; padding: 10px; }
+  .tile .pic.missing { display: flex; align-items: center; justify-content: center; color: var(--ink-faint); font-size: calc(12px * var(--scale, 1)); text-align: center; padding: 10px; }
   .tile .t-name { font-size: var(--t-name); font-weight: 800; margin: 7px 8px 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; letter-spacing: -0.01em; }
   .tile .t-sub { font-size: var(--t-sub); color: var(--ink-muted); margin: 2px 8px 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .tile .t-row { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin: 6px 8px 0; }
@@ -428,26 +484,26 @@
   .tile .t-price.none { color: var(--ink-faint); font-weight: 600; }
   .tile .t-row.running { border-top: 1px dashed var(--line); padding-top: 5px; margin-top: 6px; }
   .tile .have {
-    position: absolute; top: 6px; left: 6px; background: var(--ok); color: #fff; font-size: 11px; font-weight: 800;
+    position: absolute; top: 6px; left: 6px; background: var(--ok); color: #fff; font-size: calc(11px * var(--scale, 1)); font-weight: 800;
     border-radius: 999px; padding: 3px 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.5);
   }
-  .tile .fav { position: absolute; top: 6px; right: 6px; font-size: 16px; text-shadow: 0 1px 3px rgba(0,0,0,0.7); }
+  .tile .fav { position: absolute; top: 6px; right: 6px; font-size: calc(16px * var(--scale, 1)); text-shadow: 0 1px 3px rgba(0,0,0,0.7); }
   .tile .best {
-    position: absolute; top: 0; left: 0; right: 0; background: var(--accent); color: #fff; font-size: 11px; font-weight: 800;
+    position: absolute; top: 0; left: 0; right: 0; background: var(--accent); color: #fff; font-size: calc(11px * var(--scale, 1)); font-weight: 800;
     text-align: center; padding: 3px 0; letter-spacing: 0.04em;
   }
   html[data-cols="2"] .tile .t-name { font-size: calc(var(--t-name) + 2px); }
   html[data-cols="4"] .tile .t-name { font-size: calc(var(--t-name) - 1.5px); }
   html[data-cols="4"] .tile .t-sub, html[data-cols="4"] .tile .t-price { font-size: calc(var(--t-sub) - 1px); }
 
-  .group-label { font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--ink-faint); margin: 18px 2px 6px; }
-  .status-line { color: var(--ink-muted); font-size: 13px; text-align: center; padding: 10px 0; min-height: 1.2em; }
+  .group-label { font-size: calc(11.5px * var(--scale, 1)); font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--ink-faint); margin: 18px 2px 6px; }
+  .status-line { color: var(--ink-muted); font-size: calc(13px * var(--scale, 1)); text-align: center; padding: 10px 0; min-height: 1.2em; }
   .status-line.err { color: var(--delete); }
 
   /* An empty screen says what to do and gives you the button to do it. */
   .empty-state { text-align: center; padding: 40px 18px; }
-  .empty-title { font-size: 17px; font-weight: 700; color: var(--ink); margin-bottom: 6px; }
-  .empty-sub { font-size: 13.5px; color: var(--ink-muted); line-height: 1.5; max-width: 36ch; margin: 0 auto 18px; }
+  .empty-title { font-size: calc(17px * var(--scale, 1)); font-weight: 700; color: var(--ink); margin-bottom: 6px; }
+  .empty-sub { font-size: calc(13.5px * var(--scale, 1)); color: var(--ink-muted); line-height: 1.5; max-width: 36ch; margin: 0 auto 18px; }
   .empty-state .btn { max-width: 260px; margin: 0 auto; }
 
   /* ---------- My cards: the filter row ---------- */
@@ -455,14 +511,14 @@
   .mine-row .search-box { flex: 1 1 160px; }
   .mine-row select {
     flex: none; background: var(--panel-2); border: 1px solid var(--line); border-radius: 12px; min-height: 48px;
-    padding: 0 30px 0 12px; color: var(--ink); font-size: 16px; font-weight: 600; font-family: inherit;
+    padding: 0 30px 0 12px; color: var(--ink); font-size: calc(16px * var(--scale, 1)); font-weight: 600; font-family: inherit;
     -webkit-appearance: none; appearance: none;
     background-image: linear-gradient(45deg, transparent 50%, var(--ink-muted) 50%), linear-gradient(135deg, var(--ink-muted) 50%, transparent 50%);
     background-position: calc(100% - 15px) 21px, calc(100% - 10px) 21px; background-size: 5px 5px, 5px 5px; background-repeat: no-repeat;
   }
-  .summary { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin: 12px 2px 0; font-size: 13px; color: var(--ink-muted); }
-  .summary b { color: var(--ink); font-size: 15px; }
-  .reorder-hint { font-size: 12px; color: var(--ink-faint); margin: 8px 2px 0; }
+  .summary { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin: 12px 2px 0; font-size: calc(13px * var(--scale, 1)); color: var(--ink-muted); }
+  .summary b { color: var(--ink); font-size: calc(15px * var(--scale, 1)); }
+  .reorder-hint { font-size: calc(12px * var(--scale, 1)); color: var(--ink-faint); margin: 8px 2px 0; }
 
   /* ---------- Skeleton while opening ---------- */
   .skeleton-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 12px; }
@@ -470,7 +526,7 @@
   .skeleton-tile:nth-child(2) { animation-delay: 0.1s; } .skeleton-tile:nth-child(3) { animation-delay: 0.2s; }
   .skeleton-tile:nth-child(4) { animation-delay: 0.3s; } .skeleton-tile:nth-child(5) { animation-delay: 0.4s; } .skeleton-tile:nth-child(6) { animation-delay: 0.5s; }
   @keyframes shimmer { 0%, 100% { opacity: 0.45; } 50% { opacity: 0.9; } }
-  .boot-problem { color: var(--ink-muted); font-size: 13.5px; text-align: center; padding: 26px 18px 0; line-height: 1.5; }
+  .boot-problem { color: var(--ink-muted); font-size: calc(13.5px * var(--scale, 1)); text-align: center; padding: 26px 18px 0; line-height: 1.5; }
   .boot-problem .btn { max-width: 220px; margin: 14px auto 0; }
 
   /* ---------- Toast ---------- */
@@ -478,7 +534,7 @@
     position: fixed; left: 50%; bottom: calc(26px + env(safe-area-inset-bottom) + var(--vv-bottom-offset, 0px));
     transform: translateX(-50%) translateY(10px);
     background: var(--panel-2); color: var(--ink); border: 1px solid var(--line); border-radius: 12px;
-    padding: 11px 12px 11px 15px; font-size: 13.5px; display: flex; align-items: center; gap: 12px;
+    padding: 11px 12px 11px 15px; font-size: calc(13.5px * var(--scale, 1)); display: flex; align-items: center; gap: 12px;
     box-shadow: var(--shadow); max-width: calc(100% - 40px); z-index: 30;
     opacity: 0; visibility: hidden; pointer-events: none;
     transition: opacity 0.22s cubic-bezier(.2,.9,.3,1.1), transform 0.22s cubic-bezier(.2,.9,.3,1.1), visibility 0s linear 0.22s;
@@ -511,19 +567,22 @@
   .grabber { width: 38px; height: 5px; border-radius: 3px; background: var(--line); margin: 0 auto 12px; }
   .grabber::before { content: ""; display: block; position: relative; top: -12px; height: 30px; }
   .sheet h3 { margin: 0 0 4px; font-size: var(--sheet-title); letter-spacing: -0.01em; }
-  .sheet .sheet-sub { margin: 0 0 14px; font-size: 13px; color: var(--ink-muted); }
-  .sheet h4 { margin: 20px 0 8px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--ink-faint); }
-  .sheet label { display: block; font-size: 11.5px; color: var(--ink-muted); text-transform: uppercase; letter-spacing: 0.06em; margin: 14px 0 6px; }
+  .sheet .sheet-sub { margin: 0 0 14px; font-size: calc(13px * var(--scale, 1)); color: var(--ink-muted); }
+  .sheet h4 { margin: 20px 0 8px; font-size: calc(12px * var(--scale, 1)); text-transform: uppercase; letter-spacing: 0.07em; color: var(--ink-faint); }
+  .sheet label { display: block; font-size: calc(11.5px * var(--scale, 1)); color: var(--ink-muted); text-transform: uppercase; letter-spacing: 0.06em; margin: 14px 0 6px; }
   .sheet input[type="text"], .sheet input[type="number"], .sheet input[type="password"], .sheet input[type="email"], .sheet input[type="url"], .sheet input[type="search"], .sheet textarea {
     width: 100%; background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px;
-    padding: 12px; color: var(--ink); font-size: 16px; font-family: inherit;
+    padding: 12px; color: var(--ink); font-size: calc(16px * var(--scale, 1)); font-family: inherit;
   }
   .sheet input:focus, .sheet textarea:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
   .field-note { font-size: var(--body); color: var(--ink-muted); line-height: 1.4; margin: 6px 0 0; }
-  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; min-width: 0; }
+  /* At the top of the text-size slider a single long chip was wider than the
+     phone, so the page scrolled sideways by a few pixels. */
+  .chips > * { max-width: 100%; overflow-wrap: anywhere; }
   .chip {
     font: inherit; padding: 9px 14px; border-radius: 999px; border: 1px solid var(--line);
-    background: var(--panel-2); color: var(--ink-muted); font-size: 13.5px; font-weight: 600;
+    background: var(--panel-2); color: var(--ink-muted); font-size: calc(13.5px * var(--scale, 1)); font-weight: 600;
     cursor: pointer; touch-action: manipulation; transition: transform 0.12s cubic-bezier(.2,.9,.3,1.1);
   }
   .chip:active { transform: scale(0.94); }
@@ -531,7 +590,7 @@
   .sheet-actions { display: flex; flex-direction: column; gap: 9px; margin-top: 18px; }
   .sheet-actions button, .btn {
     font: inherit; cursor: pointer; border-radius: 11px; border: none; padding: 13px 14px; width: 100%;
-    font-size: 15.5px; font-weight: 650; touch-action: manipulation; transition: transform 0.12s cubic-bezier(.2,.9,.3,1.1);
+    font-size: calc(15.5px * var(--scale, 1)); font-weight: 650; touch-action: manipulation; transition: transform 0.12s cubic-bezier(.2,.9,.3,1.1);
   }
   .sheet-actions button:active, .btn:active { transform: scale(0.97); }
   .btn { background: var(--accent); color: #fff; }
@@ -540,8 +599,8 @@
   .btn-danger { background: var(--delete); color: #fff; }
   .btn-set-apart { margin-top: 14px; }
   .btn-row { display: flex; gap: 9px; margin-top: 14px; }
-  .link { background: none; border: none; color: var(--ink-muted); text-decoration: underline; font: inherit; font-size: 13px; cursor: pointer; padding: 10px 8px; min-height: 40px; touch-action: manipulation; }
-  .or-line { text-align: center; color: var(--ink-faint); font-size: 12.5px; margin: 16px 0 4px; }
+  .link { background: none; border: none; color: var(--ink-muted); text-decoration: underline; font: inherit; font-size: calc(13px * var(--scale, 1)); cursor: pointer; padding: 10px 8px; min-height: 40px; touch-action: manipulation; }
+  .or-line { text-align: center; color: var(--ink-faint); font-size: calc(12.5px * var(--scale, 1)); margin: 16px 0 4px; }
 
   /* ---------- The in-page camera ---------- */
   .cam-wrap { position: relative; width: 100%; aspect-ratio: 4 / 3; background: #000; border-radius: 14px; overflow: hidden; }
@@ -557,42 +616,42 @@
   .hero .hero-line { font-size: var(--body); color: var(--ink-muted); margin-top: 6px; line-height: 1.45; }
   .hero .hero-line b { color: var(--ink); font-weight: 700; }
   .hero img.set-logo { max-height: 34px; max-width: 100%; margin-top: 8px; display: block; }
-  .hero .have-line { margin-top: 10px; font-size: 13px; font-weight: 700; color: var(--ok); }
+  .hero .have-line { margin-top: 10px; font-size: calc(13px * var(--scale, 1)); font-weight: 700; color: var(--ok); }
 
   .price-table { width: 100%; border-collapse: collapse; font-size: var(--body); }
-  .price-table th { text-align: left; font-weight: 600; color: var(--ink-faint); font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; padding: 4px 6px 4px 0; }
+  .price-table th { text-align: left; font-weight: 600; color: var(--ink-faint); font-size: calc(11px * var(--scale, 1)); text-transform: uppercase; letter-spacing: 0.05em; padding: 4px 6px 4px 0; }
   .price-table td { padding: 7px 6px 7px 0; border-top: 1px solid var(--panel-2); vertical-align: top; }
   .price-table td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
   .price-table th.num { text-align: right; }
   .price-table .site { font-weight: 700; color: var(--ink); }
-  .price-table .site small { display: block; font-weight: 500; color: var(--ink-muted); font-size: 11.5px; }
+  .price-table .site small { display: block; font-weight: 500; color: var(--ink-muted); font-size: calc(11.5px * var(--scale, 1)); }
   .price-table .big { color: var(--ok); font-weight: 800; }
   .price-table a { color: var(--ink-muted); }
   .price-box { background: var(--panel-2); border-radius: 12px; padding: 10px 12px; }
   .price-box + .price-box { margin-top: 10px; }
-  .price-box .box-title { font-size: 13px; font-weight: 800; margin-bottom: 4px; display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
-  .price-box .box-title small { font-weight: 500; color: var(--ink-muted); font-size: 11.5px; }
-  .source-list { margin: 8px 0 0; padding: 0; list-style: none; font-size: 12.5px; }
+  .price-box .box-title { font-size: calc(13px * var(--scale, 1)); font-weight: 800; margin-bottom: 4px; display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .price-box .box-title small { font-weight: 500; color: var(--ink-muted); font-size: calc(11.5px * var(--scale, 1)); }
+  .source-list { margin: 8px 0 0; padding: 0; list-style: none; font-size: calc(12.5px * var(--scale, 1)); }
   .source-list li { margin: 3px 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .source-list a { color: var(--ink-muted); }
 
   .fact-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
   .fact { background: var(--panel-2); border-radius: 12px; padding: 10px 12px; }
-  .fact .k { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-faint); }
-  .fact .v { font-size: 15px; font-weight: 800; margin-top: 2px; line-height: 1.3; }
-  .fact .v small { font-weight: 500; color: var(--ink-muted); font-size: 12px; display: block; }
+  .fact .k { font-size: calc(11px * var(--scale, 1)); text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-faint); }
+  .fact .v { font-size: calc(15px * var(--scale, 1)); font-weight: 800; margin-top: 2px; line-height: 1.3; }
+  .fact .v small { font-weight: 500; color: var(--ink-muted); font-size: calc(12px * var(--scale, 1)); display: block; }
   .fact.wide { grid-column: 1 / -1; }
 
   .packs-box { background: linear-gradient(135deg, rgba(255,90,78,0.18), rgba(255,204,0,0.12)); border: 1px solid rgba(255,90,78,0.35); border-radius: 14px; padding: 12px 14px; }
   .packs-box .big { font-size: var(--big); font-weight: 900; letter-spacing: -0.02em; line-height: 1.1; }
-  .packs-box .big small { font-size: 14px; font-weight: 600; color: var(--ink-muted); letter-spacing: 0; }
+  .packs-box .big small { font-size: calc(14px * var(--scale, 1)); font-weight: 600; color: var(--ink-muted); letter-spacing: 0; }
   .packs-box p { margin: 6px 0 0; font-size: var(--body); color: var(--ink-muted); line-height: 1.45; }
   .packs-box p b { color: var(--ink); }
 
   .check-list { margin: 0; padding: 0; list-style: none; counter-reset: c; }
   .check-list li { position: relative; padding: 9px 0 9px 36px; border-top: 1px solid var(--panel-2); font-size: var(--body); line-height: 1.45; color: var(--ink-muted); }
   .check-list li:first-child { border-top: none; }
-  .check-list li::before { counter-increment: c; content: counter(c); position: absolute; left: 0; top: 9px; width: 24px; height: 24px; border-radius: 50%; background: var(--panel-2); color: var(--ink); font-weight: 800; font-size: 12px; display: flex; align-items: center; justify-content: center; }
+  .check-list li::before { counter-increment: c; content: counter(c); position: absolute; left: 0; top: 9px; width: 24px; height: 24px; border-radius: 50%; background: var(--panel-2); color: var(--ink); font-weight: 800; font-size: calc(12px * var(--scale, 1)); display: flex; align-items: center; justify-content: center; }
   .check-list li b { color: var(--ink); }
   .check-list .sym { display: inline-block; vertical-align: middle; height: 22px; width: auto; margin-left: 6px; background: #fff; border-radius: 4px; padding: 2px; }
 
@@ -607,8 +666,8 @@
   .look-tile.me { border-color: var(--accent); cursor: default; }
   .look-tile.me:active { transform: none; }
   .look-tile img, .look-tile .lt-blank { width: 100%; aspect-ratio: 63 / 88; object-fit: cover; display: block; background: var(--panel); }
-  .look-tile .lt-blank { display: flex; align-items: center; justify-content: center; text-align: center; font-size: 11px; color: var(--ink-faint); padding: 6px; }
-  .look-tile .lt-tag { position: absolute; top: 0; left: 0; right: 0; background: var(--accent); color: #fff; font-size: 10.5px; font-weight: 800; text-align: center; padding: 2px 0; letter-spacing: 0.04em; }
+  .look-tile .lt-blank { display: flex; align-items: center; justify-content: center; text-align: center; font-size: calc(11px * var(--scale, 1)); color: var(--ink-faint); padding: 6px; }
+  .look-tile .lt-tag { position: absolute; top: 0; left: 0; right: 0; background: var(--accent); color: #fff; font-size: calc(10.5px * var(--scale, 1)); font-weight: 800; text-align: center; padding: 2px 0; letter-spacing: 0.04em; }
   .look-tile .lt-set { font-size: var(--t-sub); font-weight: 800; margin: 6px 7px 0; line-height: 1.2; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
   .look-tile .lt-num { font-size: var(--t-sub); color: var(--ink-muted); margin: 2px 7px 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .look-tile .lt-price { font-size: var(--t-price); font-weight: 800; color: var(--ok); margin: 3px 7px 0; white-space: nowrap; }
@@ -639,11 +698,11 @@
   /* The "Why it costs" Ask Gemini button sat gray on gray, same fix. */
   #btn-why { background: var(--panel); border: 1px solid var(--line); }
   .qty-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; background: var(--panel-2); border-radius: 12px; padding: 8px 8px 8px 14px; }
-  .qty-row .qty-label { font-size: 15px; font-weight: 700; }
+  .qty-row .qty-label { font-size: calc(15px * var(--scale, 1)); font-weight: 700; }
   .qty-row .qty-ctl { display: flex; align-items: center; gap: 4px; }
-  .qty-row .qty-ctl button { width: 40px; height: 40px; border-radius: 10px; border: none; background: var(--line); color: var(--ink); font-size: 20px; font-weight: 700; cursor: pointer; touch-action: manipulation; }
+  .qty-row .qty-ctl button { width: 40px; height: 40px; border-radius: 10px; border: none; background: var(--line); color: var(--ink); font-size: calc(20px * var(--scale, 1)); font-weight: 700; cursor: pointer; touch-action: manipulation; }
   .qty-row .qty-ctl button:active { transform: scale(0.92); }
-  .qty-row .qty-ctl .qty { min-width: 36px; text-align: center; font-size: 18px; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .qty-row .qty-ctl .qty { min-width: 36px; text-align: center; font-size: calc(18px * var(--scale, 1)); font-weight: 800; font-variant-numeric: tabular-nums; }
   .fav-btn { display: flex; align-items: center; justify-content: center; gap: 8px; }
   .fav-btn.on { background: rgba(255,204,0,0.18); color: var(--gold); }
 
@@ -659,20 +718,24 @@
   .opt-section { margin-top: 18px; }
   .opt-section.hidden-by-filter { display: none; }
   .opt-section h4 { margin: 0 0 8px; }
-  .opt-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 0; border-top: 1px solid var(--panel-2); }
+  /* Wraps, and its halves may shrink: at the top of the text-size slider the
+     Screen mode chips and the long test button sat on one line and pushed the
+     page sideways. */
+  .opt-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 0; border-top: 1px solid var(--panel-2); flex-wrap: wrap; }
+  .opt-row > * { min-width: 0; max-width: 100%; }
   .opt-row:first-of-type { border-top: none; }
   .opt-row .opt-text { flex: 1; min-width: 0; font-size: calc(var(--body) + 1.5px); }
-  .opt-row .opt-text small { display: block; color: var(--ink-muted); font-size: 12.5px; line-height: 1.4; margin-top: 2px; }
+  .opt-row .opt-text small { display: block; color: var(--ink-muted); font-size: calc(12.5px * var(--scale, 1)); line-height: 1.4; margin-top: 2px; }
   .opt-row .opt-text small b { color: var(--ink); }
   .opt-row .chips { flex: none; }
   /* Beats the sheet's width:100% rule on number fields, or the box takes the
      whole row and the words beside it wrap one per line. */
   .sheet .opt-row input.opt-mini { width: 96px; text-align: center; flex: none; }
   .opt-row .pill-btn { flex: none; }
-  .family-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-top: 1px solid var(--panel-2); font-size: 14px; }
+  .family-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-top: 1px solid var(--panel-2); font-size: calc(14px * var(--scale, 1)); }
   .family-row .fam-name { font-weight: 700; flex: none; }
-  .family-row .fam-email { flex: 1; min-width: 0; color: var(--ink-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
-  .family-row .fam-tag { flex: none; font-size: 11px; color: var(--ink-faint); text-transform: uppercase; letter-spacing: 0.05em; }
+  .family-row .fam-email { flex: 1; min-width: 0; color: var(--ink-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: calc(13px * var(--scale, 1)); }
+  .family-row .fam-tag { flex: none; font-size: calc(11px * var(--scale, 1)); color: var(--ink-faint); text-transform: uppercase; letter-spacing: 0.05em; }
 
   /* Arrived here from the search on Home: say which card it was, briefly. */
   .found-from-search { animation: found-flash 2.4s ease; }
@@ -681,10 +744,10 @@
 
   /* ---------- Sign-in ---------- */
   .card { background: var(--panel); border: 1px solid var(--panel-2); border-radius: 16px; padding: 18px; }
-  .card label { display: block; font-size: 11.5px; color: var(--ink-muted); text-transform: uppercase; letter-spacing: 0.06em; margin: 14px 0 6px; }
-  .card input { width: 100%; background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px; padding: 12px; color: var(--ink); font-size: 16px; font-family: inherit; }
+  .card label { display: block; font-size: calc(11.5px * var(--scale, 1)); color: var(--ink-muted); text-transform: uppercase; letter-spacing: 0.06em; margin: 14px 0 6px; }
+  .card input { width: 100%; background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px; padding: 12px; color: var(--ink); font-size: max(16px, calc(16px * var(--scale, 1))); font-family: inherit; }
   .card input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
-  .note { background: rgba(255,90,78,0.12); border: 1px solid rgba(255,90,78,0.25); border-radius: 12px; padding: 12px 14px; font-size: 13px; color: var(--ink-muted); line-height: 1.5; margin-bottom: 16px; }
+  .note { background: rgba(255,90,78,0.12); border: 1px solid rgba(255,90,78,0.25); border-radius: 12px; padding: 12px 14px; font-size: calc(13px * var(--scale, 1)); color: var(--ink-muted); line-height: 1.5; margin-bottom: 16px; }
   .note strong { color: var(--ink); }
 </style>
 </head>
@@ -746,7 +809,7 @@
           <h1>Poké Scan</h1>
           <p class="tagline">Scan a card or type its name · see what it's worth · keep your collection</p>
         </div>
-        <div style="display:flex;gap:6px;flex:none;max-width:66%;justify-content:flex-end">
+        <div style="display:flex;gap:6px;flex:0 1 auto;min-width:0;max-width:66%;justify-content:flex-end">
           <button type="button" class="who-chip money-chip" id="money-chip" aria-label="Your money">
             <span class="who-dot">$</span><span class="who-name" id="money-amount">0</span>
           </button>
@@ -765,7 +828,11 @@
       </div>
     </header>
     <div class="size-wrap" id="size-wrap">
-      <div class="size-scale" id="size-scale" role="group" aria-label="Text size"></div>
+      <div class="size-row">
+        <span class="size-end small" aria-hidden="true">A</span>
+        <input type="range" id="text-size" min="0.55" max="2" step="0.05" aria-label="Text size">
+        <span class="size-end big" aria-hidden="true">A</span>
+      </div>
     </div>
 
     <div id="whats-new" class="whats-new hide"></div>
@@ -778,6 +845,7 @@
     </div>
 
     <section id="find-pane">
+      <div id="check-banner" class="check-banner hide" style="margin:0 0 10px"></div>
       <div class="search-row">
         <div class="search-box">
           <input type="search" id="q" placeholder="Type a name — e.g. Charizard, or Pikachu 25/102" autocomplete="off" autocorrect="off" autocapitalize="words" enterkeyhint="search">
@@ -905,7 +973,7 @@
     <p class="sheet-sub" id="trade-add-sub"></p>
     <label for="trade-add-money">Money</label>
     <div class="field-row" style="display:flex;gap:8px;align-items:center">
-      <span style="font-size:20px;font-weight:800">$</span>
+      <span style="font-size: calc(20px * var(--scale, 1));font-weight:800">$</span>
       <input type="number" id="trade-add-money" inputmode="decimal" min="0" step="0.01" placeholder="0.00" style="flex:1;min-width:0">
     </div>
     <label>Cards</label>
@@ -926,8 +994,8 @@
     <p class="sheet-sub">Type what you have. Selling a card adds to it; buying a product in Shop takes from it.</p>
     <label for="money-input">I have</label>
     <div class="field-row" style="display:flex;gap:8px;align-items:center">
-      <span style="font-size:22px;font-weight:800">$</span>
-      <input type="number" id="money-input" inputmode="decimal" min="0" step="0.01" placeholder="0.00" style="flex:1;min-width:0;font-size:22px;font-weight:800">
+      <span style="font-size: calc(22px * var(--scale, 1));font-weight:800">$</span>
+      <input type="number" id="money-input" inputmode="decimal" min="0" step="0.01" placeholder="0.00" style="flex:1;min-width:0;font-size: calc(22px * var(--scale, 1));font-weight:800">
       <button type="button" class="pill-btn" id="money-save">Save</button>
     </div>
     <h4>Where it went</h4>
@@ -959,7 +1027,7 @@
         </span>
       </div>
       <div id="entry-extras" class="hide" style="display:flex;flex-direction:column;gap:8px">
-        <input type="url" id="entry-link" placeholder="A link — the listing or page this card is on" inputmode="url" autocapitalize="off" autocomplete="off" style="width:100%;background:var(--panel-2);border:1px solid var(--line);border-radius:10px;padding:12px;color:var(--ink);font-size:16px;font-family:inherit">
+        <input type="url" id="entry-link" placeholder="A link — the listing or page this card is on" inputmode="url" autocapitalize="off" autocomplete="off" style="width:100%;background:var(--panel-2);border:1px solid var(--line);border-radius:10px;padding:12px;color:var(--ink);font-size: max(16px, calc(16px * var(--scale, 1)));font-family:inherit">
         <div id="entry-link-open" class="field-note" style="margin:0"></div>
       </div>
       <button type="button" class="btn-save" id="btn-add">Add to my cards</button>
@@ -1047,7 +1115,11 @@
       </div>
       <div class="opt-row">
         <div class="opt-text">Text size<small>Also the Aa button at the top.</small></div>
-        <div class="chips" id="size-chips"></div>
+        <div class="size-row">
+          <span class="size-end small" aria-hidden="true">A</span>
+          <input type="range" id="size-chips" min="0.55" max="2" step="0.05" aria-label="Text size">
+          <span class="size-end big" aria-hidden="true">A</span>
+        </div>
       </div>
       <div class="opt-row">
         <div class="opt-text">Appearance<small>Auto follows the phone's light or dark setting.</small></div>
@@ -1407,13 +1479,14 @@ getRedirectResult(authClient)
 //   requests.{id} = { by, text, at, status: new | approved | declined | done }   -- a family member asking the owner for a change
 //   trades.{id}   = { a, b, sideA: { cards: [entryIds], money }, sideB: {...}, turn, status, log: [...], at, updatedAt }
 //                    a started it; sideA is what a gives, sideB what b gives; turn = whose move; status = open | accepted | declined
+//   checks.{name} = { other, a: [items], b: [items], at }   -- that person's trade check (is this swap fair?); see TRADE CHECK
 //   people.{name} = { addedAt, email, ntfy }  -- the family, one name per sign-in email; only the owner edits name/email; ntfy is each person's own push topic
 //   sharedWith    = [ emails ]                  -- the Firestore rule's list of who may open the document (kept in step with people)
 //   recent.{name} = [ { cardId, how, at, snap } ]  -- that person's last scans and look-ups, newest first
 // `snap` is what the card looked like when it was added, so the collection
 // draws instantly and offline without asking the card database again.
 const docRef = doc(db, "homeApps", "pokescan");
-let state = { cards: {}, settings: {}, people: {}, recent: {}, money: {}, products: null, trades: {}, requests: {}, claims: {}, avatars: {}, ownerUid: "", ownerEmail: "", sharedWith: [] };
+let state = { cards: {}, settings: {}, people: {}, recent: {}, money: {}, products: null, trades: {}, checks: {}, requests: {}, claims: {}, avatars: {}, ownerUid: "", ownerEmail: "", sharedWith: [] };
 let unsubscribe = null;
 let signedIn = false;
 let currentUser = null;
@@ -1484,6 +1557,7 @@ onAuthStateChanged(authClient, async user => {
     state.money = d.money && typeof d.money === "object" ? d.money : {};
     state.products = d.products && typeof d.products === "object" ? d.products : null;
     state.trades = d.trades && typeof d.trades === "object" ? d.trades : {};
+    state.checks = d.checks && typeof d.checks === "object" ? d.checks : {};
     state.requests = d.requests && typeof d.requests === "object" ? d.requests : {};
     state.claims = d.claims && typeof d.claims === "object" ? d.claims : {};
     state.avatars = d.avatars && typeof d.avatars === "object" ? d.avatars : {};
@@ -1798,27 +1872,34 @@ applyCols();
 // Per device, like the other apps: a size that reads on a phone is the wrong
 // one on a Mac.
 const TEXT_SIZE_KEY = "pokescan-text-size";
-const TEXT_SIZES = ["xs", "s", "m", "l", "xl"];
-const TEXT_SIZE_NAMES = { xs: "Extra small", s: "Small", m: "Medium", l: "Large", xl: "Extra large" };
-const TEXT_SIZE_GLYPH = { xs: 11, s: 14, m: 17, l: 21, xl: 25 };
-let textSize = "m";
-try { const t = localStorage.getItem(TEXT_SIZE_KEY); if (TEXT_SIZES.includes(t)) textSize = t; } catch (e) {}
+// A slider now, not five rungs. The old saved value was one of the words below,
+// so it is read once and turned into a number rather than losing his choice.
+const OLD_STEPS = { xs: 0.8, s: 0.9, m: 1, l: 1.15, xl: 1.3 };
+let textSize = 1;
+try {
+  const t = localStorage.getItem(TEXT_SIZE_KEY);
+  if (t !== null) { const n = Number(t); textSize = isFinite(n) && n >= 0.5 && n <= 2.2 ? n : (OLD_STEPS[t] || 1); }
+} catch (e) {}
 function applyTextSize() {
-  if (textSize === "m") document.documentElement.removeAttribute("data-text-size");
-  else document.documentElement.setAttribute("data-text-size", textSize);
-  $("btn-textsize").setAttribute("aria-label", "Text size: " + TEXT_SIZE_NAMES[textSize] + " — tap to change");
-  $("size-scale").innerHTML = TEXT_SIZES.map(k =>
-    `<button type="button" class="size-step" data-size="${k}" aria-pressed="${String(k === textSize)}" aria-label="${TEXT_SIZE_NAMES[k]}"><span style="font-size:${TEXT_SIZE_GLYPH[k]}px">A</span></button>`).join("");
-  $("size-chips").innerHTML = TEXT_SIZES.map(k => `<button type="button" class="chip${k === textSize ? " on" : ""}" data-size="${k}" aria-label="${TEXT_SIZE_NAMES[k]}"><span style="font-size:${Math.max(11, TEXT_SIZE_GLYPH[k] - 4)}px">A</span></button>`).join("");
+  document.documentElement.style.setProperty("--scale", String(textSize));
+  document.documentElement.removeAttribute("data-text-size");
+  $("btn-textsize").setAttribute("aria-label", "Text size — tap to change");
+  // The strip at the top and the one in Options are the same setting.
+  for (const id of ["text-size", "size-chips"]) {
+    const el = $(id);
+    if (el && Number(el.value) !== textSize) el.value = String(textSize);
+  }
 }
 function setTextSize(next) {
-  if (!TEXT_SIZES.includes(next)) return;
-  textSize = next;
-  try { localStorage.setItem(TEXT_SIZE_KEY, textSize); } catch (e) {}
+  const n = Number(next);
+  if (!isFinite(n) || n < 0.5 || n > 2.2) return;
+  textSize = n;
+  try { localStorage.setItem(TEXT_SIZE_KEY, String(textSize)); } catch (e) {}
   applyTextSize();
 }
-$("size-scale").addEventListener("click", e => { const b = e.target.closest("[data-size]"); if (b) setTextSize(b.dataset.size); });
-$("size-chips").addEventListener("click", e => { const b = e.target.closest("[data-size]"); if (b) setTextSize(b.dataset.size); });
+for (const id of ["text-size", "size-chips"]) {
+  if ($(id)) $(id).addEventListener("input", e => setTextSize(e.target.value));
+}
 $("btn-textsize").addEventListener("click", e => { e.stopPropagation(); $("size-wrap").classList.toggle("show"); });
 // A tap anywhere else puts the strip away, but not a tap on the strip itself.
 document.addEventListener("pointerdown", e => {
@@ -1916,13 +1997,17 @@ $("opt-timer").addEventListener("change", () => {
 
 // ---------- Tabs ----------
 let tab = "find";
+let checkAdding = null;          // "a" | "b": the trade check side the next card opened goes to (see TRADE CHECK)
+let checkRefreshing = false;
 function setTab(next, quiet) {
   tab = next;
   ["find", "mine", "shop", "trade", "sets"].forEach(t => { $("tab-" + t).setAttribute("aria-selected", String(tab === t)); $(t + "-pane").classList.toggle("hide", tab !== t); });
+  if (tab !== "find") checkAdding = null;   // leaving Find ends "adding to the trade check"
+  renderCheckBanner();
   if (quiet) return;
   if (tab === "mine") renderMine();
   if (tab === "shop") renderShop();
-  if (tab === "trade") renderTrade();
+  if (tab === "trade") { renderTrade(); refreshCheckPrices(false); }
   if (tab === "sets") renderSets();
 }
 $("tab-find").addEventListener("click", () => setTab("find"));
@@ -2711,7 +2796,7 @@ function renderPicker() {
   results.forEach(c => { counts[c.kind] = (counts[c.kind] || 0) + 1; });
   if (pickStep === "type") {
     pk.innerHTML = `<h3>What type do you have?</h3><p>Look at the card in your hand: the mark after the name, or the finish.</p><div class="pick-grid">`
-      + `<button type="button" class="pick" data-pick-all="1"><span style="font-size:40px;line-height:44px">✱</span><span class="pick-name">All</span><span class="pick-sub">Every printing, no questions</span><span class="pick-n">${results.length} card${results.length === 1 ? "" : "s"}</span></button>`
+      + `<button type="button" class="pick" data-pick-all="1"><span style="font-size: calc(40px * var(--scale, 1));line-height:44px">✱</span><span class="pick-name">All</span><span class="pick-sub">Every printing, no questions</span><span class="pick-n">${results.length} card${results.length === 1 ? "" : "s"}</span></button>`
       + KIND_ORDER.map(k => `<button type="button" class="pick" data-pick-kind="${k}" ${counts[k] ? "" : "disabled"}>${kindArt(k, 64)}<span class="pick-name">${escapeHtml(KINDS[k].label)}</span>${KINDS[k].sub ? `<span class="pick-sub">${escapeHtml(KINDS[k].sub)}</span>` : ""}<span class="pick-n">${counts[k] ? counts[k] + (counts[k] === 1 ? " card" : " cards") : "none of this card"}</span></button>`).join("")
       + `</div>`;
     pk.classList.remove("hide");
@@ -3635,7 +3720,7 @@ async function takeApproveFromLink() {
 }
 function showApproveBanner(r, copied) {
   const box = $("whats-new");
-  box.innerHTML = `<div class="wn-title">Approved: ${escapeHtml(r.by)}'s request</div><p style="margin:0 0 8px;font-size:14px">${escapeHtml(r.text)}</p>
+  box.innerHTML = `<div class="wn-title">Approved: ${escapeHtml(r.by)}'s request</div><p style="margin:0 0 8px;font-size: calc(14px * var(--scale, 1))">${escapeHtml(r.text)}</p>
     <div class="btn-row" style="margin-top:6px"><a class="btn" href="${escapeAttr(claudeUrlFor(r))}" target="_blank" rel="noopener" style="text-align:center;text-decoration:none;display:block">Open in Claude with it typed in</a><button type="button" class="btn secondary" id="approve-copy">Copy again</button></div>
     <div class="field-note" style="margin-top:8px">${copied ? "It's on your clipboard too — paste it into any Claude chat." : "Tap Copy again, then paste it into any Claude chat."}</div>
     <button type="button" class="link" id="approve-done">Done</button>`;
@@ -3808,15 +3893,21 @@ function renderTrade() {
   const list = myTrades();
   const others = everyoneKnown().filter(n => n !== who);
   const starter = others.length ? `<div class="trade-card"><div class="trade-head"><span class="trade-who">Start a trade</span></div><p class="field-note" style="margin:6px 0 10px">Or open any card someone else has and tap "Ask … to trade it".</p><div class="chips">${others.map(n => `<button type="button" class="chip" data-trade-start="${escapeAttr(n)}">With ${escapeHtml(n)}</button>`).join("")}</div></div>` : `<div class="trade-card"><div class="trade-who">Nobody to trade with yet</div><p class="field-note" style="margin:6px 0 0">Trades are between two people in the family.</p></div>`;
-  root.innerHTML = starter + (list.length ? list.map(t => tradeCardHtml(t)).join("") : "");
+  // Typing the other side's name must survive a redraw from somewhere else.
+  const act = document.activeElement, keep = act && act.id === "check-other" ? { v: act.value, at: act.selectionStart } : null;
+  root.innerHTML = checkHtml() + starter + (list.length ? list.map(t => tradeCardHtml(t)).join("") : "");
+  if (keep) { const i = $("check-other"); i.value = keep.v; i.focus(); try { i.setSelectionRange(keep.at, keep.at); } catch (e) {} }
 }
 function tradeCardHtml(t) {
   const me = who, other = t.a === me ? t.b : t.a;
   const mine = t[sideKeyFor(t, me)], theirs = t[sideKeyFor(t, other)];
   const wMine = tradeWorth(mine), wTheirs = tradeWorth(theirs);
   const total = wMine + wTheirs;
-  // Gauge: 50% = even. Left of center = I give more.
-  const share = total ? wMine / total : 0.5;
+  // Gauge: 50% = even. Left of center = I give more -- the needle leans
+  // toward whoever gives more, like the heavy side of a scale. (It used to
+  // lean the other way, away from the words saying who gives more; the
+  // trade check below uses the same rule.)
+  const share = total ? wTheirs / total : 0.5;
   const pctMine = total ? Math.round((wMine / total - 0.5) * 200) : 0;
   const evenText = !total ? "Nothing on either side yet" : pctMine === 0 ? "0% and 0% — even" : pctMine > 0 ? me + " gives " + pctMine + "% more" : other + " gives " + (-pctMine) + "% more";
   const myTurn = t.status === "open" && t.turn === me;
@@ -3919,6 +4010,238 @@ function tradeNotice() {
   if (n && !tradeNoticeShown) { tradeNoticeShown = true; showToast(n === 1 ? "A trade is waiting for your answer — see the Trade tab" : n + " trades are waiting for you — see the Trade tab"); }
 }
 let tradeNoticeShown = false;
+
+// =========================================================================
+// TRADE CHECK
+// =========================================================================
+// Is this swap fair? (Idea 398, Dad said yes 2026-09-23.) Before two kids
+// swap, each scans -- or types -- the cards they would give, and the check
+// adds both sides up at today's store price and says Fair or who gives more.
+// Nothing changes hands here; it only weighs. The other side can be anyone
+// (a friend at school); if it's someone in the family, the check can be
+// sent to them as a real trade (the Trade section below it).
+//   checks.{name} = { other, a: [item], b: [item], at }   -- a: what this person gives, b: what the other side gives
+//   item = { id, cardId, name, set, number, finish, lang, pic, price (null = no store price), guess (typed by hand), priceAt }
+// Kept in the family document, so it is still there after a reload and on
+// another device, and every removal is one Undo.
+const CHECK_FAIR_SHARE = 0.10;   // within 10% of the bigger side (or 50 cents) counts as fair
+
+const checkPriced = x => typeof x.price === "number" && x.price > 0;
+function myCheck() {
+  const c = (state.checks || {})[who];
+  const items = l => Array.isArray(l) ? l.filter(x => x && x.id) : [];
+  return { other: c && typeof c.other === "string" ? c.other : "", a: items(c && c.a), b: items(c && c.b), at: (c && c.at) || 0 };
+}
+function checkOtherName(c) { return (c.other || "").trim() || "Friend"; }
+function checkSideName(c, side) { return side === "a" ? who : checkOtherName(c); }
+function checkWorth(items) { return Math.round(items.reduce((n, x) => n + (checkPriced(x) ? x.price : 0), 0) * 100) / 100; }
+function checkUnpriced(items) { return items.filter(x => !checkPriced(x)).length; }
+// The other side's name, if it is someone in the family (any capitals).
+function checkFamily(c) {
+  const t = (c.other || "").trim().toLowerCase();
+  return t ? everyoneKnown().find(n => n !== who && n.toLowerCase() === t) || "" : "";
+}
+// One way in for every change to the check: the screen first, the write after.
+function saveCheck(next, label) {
+  const before = (state.checks || {})[who] || null;
+  next = { other: next.other || "", a: next.a || [], b: next.b || [], at: Date.now() };
+  state.checks = { ...(state.checks || {}), [who]: next };
+  if (label) pushAction({ label, undo: [{ field: "checks", id: who, value: before }], redo: [{ field: "checks", id: who, value: next }] });
+  renderTrade();
+  saveEntry("checks", who, next);
+}
+function checkVerdict(c) {
+  const A = checkWorth(c.a), B = checkWorth(c.b);
+  const me = who, them = checkOtherName(c);
+  const n = checkUnpriced(c.a) + checkUnpriced(c.b);
+  const note = !n ? "" : n === 1 ? "One card has no store price, so it counts as $0 — tap Type a price on it if you know what it's worth."
+    : n + " cards have no store price, so they count as $0 — tap Type a price on them if you know what they're worth.";
+  if (!c.a.length && !c.b.length) return { cls: "", big: "Is it a fair trade?", sub: "Each side scans (or types) the cards they'd give. The check adds them up at today's store prices." };
+  if (!c.a.length) return { cls: "", big: me + " isn't giving anything yet", sub: "Add " + me + "'s cards on the left." };
+  if (!c.b.length) return { cls: "", big: them + " isn't giving anything yet", sub: "Add " + them + "'s cards on the right." };
+  if (!A && !B) return { cls: "", big: "Can't tell yet", sub: note };
+  const diff = Math.round((A - B) * 100) / 100, big = Math.max(A, B);
+  if (Math.abs(diff) <= Math.max(0.5, big * CHECK_FAIR_SHARE)) {
+    return { cls: "fair", big: "Fair trade", sub: (diff === 0 ? "Both sides are worth " + money(A) + "." : "Only " + money(Math.abs(diff)) + " apart — close enough.") + (note ? " " + note : "") };
+  }
+  const more = diff > 0 ? me : them, less = diff > 0 ? them : me;
+  return { cls: "lopsided", big: "Not fair: " + more + " gives " + money(Math.abs(diff)) + " more",
+    sub: "To even it up, " + less + " could add a card worth about " + money(Math.abs(diff)) + ", or " + more + " could take one out." + (note ? " " + note : "") };
+}
+function checkHtml() {
+  const c = myCheck();
+  const A = checkWorth(c.a), B = checkWorth(c.b), total = A + B;
+  const share = total ? B / total : 0.5;   // the needle leans toward whoever gives more, like the heavy side of a scale
+  const v = checkVerdict(c);
+  const fam = checkFamily(c);
+  const others = everyoneKnown().filter(n => n !== who);
+  const any = c.a.length || c.b.length;
+  const itemHtml = (x, side) => {
+    const sub = [x.set, [x.number, x.finish].filter(Boolean).join(" · ")].filter(Boolean).map(escapeHtml).join("<br>");
+    const priced = checkPriced(x);
+    return `<div class="side-item">${x.pic ? `<img src="${escapeAttr(x.pic)}" alt="">` : ""}<span class="si-name">${escapeHtml(x.name)}${sub ? `<br><small>${sub}</small>` : ""}<br>`
+      + (priced ? `<span class="si-price${x.guess ? " guess" : ""}">${money(x.price)}${x.guess ? " <small>your guess</small>" : ""}</span>` : `<span class="si-price none">No price</span>`)
+      + (!priced || x.guess ? ` <button type="button" class="si-type" data-check-price="${escapeAttr(x.id)}" data-side="${side}">${priced ? "Change" : "Type a price"}</button>` : "")
+      + `</span><button type="button" class="si-x" data-check-drop="${escapeAttr(x.id)}" data-side="${side}" aria-label="Take ${escapeAttr(x.name)} out">×</button></div>`;
+  };
+  const sideHtml = side => {
+    const name = checkSideName(c, side);
+    return `<div class="side"><div class="side-name"><span>${escapeHtml(name)} gives</span><span class="side-worth">${money(checkWorth(c[side]))}</span></div>
+      ${c[side].map(x => itemHtml(x, side)).join("") || `<div class="side-empty">nothing yet</div>`}
+      <div class="check-add"><button type="button" class="pill-btn" data-check-scan="${side}" aria-label="Scan a card ${escapeAttr(name)} gives">Scan</button><button type="button" class="pill-btn" data-check-name="${side}" aria-label="Type the name of a card ${escapeAttr(name)} gives">Type</button></div></div>`;
+  };
+  return `<div class="trade-card check-card" id="check-card">
+    <div class="trade-head"><span class="trade-who">Trade check</span><span class="trade-state">Is it fair?</span></div>
+    <div class="check-other"><label for="check-other">Trading with</label><input type="text" id="check-other" value="${escapeAttr(c.other)}" placeholder="a friend's name" maxlength="24" autocomplete="off" autocapitalize="words" enterkeyhint="done"></div>
+    ${others.length ? `<div class="chips" style="margin-top:8px;align-items:center"><span class="field-note" style="margin:0">Or someone in the family:</span>${others.map(n => `<button type="button" class="chip${fam === n ? " on" : ""}" data-check-who="${escapeAttr(n)}">${escapeHtml(n)}</button>`).join("")}</div>` : ""}
+    ${any ? `<div class="gauge fair-zone"><div class="needle" style="left:${(share * 100).toFixed(1)}%"></div></div>
+    <div class="gauge-labels"><span>${escapeHtml(who)} ${money(A)}</span><span class="even">fair</span><span>${escapeHtml(checkOtherName(c))} ${money(B)}</span></div>` : ""}
+    <div class="check-verdict ${v.cls}" id="check-verdict"><div class="cv-big">${escapeHtml(v.big)}</div>${v.sub ? `<div class="cv-sub">${escapeHtml(v.sub)}</div>` : ""}</div>
+    <div class="sides check-sides">${sideHtml("a")}${sideHtml("b")}</div>
+    ${any ? `<div class="trade-actions">
+      ${fam ? `<button type="button" class="pill-btn" style="border-color:var(--ok);color:var(--ok)" id="check-send">Send to ${escapeHtml(fam)} as a real trade</button>` : ""}
+      <button type="button" class="pill-btn" id="check-refresh">Update prices</button>
+      <button type="button" class="pill-btn" style="color:var(--delete)" id="check-clear">Start over</button>
+    </div>` : ""}
+    <p class="field-note" style="margin-top:10px">Prices are the TCGplayer market price for that printing and finish, today. Nothing is swapped here${fam ? " — use Send to " + escapeHtml(fam) + " for that" : ""}.</p>
+  </div>`;
+}
+// Where a scan or a typed name goes: the Find tab, with a green bar saying
+// which side, and a green button on the card's page that puts it in.
+function renderCheckBanner() {
+  const b = $("check-banner");
+  if (!checkAdding || !who || tab !== "find") { b.classList.add("hide"); b.innerHTML = ""; return; }
+  const name = checkSideName(myCheck(), checkAdding);
+  b.innerHTML = `<div class="cb-text"><b>Trade check: adding what ${escapeHtml(name)} gives.</b><br>Scan or type the card, tap it, then tap the green <b>Put it in the trade check</b> button.</div><button type="button" class="pill-btn" id="check-banner-cancel">Cancel</button>`;
+  b.classList.remove("hide");
+  $("check-banner-cancel").addEventListener("click", () => { checkAdding = null; setTab("trade"); });
+}
+function checkPutHtml(c, loading, headline) {
+  if (!checkAdding || !who) return "";
+  const name = checkSideName(myCheck(), checkAdding);
+  return `<button type="button" class="btn check-put" id="check-put"${loading ? " disabled" : ""}>${loading ? "Getting today's price…" : "Put it in the trade check — " + escapeHtml(name) + " gives" + (headline ? " · " + money(headline) : " · no price")}</button>`;
+}
+function putInCheck(c, price, finish) {
+  if (!checkAdding || !who) return;
+  const side = checkAdding, cur = myCheck();
+  const item = { id: newId(), cardId: c.id, name: c.name || "Card", set: (c.set && c.set.name) || "", number: numberLabel(c) || "", finish: finish ? finishName(finish) : "", lang: c.lang || "",
+    pic: imgUrl(c, "low") || "", price: price > 0 ? Math.round(price * 100) / 100 : null, guess: false, priceAt: Date.now() };
+  checkAdding = null;
+  closeSheet("card-sheet");
+  setTab("trade");
+  saveCheck({ ...cur, [side]: [...cur[side], item] }, item.name + " put in the trade check");
+  showToast(item.name + " (" + (item.price ? money(item.price) : "no store price") + ") is on " + checkSideName(cur, side) + "'s side");
+  const card = $("check-card"); if (card) card.scrollIntoView({ block: "start", behavior: "smooth" });
+}
+// Today's price again, for the cards that can be looked up again (the main
+// card database's English cards); a price typed by hand is left alone.
+async function refreshCheckPrices(force) {
+  if (checkRefreshing || !who) return;
+  const c = myCheck();
+  const stale = [...c.a, ...c.b].filter(x => !x.guess && !/^(ygo|ptcg):/.test(x.cardId) && (!x.lang || x.lang === "en") && (force || !x.priceAt || Date.now() - x.priceAt > 6 * 3600000));
+  if (!stale.length) { if (force) showToast("Prices are already today's"); return; }
+  checkRefreshing = true;
+  if (force) setStatus("trade-status", "Checking today's prices…");
+  const got = {};
+  let failed = 0;
+  for (const x of stale) {
+    try {
+      if (force) cardCache.delete(x.cardId);
+      const full = await fullCard(x.cardId);
+      const row = x.finish ? tcgplayerRows(full).find(r => sameFinish(r.finish, x.finish)) : null;
+      const p = row && (row.marketPrice || row.midPrice) ? (row.marketPrice || row.midPrice) : headlinePrice(full);
+      got[x.id] = p > 0 ? Math.round(p * 100) / 100 : null;
+    } catch (e) { failed++; }
+  }
+  checkRefreshing = false;
+  setStatus("trade-status", failed && force ? "Couldn't reach the card database for " + failed + (failed === 1 ? " card" : " cards") + " — the old price is kept." : "", !!failed && force);
+  const now = myCheck();   // it may have changed while the prices were fetched
+  let changed = false;
+  const fix = l => l.map(x => { if (!(x.id in got)) return x; if (got[x.id] !== x.price) changed = true; return { ...x, price: got[x.id], priceAt: Date.now() }; });
+  const next = { ...now, a: fix(now.a), b: fix(now.b) };
+  if (Object.keys(got).length) saveCheck(next, "");
+  if (force && !failed) showToast(changed ? "Prices updated to today's" : "Prices checked — no change");
+}
+// A family member on the other side: the check becomes a real trade, made of
+// the matching cards in each person's My cards. Cards nobody has there are
+// left out, and the toast says which.
+function checkToTrade() {
+  const c = myCheck(), other = checkFamily(c);
+  if (!other) return;
+  const pick = (items, person) => {
+    const used = new Set(), got = [], missing = [];
+    items.forEach(x => {
+      const hit = Object.entries(state.cards).find(([id, e]) => live(e) && e.who === person && e.cardId === x.cardId && !used.has(id));
+      if (hit) { used.add(hit[0]); got.push(hit[0]); } else missing.push(x.name);
+    });
+    return { got, missing };
+  };
+  const mine = pick(c.a, who), theirs = pick(c.b, other);
+  if (!mine.got.length && !theirs.got.length) { showToast("None of these cards are in My cards yet — add them there first to trade them for real."); return; }
+  const id = newId(), at = Date.now();
+  const what = who + " sent a trade check: " + mine.got.length + (mine.got.length === 1 ? " card" : " cards") + " for " + theirs.got.length + " of " + other + "'s";
+  const t = { a: who, b: other, sideA: { cards: mine.got, money: 0 }, sideB: { cards: theirs.got, money: 0 }, turn: other, status: "open", at, updatedAt: at, log: [{ at, by: who, what }] };
+  pushAction({ label: "Trade sent to " + other, undo: [{ field: "trades", id, value: null }], redo: [{ field: "trades", id, value: t }] });
+  state.trades = { ...(state.trades || {}), [id]: t };
+  renderTrade();
+  saveEntry("trades", id, t);
+  pushToPerson(other, "Poké Scan: " + who + " wants to trade", what);
+  const left = [...mine.missing, ...theirs.missing];
+  showToast("Sent to " + other + " — it's their move" + (left.length ? ". Left out, not in My cards: " + left.join(", ") : ""));
+}
+$("trade-root").addEventListener("click", e => {
+  const sc = e.target.closest("[data-check-scan]");
+  if (sc) { checkAdding = sc.dataset.checkScan; setTab("find"); window.scrollTo(0, 0); $("btn-scan").click(); return; }
+  const nm = e.target.closest("[data-check-name]");
+  if (nm) { checkAdding = nm.dataset.checkName; setTab("find"); window.scrollTo(0, 0); $("q").focus(); return; }
+  const wh = e.target.closest("[data-check-who]");
+  if (wh) { const cur = myCheck(); saveCheck({ ...cur, other: checkFamily(cur) === wh.dataset.checkWho ? "" : wh.dataset.checkWho }, ""); return; }
+  const dr = e.target.closest("[data-check-drop]");
+  if (dr) {
+    const cur = myCheck(), side = dr.dataset.side === "b" ? "b" : "a";
+    const gone = cur[side].find(x => x.id === dr.dataset.checkDrop);
+    if (!gone) return;
+    saveCheck({ ...cur, [side]: cur[side].filter(x => x.id !== gone.id) }, gone.name + " taken out of the trade check");
+    showToast(gone.name + " taken out of the trade check");
+    return;
+  }
+  const pr = e.target.closest("[data-check-price]");
+  if (pr) {
+    const x = myCheck()[pr.dataset.side === "b" ? "b" : "a"].find(i => i.id === pr.dataset.checkPrice);
+    if (!x) return;
+    const box = document.createElement("span");
+    box.className = "si-typed";
+    box.innerHTML = `<input type="number" inputmode="decimal" min="0" step="0.01" placeholder="$" aria-label="What ${escapeAttr(x.name)} is worth, in dollars" value="${x.guess && checkPriced(x) ? x.price.toFixed(2) : ""}"><button type="button" data-check-price-ok="${escapeAttr(x.id)}" data-side="${pr.dataset.side}">OK</button>`;
+    pr.replaceWith(box);
+    const inp = box.querySelector("input");
+    inp.addEventListener("keydown", ev => { if (ev.key === "Enter") { ev.preventDefault(); box.querySelector("button").click(); } });
+    inp.focus();
+    return;
+  }
+  const ok = e.target.closest("[data-check-price-ok]");
+  if (ok) {
+    const cur = myCheck(), side = ok.dataset.side === "b" ? "b" : "a";
+    const x = cur[side].find(i => i.id === ok.dataset.checkPriceOk);
+    if (!x) return;
+    const n = Math.round((Number(ok.previousElementSibling.value) || 0) * 100) / 100;
+    const next = n > 0 ? { ...x, price: n, guess: true } : { ...x, price: null, guess: false };
+    saveCheck({ ...cur, [side]: cur[side].map(i => i.id === x.id ? next : i) }, n > 0 ? "Price typed for " + x.name : "Typed price taken off " + x.name);
+    return;
+  }
+  if (e.target.closest("#check-refresh")) { refreshCheckPrices(true); return; }
+  if (e.target.closest("#check-send")) { checkToTrade(); return; }
+  if (e.target.closest("#check-clear")) {
+    const cur = myCheck();
+    saveCheck({ other: cur.other, a: [], b: [] }, "Trade check cleared");
+    showToast("Trade check cleared");
+  }
+});
+$("trade-root").addEventListener("change", e => {
+  if (e.target.id !== "check-other") return;
+  const cur = myCheck(), v = e.target.value.trim().slice(0, 24);
+  if (v !== cur.other) saveCheck({ ...cur, other: v }, "");
+});
+$("trade-root").addEventListener("keydown", e => { if (e.target.id === "check-other" && e.key === "Enter") { e.preventDefault(); e.target.blur(); } });
 
 // =========================================================================
 // THE SHOP
@@ -4332,7 +4655,10 @@ function renderCardSheet(c, loading) {
     : (loading ? `<div class="status-line">Fetching prices…</div>` : `<div class="status-line">No store price on file for this one.</div>`);
 
   const market = marketCache.get(c.id);
+  // The finish the big price is for -- what a trade check records.
+  const shownFinish = mine ? mine.finish : rows.length ? ((rows.find(r => r.marketPrice) || rows.find(r => r.midPrice) || rows[0]).finish) : "";
   $("card-body").innerHTML = `
+    ${checkPutHtml(c, loading, headline)}
     <div class="hero">
       ${claimHtml(c, Math.max(headline || 0, c.snapPrice || 0))}
       ${hero ? `<img class="card-pic" src="${escapeAttr(hero)}" alt="">` : `<div class="card-pic"></div>`}
@@ -4354,7 +4680,7 @@ function renderCardSheet(c, loading) {
         </div>
         <div class="sold-form hide" id="sold-form">
           <div><b>Sold it for</b></div>
-          <div class="row"><span style="font-size:20px;font-weight:800">$</span><input type="number" id="sold-amount" inputmode="decimal" min="0" step="0.01"></div>
+          <div class="row"><span style="font-size: calc(20px * var(--scale, 1));font-weight:800">$</span><input type="number" id="sold-amount" inputmode="decimal" min="0" step="0.01"></div>
           <div class="btn-row"><button type="button" class="btn" id="sold-go">Done — add it to my money</button><button type="button" class="btn secondary" id="sold-cancel">Cancel</button></div>
         </div>
       </div>
@@ -4396,6 +4722,8 @@ function renderCardSheet(c, loading) {
   }
   const mb = $("btn-market");
   if (mb) mb.addEventListener("click", () => checkMarket(c));
+  const cp = $("check-put");
+  if (cp) cp.addEventListener("click", () => putInCheck(c, headline, shownFinish));
   $("hero-plus").addEventListener("click", () => confirmThenAdd(c));
   const wb = $("btn-why");
   if (wb) wb.addEventListener("click", () => askWhy(c, headline));
@@ -5684,6 +6012,7 @@ function goBackOneStep() {
     if (results.length && pickStep === "etype") { pickStep = "sub"; renderResults(); return true; }
     if (results.length && pickStep === "sub") { pickStep = "type"; renderResults(); return true; }
     if (results.length || $("q").value.trim()) { $("q").value = ""; $("q-clear").classList.add("hide"); results = []; bestId = null; $("scanned").classList.add("hide"); setStatus("find-status", ""); renderResults(); return true; }
+    if (checkAdding) { checkAdding = null; setTab("trade"); return true; }   // back out of adding to the trade check
     return false;
   }
   if (tab === "sets" && setsOpen) { setsOpen = null; renderSets(); return true; }
@@ -5777,6 +6106,7 @@ function takeKeysFromLink() {
 // not seen yet, once. (Asked for: "when I go back on, it will say this was
 // updated, and who asked to update it.")
 const CHANGES = [
+  { id: 33, date: "2026-09-23", by: "Dad", what: "Trade check, at the top of the Trade tab: before a swap, each side taps Scan (or Type) under their name and adds the cards they'd give. It adds both sides up at today's store prices and says Fair trade, or who gives more and by how much. A card with no store price can have a price typed in. Trading with someone in the family? Send it to them as a real trade." },
   { id: 32, date: "2026-09-22", by: "Dad", what: "Yu-Gi-Oh! cards no longer wear the Poké Ball: a plain card shape marks a regular one (with a rainbow picture when it is Super Rare shiny), and the rarer ones keep the purple star. A Yu-Gi-Oh! Rare is now called Regular, not Holo — its picture isn't shiny, only its name." },
   { id: 31, date: "2026-09-22", by: "Dad", what: "Yu-Gi-Oh! cards printed in more than one picture (Blue-Eyes White Dragon, Dark Magician…) now show each printing's own picture, from Yugipedia — in the search and on the card page. A printing Yugipedia has no picture for says \"Picture may differ\"." },
   { id: 30, date: "2026-09-22", by: "Dad", what: "Finishes read in plain words everywhere (Reverse holo, not reverse-holofoil), My cards says which finish you have, and a card added as Reverse holo from the type screen now gets the reverse holo price (it was getting the regular one). A Yu-Gi-Oh! card printed with several different pictures no longer claims all its printings look the same, and its page keeps the picture it had." },
@@ -5829,6 +6159,7 @@ function goHome() {
   $("q").value = ""; $("q-clear").classList.add("hide");
   results = []; bestId = null; $("scanned").classList.add("hide"); setStatus("find-status", "");
   renderResults();
+  checkAdding = null;
   setTab("find");
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
