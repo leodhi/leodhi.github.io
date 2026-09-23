@@ -630,6 +630,9 @@
   .look-val.me .lv-who { color: var(--accent); font-weight: 800; }
   .look-val img.sym { height: 26px; width: auto; max-width: 76px; align-self: flex-start; background: #fff; border-radius: 4px; padding: 2px; }
   .look-lead { margin: 0 0 4px; font-size: var(--body); line-height: 1.45; color: var(--ink); }
+  /* A Yu-Gi-Oh! picture that may not be this printing's own. */
+  .art-note { display: block; margin: 3px 7px 0; font-size: var(--t-sub); font-weight: 700; color: var(--accent); line-height: 1.2; }
+  .tile .art-note { margin: 3px 8px 0; }
   .look-val .lv-sym { display: flex; align-items: center; gap: 8px; }
   /* On the gray box, a gray button vanished into it: give it the card's own color. */
   .look-diff .look-ask { margin-top: 10px; background: var(--panel); border: 1px solid var(--line); }
@@ -2791,7 +2794,13 @@ async function searchYgo(name) {
   if (!r.ok) return [];
   const body = await r.json().catch(() => ({}));
   const out = [];
-  for (const c of body.data || []) out.push(...ygoPrintingsOf(c));
+  for (const c of body.data || []) {
+    const ps = ygoPrintingsOf(c);
+    // Scans already looked up on this phone go on before anything is drawn.
+    const kept = ypStore[String(c.id)];
+    if (kept && Date.now() - kept.at < YP_DAYS * 86400000) ypApply(ps, kept);
+    out.push(...ps);
+  }
   return out;
 }
 // Every printing of one database entry, as tiles. Shared by the search and
@@ -2804,7 +2813,9 @@ function ygoPrintingsOf(c) {
     id: "ygo:" + c.id + (st.set_code ? ":" + st.set_code + ":" + i : ""), game: "ygo", name: c.name, localId: st.set_code || "", rarity: st.set_rarity || "", suffix: "",
     ygoType: c.type, ygoDesc: c.desc || "", image: "", ptcgImages: { small: img.image_url_small || "", large: img.image_url || "" },
     set: { id: st.set_code ? st.set_code.split("-")[0] : "", name: st.set_name || "", releaseDate: "", logo: "", cardCount: { official: "" } },
-    ygoPrices: prices, setPrice: Number(st.set_price) || 0
+    ygoPrices: prices, setPrice: Number(st.set_price) || 0,
+    // For finding this printing's own scan on Yugipedia (see YUGIPEDIA below).
+    rarityCode: String(st.set_rarity_code || "").replace(/[()]/g, ""), ygoArtCount: (c.card_images || []).length
   }));
 }
 function ygoFinish(c) {
@@ -2910,6 +2921,7 @@ function tileHtml(c, extra) {
     <div class="t-sub">${escapeHtml((c.set && c.set.name) || "")}${(c.year || (c.year = yearOf(c))) ? " · " + c.year : ""} · <span class="t-num">${escapeHtml(numberLabel(c))}</span></div>
     <div class="t-kind">${kindArt(c.kind, 30)}<span>${escapeHtml(kindWithFinish(c, extra && extra.finish))}</span></div>
     ${c.rarity && !/^(common|uncommon|rare)$/i.test(c.rarity) && !kindWords(c).toLowerCase().includes(c.rarity.toLowerCase()) ? `<div class="t-rarity">${escapeHtml(c.rarity)}</div>` : ""}
+    ${ypNote(c) ? `<div class="art-note">${escapeHtml(ypNote(c))}</div>` : ""}
     ${priceText ? `<div class="t-row"><span class="t-price">${priceText}</span><span class="t-sub" style="margin:0">market today${extra && Number(extra.qty) > 1 ? " · ×" + Number(extra.qty) : ""}</span></div>` : ""}
     ${who && (!extra || !extra.noCtl) ? `<div class="t-ctl"><button type="button" class="plus" data-tile-plus="${escapeAttr(c.id)}" aria-label="Add one">+</button><button type="button" class="minus" data-tile-minus="${escapeAttr(c.id)}" aria-label="One fewer" ${have ? "" : "disabled"}>−</button><button type="button" class="sold" data-tile-sold="${escapeAttr(c.id)}" aria-label="Sold" ${have ? "" : "disabled"}>💰</button></div>` : ""}
     ${extra && extra.runningTotal !== undefined ? `<div class="t-row running"><span class="t-sub" style="margin:0">${extra.addedAt ? new Date(extra.addedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : ""}</span><span class="t-price">${money(extra.runningTotal)} <span class="t-sub" style="margin:0">so far</span></span></div>` : ""}
@@ -2930,6 +2942,7 @@ function renderResults() {
   const list = (kindFilter === "all" ? results : results.filter(c => c.kind === kindFilter)).filter(subkindMatch).filter(c => kindFilter !== "energy" || (etypeMatch(c) && yearMatch(c)));
   if (!results.length || pickStep !== "cards") { root.innerHTML = ""; return; }
   root.innerHTML = `<div class="grid">${list.map(c => tileHtml(c)).join("")}</div>`;
+  if (game === "ygo" && list.length) ypFillSearch(list);
   // Fill in prices as they arrive, without blocking the grid.
   list.slice(0, 60).forEach(c => {
     if (c.snapPrice !== undefined) return;
@@ -4578,6 +4591,172 @@ async function pokemonLookalikes(c) {
   hits.forEach(x => { if (!x.year) x.year = yearOf(x); lookBriefs.set(x.id, x); });
   return hits;
 }
+// =========================================================================
+// YUGIPEDIA -- each Yu-Gi-Oh! printing's own picture
+// =========================================================================
+// YGOPRODeck has up to 9 artworks per card but never says which printing
+// wears which (its set lookup names the LAST artwork for every printing).
+// Yugipedia does: every card's "Card Gallery" page lists each English
+// printing as "code; set; rarity; edition; variant", and each is a real scan
+// named by its image policy: CardName-SET-RG-RAR-ED-Variant.png. Measured on
+// 2026-09-22 over six cards (Blue-Eyes White Dragon, Dark Magician,
+// Red-Eyes Black Dragon, Pot of Greed, Dark Magician Girl, Summoned Skull):
+// 252 of 266 printings named exactly one scan, 12 are printed in several
+// alternate pictures under one code (said so on the tile), 2 were not in the
+// gallery; 228 of 243 named files exist, the rest fall back to another
+// edition's scan or to today's picture. Checked by eye: LOB-001 / LOB-EN001
+// are the classic standing dragon, Structure Deck SDWD-EN001/2/3 are three
+// different pictures.
+// Etiquette, from Yugipedia:API: at most one request a second, a descriptive
+// agent (Api-User-Agent -- a page cannot set User-Agent), and cache for 30
+// days. Only cards printed in more than one picture are looked up at all.
+const YP_API = "https://yugipedia.com/api.php";
+const YP_KEY = "pokescan-ygo-scans-v1", YP_DAYS = 30, YP_MAX_CARDS = 30;
+let ypStore = {};
+try { const r = JSON.parse(localStorage.getItem(YP_KEY) || "{}"); if (r && typeof r === "object") ypStore = r; } catch (e) {}
+function ypSave() {
+  const fresh = Object.entries(ypStore).filter(([k, v]) => v && Date.now() - v.at < YP_DAYS * 86400000).sort((a, b) => b[1].at - a[1].at);
+  // A size cap: the newest 30 cards. If the phone's storage is full anyway, keep halving.
+  for (let keep = YP_MAX_CARDS; keep >= 1; keep = Math.floor(keep / 2)) {
+    ypStore = Object.fromEntries(fresh.slice(0, keep));
+    try { localStorage.setItem(YP_KEY, JSON.stringify(ypStore)); return; } catch (e) {}
+  }
+}
+let ypLast = 0, ypChain = Promise.resolve();
+function ypGet(params) {
+  const run = async () => {
+    const wait = ypLast + 1100 - Date.now();
+    if (wait > 0) await new Promise(res => setTimeout(res, wait));
+    ypLast = Date.now();
+    const r = await fetch(YP_API + "?" + new URLSearchParams({ ...params, format: "json", formatversion: "2", origin: "*" }), { headers: { "Api-User-Agent": "PokeScan family card app (leodhi.github.io/PokeScanner)" } });
+    if (!r.ok) throw new Error("yugipedia " + r.status);
+    return r.json();
+  };
+  const p = ypChain.then(run, run);
+  ypChain = p.catch(() => {});
+  return p;
+}
+// Yugipedia's file-name rule: the name without spaces and # , . : ' " ? ! & @ % = [ ] < > / ☆ ★ ・ -
+const ypName = n => String(n || "").replace(/[\s#,.:'"?!&@%=\[\]<>\/☆★・\-]/g, "");
+// The same rarity, spelled differently by the two sites.
+const YP_RARITY = { PG: "PGR", PS: "PlScR", DNPR: "DSPR" };
+function ypGalleryRows(wikitext, name) {
+  const rows = [];
+  const re = /\{\{Card gallery\|region=(\w+)\|(type=[^|\n]*\|)?([\s\S]*?)\n\}\}/g;
+  let m;
+  while ((m = re.exec(wikitext))) {
+    if (!["EN", "NA", "EU", "AU"].includes(m[1]) || m[2]) continue;   // English printings only, no anime or video game
+    for (const raw of m[3].split("\n")) {
+      const [main, ...opt] = raw.split("//");
+      const opts = opt.join("//");
+      const parts = main.split(";").map(x => x.trim());
+      if (parts.length < 3 || !parts[0]) continue;
+      const [code, , rar, ed = "", misc = ""] = parts;
+      const rg = (/region::(\w+)/.exec(opts) || [])[1] || m[1];
+      const ext = (/extension::(\w+)/.exec(opts) || [])[1] || "png";
+      const variant = /^(AA\d*|\d+)$/.test(misc) || /alternate artwork/i.test(opts) ? misc || "alt" : "";
+      if (/^(OP|Misprint)/i.test(misc)) continue;
+      rows.push({ code, rar, ed, variant, file: [ypName(name), code.split("-")[0], rg, rar, ed, misc].filter(Boolean).join("-") + "." + ext });
+    }
+  }
+  return rows;
+}
+const ypKey = x => x.localId + "|" + (x.rarityCode || "");
+// Which files could be this printing's scan, best first -- or "several"
+// when the one code comes in more than one picture.
+function ypCandidates(rows, x) {
+  let lines = rows.filter(r => r.code === x.localId);
+  const rc = YP_RARITY[x.rarityCode] || x.rarityCode;
+  if (rc && lines.some(r => r.rar === rc)) lines = lines.filter(r => r.rar === rc);
+  if (!lines.length) return null;
+  const variants = new Set(lines.map(r => r.variant));
+  const order = r => (r.ed === "UE" ? 0 : r.ed === "1E" ? 1 : 2);
+  return { several: variants.size > 1 ? variants.size : 0, files: lines.slice().sort((a, b) => (a.variant ? 1 : 0) - (b.variant ? 1 : 0) || order(a) - order(b)).map(r => r.file) };
+}
+const ypBusy = new Map();
+// Look the card up once (one gallery request, then one request per 50 files).
+function ypScansFor(pass, name, printings) {
+  const had = ypStore[pass];
+  if (had && Date.now() - had.at < YP_DAYS * 86400000) return Promise.resolve(had);
+  if (ypBusy.has(pass)) return ypBusy.get(pass);
+  const p = (async () => {
+    const g = await ypGet({ action: "parse", prop: "wikitext", redirects: "1", page: "Card Gallery:" + name });
+    const rows = ypGalleryRows((g.parse && g.parse.wikitext) || "", name);
+    const want = {};
+    printings.forEach(x => { const c = x.localId && ypCandidates(rows, x); if (c) want[ypKey(x)] = c; });
+    const files = [...new Set(Object.values(want).flatMap(c => c.files))];
+    const found = {};
+    for (let i = 0; i < files.length; i += 50) {
+      const d = await ypGet({ action: "query", prop: "imageinfo", iiprop: "url", iiurlwidth: "300", titles: files.slice(i, i + 50).map(f => "File:" + f).join("|") });
+      const q = d.query || {};
+      const from = {}; (q.normalized || []).forEach(n => { from[n.to] = n.fromencoded ? decodeURIComponent(n.from) : n.from; });
+      (q.pages || []).forEach(pg => { const ii = (pg.imageinfo || [])[0]; if (!pg.missing && ii && ii.thumburl) found[(from[pg.title] || pg.title).replace(/^File:/, "")] = ii.thumburl; });
+    }
+    const printingsOut = {};
+    for (const [k, c] of Object.entries(want)) {
+      const f = c.files.find(x => found[x]);
+      if (f) printingsOut[k] = { t: found[f], n: c.several || 0 };
+    }
+    const entry = { at: Date.now(), printings: printingsOut };
+    ypStore[pass] = entry;
+    ypSave();
+    return entry;
+  })().finally(() => ypBusy.delete(pass));
+  ypBusy.set(pass, p);
+  return p;
+}
+// Put the scans on the printings (the objects every screen draws from).
+// A printing with no scan keeps today's picture and is marked unsure.
+function ypApply(list, entry) {
+  let changed = 0;
+  for (const x of list) {
+    if (!x || x.game !== "ygo" || !(x.ygoArtCount > 1)) continue;
+    const hit = entry && entry.printings[ypKey(x)];
+    if (hit) { if (x.ptcgImages.small !== hit.t) changed++; x.ptcgImages = { small: hit.t, large: hit.t }; x.ygoScan = hit.n ? "several" : "own"; x.ygoScanCount = hit.n || 0; }
+    else x.ygoScan = x.ygoScan || "unsure";
+  }
+  return changed;
+}
+// After a search: every card in it printed in more than one picture.
+let ypSearchSeq = 0;
+async function ypFillSearch(list) {
+  const seq = ++ypSearchSeq;
+  const byPass = new Map();
+  list.forEach(x => { if (x.game === "ygo" && x.ygoArtCount > 1) { const k = x.id.split(":")[1]; if (!byPass.has(k)) byPass.set(k, []); byPass.get(k).push(x); } });
+  for (const [pass, xs] of [...byPass].slice(0, 6)) {
+    let entry = null;
+    try { entry = await ypScansFor(pass, xs[0].name, xs); } catch (e) { entry = null; }   // silently: today's picture stays
+    if (seq !== ypSearchSeq) return;
+    ypApply(xs, entry);
+    xs.forEach(x => {
+      const t = document.querySelector(`#results .tile[data-card-id="${CSS.escape(x.id)}"]`);
+      if (!t) return;
+      const img = t.querySelector("img.pic");
+      if (img && img.getAttribute("src") !== x.ptcgImages.small) img.setAttribute("src", x.ptcgImages.small);
+      ypMark(t, x);
+    });
+  }
+}
+// The small line under a picture that is not this printing's own for sure.
+function ypNote(x) {
+  if (!x || x.game !== "ygo" || !(x.ygoArtCount > 1)) return "";
+  if (x.ygoScan === "several") return `Comes in ${x.ygoScanCount} pictures`;
+  if (x.ygoScan === "unsure") return "Picture may differ";
+  return "";
+}
+function ypMark(tile, x) {
+  const note = ypNote(x);
+  let el = tile.querySelector(".art-note");
+  if (!note) { if (el) el.remove(); return; }
+  if (!el) {
+    el = document.createElement("div"); el.className = "art-note";
+    // Under the kind and rarity lines, above the buttons -- names stay in line.
+    const at = tile.querySelector(".t-ctl, .t-row");
+    if (at) at.before(el); else tile.appendChild(el);
+  }
+  el.textContent = note;
+}
+
 // Yu-Gi-Oh!: every other printing of the same card, by its passcode.
 // Which artwork a printing wears is NOT known: YGOPRODeck's set lookup
 // (cardsetsinfo.php) answers with the card's LAST artwork id for every
@@ -4604,7 +4783,14 @@ async function ygoLookalikes(c) {
   const card = await ygoCard(parts[1], c.name);
   if (!card) return [];
   c.ygoArtCount = (card.card_images || []).length;
-  const list = ygoPrintingsOf(card).filter(x => x.id !== c.id && x.localId);
+  const every = ygoPrintingsOf(card);
+  const list = every.filter(x => x.id !== c.id && x.localId);
+  if (c.ygoArtCount > 1) {
+    // Each printing's own picture, from Yugipedia (a few seconds the first
+    // time; then kept on the phone). Failing that, today's picture stays.
+    const entry = await ypScansFor(parts[1], c.name, every).catch(() => null);
+    ypApply([c, ...list], entry);
+  }
   list.forEach(decorate);
   // Same rarity first (the hardest to tell apart), then the biggest price gap.
   const mineP = headlinePrice(c) || 0;
@@ -4692,6 +4878,7 @@ function lookTileHtml(x, me, label) {
     ${pic ? `<img src="${escapeAttr(pic)}" alt="" loading="lazy" decoding="async" onerror="this.outerHTML='<div class=&quot;lt-blank&quot;>No picture yet</div>'">` : `<div class="lt-blank">No picture yet</div>`}
     <div class="lt-set">${escapeHtml(label)}</div>
     <div class="lt-num">${escapeHtml(line2)}</div>
+    ${ypNote(x) ? `<div class="art-note">${escapeHtml(ypNote(x))}</div>` : ""}
     <div class="lt-price${price ? "" : " none"}">${price ? money(price) : "no price"}</div>`;
   return me ? `<div class="look-tile me">${inner}</div>`
     : `<button type="button" class="look-tile" data-look-open="${escapeAttr(x.id)}" aria-label="Open ${escapeAttr(x.name + " — " + label)}">${inner}</button>`;
@@ -4708,7 +4895,10 @@ function lookHtml(c) {
   // A Yu-Gi-Oh! card printed with several pictures: nobody's data says which
   // printing has which, so it says so instead of claiming they match.
   const arts = c.game === "ygo" ? Number(c.ygoArtCount) || 0 : 0;
-  const sub = arts > 1
+  const scans = arts > 1 && [c, ...got.list].some(x => x.ygoScan === "own" || x.ygoScan === "several");
+  const sub = arts > 1 && scans
+    ? `${n === 1 ? "One other printing" : n + " other printings"} of this card, each with its own picture — it was printed in ${arts} different ones, so compare the pictures too. Tap one to open it.`
+    : arts > 1
     ? `${n === 1 ? "One other printing" : n + " other printings"} of this card. It was printed with ${arts} different pictures, and the card database doesn't say which printing has which — so check the picture too. Tap one to open it.`
     : `${n === 1 ? "One other printing has" : n + " other printings have"} the same picture. Tap one to open it.`;
   return `<h4>${arts > 1 ? "Other printings of this card" : "Cards that look the same"}</h4>
@@ -4824,7 +5014,7 @@ function ygoDiffHtml(c, shown, all) {
   const far = pc ? shown.filter(x => { const p = headlinePrice(x) || 0; return p && Math.max(p, pc) >= 2 * Math.min(p, pc) && Math.abs(p - pc) >= 2; }) : [];
   if (far.length) lines.push(`<b>This one is worth ${money(pc)}</b>; ${far.map(x => escapeHtml(lookLabel(x, all)) + " <b>" + money(headlinePrice(x)) + "</b>").join(", ")} — check the set code!`);
   const arts = Number(c.ygoArtCount) || 0;
-  const lead = differs(cards, x => x.rarity || "") ? "" : `<p class="look-lead">${arts > 1 ? "Same rarity — the set code gives it away (and the picture may differ)." : "Same picture, same rarity — only the set code gives it away."}</p>`;
+  const lead = differs(cards, x => x.rarity || "") ? "" : `<p class="look-lead">${arts > 1 ? "Same rarity — the set code gives it away, and the picture may too." : "Same picture, same rarity — only the set code gives it away."}</p>`;
   return lead + `<ol class="check-list">${lines.map(l => `<li>${l}</li>`).join("")}</ol>`
     + `<p class="field-note">Also look under the picture on the left: “1st Edition” printed there is often worth more than a copy with nothing there. The database doesn't say which of these came as 1st Edition.</p>`;
 }
@@ -5567,6 +5757,7 @@ function takeKeysFromLink() {
 // not seen yet, once. (Asked for: "when I go back on, it will say this was
 // updated, and who asked to update it.")
 const CHANGES = [
+  { id: 31, date: "2026-09-22", by: "Dad", what: "Yu-Gi-Oh! cards printed in more than one picture (Blue-Eyes White Dragon, Dark Magician…) now show each printing's own picture, from Yugipedia — in the search and on the card page. A printing Yugipedia has no picture for says \"Picture may differ\"." },
   { id: 30, date: "2026-09-22", by: "Dad", what: "Finishes read in plain words everywhere (Reverse holo, not reverse-holofoil), My cards says which finish you have, and a card added as Reverse holo from the type screen now gets the reverse holo price (it was getting the regular one). A Yu-Gi-Oh! card printed with several different pictures no longer claims all its printings look the same, and its page keeps the picture it had." },
   { id: 29, date: "2026-09-22", by: "Moshe", what: "Cards that look the same: a card's page now shows the other printings with the same picture right beside it, and a \"How to tell them apart\" list says where to look — the set symbol, the number, the rarity mark, the shine, the year and the price. Tap one to open it; Back takes you back." },
   { id: 28, date: "2026-09-20", by: "Dad", what: "Options: each notification box now sits under its own heading with its own test button (the owner box had slipped under My own notifications)." },
