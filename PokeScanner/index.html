@@ -23,7 +23,7 @@
 <link rel="dns-prefetch" href="https://www.gstatic.com">
 <style>
   /* Same dark shell as Renewals and the other household apps: near-black
-     behind bright cards. The cards themselves are the colour here, so the
+     behind bright cards. The cards themselves are the color here, so the
      chrome stays quiet. */
   :root {
     --bg: #0b0b0d;
@@ -119,7 +119,7 @@
   .home-link:active { transform: scale(0.94); }
   /* Stays put while the card scrolls, so Back is never off the top. */
   .sheet-top { display: flex; justify-content: space-between; align-items: center; margin: -4px 0 10px; padding: 4px 0; position: sticky; top: -14px; z-index: 3; background: var(--panel); border-bottom: 1px solid var(--panel-2); }
-  .sheet-top .link { padding: 6px 8px; min-height: 0; text-decoration: none; font-weight: 600; }
+  .sheet-top .link { padding: 6px 8px; min-height: 0; text-decoration: none; font-weight: 600; max-width: 72%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   /* The +, the −, and the money bag under the price beside the picture. */
   .hero-price { margin-top: 10px; font-size: 22px; font-weight: 900; letter-spacing: -0.02em; color: var(--ok); }
   .hero-price small { font-size: 12px; font-weight: 600; color: var(--ink-muted); letter-spacing: 0; margin-left: 4px; }
@@ -595,6 +595,46 @@
   .check-list li::before { counter-increment: c; content: counter(c); position: absolute; left: 0; top: 9px; width: 24px; height: 24px; border-radius: 50%; background: var(--panel-2); color: var(--ink); font-weight: 800; font-size: 12px; display: flex; align-items: center; justify-content: center; }
   .check-list li b { color: var(--ink); }
   .check-list .sym { display: inline-block; vertical-align: middle; height: 22px; width: auto; margin-left: 6px; background: #fff; border-radius: 4px; padding: 2px; }
+
+  /* ---------- Cards that look the same ---------- */
+  /* This card first, then the other printings with the same picture, side by
+     side in one row that scrolls sideways; under it, what to look at. */
+  .look-sub { margin: -2px 0 8px; font-size: var(--body); color: var(--ink-muted); line-height: 1.4; }
+  .look-row { display: flex; gap: 8px; overflow-x: auto; padding: 2px 2px 6px; margin: 0 -2px; scrollbar-width: none; -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain; }
+  .look-row::-webkit-scrollbar { display: none; }
+  .look-tile { position: relative; flex: none; width: calc(var(--t-sub) * 9); font: inherit; text-align: left; color: var(--ink); background: var(--panel-2); border: 2px solid transparent; border-radius: 12px; padding: 0 0 7px; overflow: hidden; cursor: pointer; touch-action: manipulation; transition: transform 0.12s cubic-bezier(.2,.9,.3,1.1); }
+  .look-tile:active { transform: scale(0.95); }
+  .look-tile.me { border-color: var(--accent); cursor: default; }
+  .look-tile.me:active { transform: none; }
+  .look-tile img, .look-tile .lt-blank { width: 100%; aspect-ratio: 63 / 88; object-fit: cover; display: block; background: var(--panel); }
+  .look-tile .lt-blank { display: flex; align-items: center; justify-content: center; text-align: center; font-size: 11px; color: var(--ink-faint); padding: 6px; }
+  .look-tile .lt-tag { position: absolute; top: 0; left: 0; right: 0; background: var(--accent); color: #fff; font-size: 10.5px; font-weight: 800; text-align: center; padding: 2px 0; letter-spacing: 0.04em; }
+  .look-tile .lt-set { font-size: var(--t-sub); font-weight: 800; margin: 6px 7px 0; line-height: 1.2; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .look-tile .lt-num { font-size: var(--t-sub); color: var(--ink-muted); margin: 2px 7px 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .look-tile .lt-price { font-size: var(--t-price); font-weight: 800; color: var(--ok); margin: 3px 7px 0; white-space: nowrap; }
+  .look-tile .lt-price.none { color: var(--ink-faint); font-weight: 600; }
+  .look-tile.skel { background: var(--skeleton); height: calc(var(--t-sub) * 9 * 88 / 63 + 54px); animation: shimmer 1.15s ease-in-out infinite; cursor: default; }
+  .look-tile.skel:nth-child(2) { animation-delay: 0.1s; } .look-tile.skel:nth-child(3) { animation-delay: 0.2s; }
+  .look-skel-line { height: 12px; width: 46%; border-radius: 6px; background: var(--skeleton); margin: 20px 0 10px; animation: shimmer 1.15s ease-in-out infinite; }
+  .look-diff { margin-top: 10px; }
+  .look-diff .check-list li { color: var(--ink); }
+  .look-diff .check-list li .where { color: var(--ink-muted); }
+  /* Under each line, one row per card: which card, then what it has. */
+  .look-vals { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); margin-top: 7px; background: var(--panel); border-radius: 10px; overflow: hidden; }
+  .look-val { display: contents; }
+  .look-val > span { padding: 7px 10px; border-top: 1px solid var(--panel-2); line-height: 1.3; min-width: 0; overflow-wrap: anywhere; display: flex; flex-direction: column; justify-content: center; }
+  .look-val:first-child > span { border-top: none; }
+  .look-val .lv-who { color: var(--ink-muted); font-weight: 600; font-size: calc(var(--body) - 1px); }
+  .look-val .lv-what { color: var(--ink); font-weight: 800; font-size: var(--body); }
+  .look-val .lv-what small { display: block; color: var(--ink-muted); font-weight: 500; font-size: calc(var(--body) - 2px); margin-top: 1px; }
+  .look-val.me .lv-who { color: var(--accent); font-weight: 800; }
+  .look-val img.sym { height: 26px; width: auto; max-width: 76px; align-self: flex-start; background: #fff; border-radius: 4px; padding: 2px; }
+  .look-lead { margin: 0 0 4px; font-size: var(--body); line-height: 1.45; color: var(--ink); }
+  .look-val .lv-sym { display: flex; align-items: center; gap: 8px; }
+  /* On the gray box, a gray button vanished into it: give it the card's own color. */
+  .look-diff .look-ask { margin-top: 10px; background: var(--panel); border: 1px solid var(--line); }
+  /* The "Why it costs" Ask Gemini button sat gray on gray, same fix. */
+  #btn-why { background: var(--panel); border: 1px solid var(--line); }
   .qty-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; background: var(--panel-2); border-radius: 12px; padding: 8px 8px 8px 14px; }
   .qty-row .qty-label { font-size: 15px; font-weight: 700; }
   .qty-row .qty-ctl { display: flex; align-items: center; gap: 4px; }
@@ -1011,7 +1051,7 @@
         <div class="chips" id="theme-chips"></div>
       </div>
       <div class="opt-row">
-        <div class="opt-text">Screen mode<small>The colour of the buttons and highlights.</small></div>
+        <div class="opt-text">Screen mode<small>The color of the buttons and highlights.</small></div>
         <div class="chips" id="mode-chips"></div>
       </div>
     </div>
@@ -1786,7 +1826,7 @@ document.addEventListener("pointerdown", e => {
 }, { capture: true });
 applyTextSize();
 
-// ---------- Screen mode (colour) ----------
+// ---------- Screen mode (color) ----------
 const MODE_KEY = "pokescan-mode";
 const MODES = [["classic", "Classic red"], ["ocean", "Ocean"], ["forest", "Forest"], ["pikachu", "Pikachu"], ["night", "Night"], ["ember", "Ember"]];
 let mode = "classic";
@@ -1970,7 +2010,7 @@ async function searchSecondSource(name) {
 }
 async function fullCard(id) {
   if (cardCache.has(id)) return cardCache.get(id);
-  const brief = results.find(c => c.id === id);
+  const brief = results.find(c => c.id === id) || lookBriefs.get(id);
   if (id.startsWith("ptcg:") || id.startsWith("ygo:") || (brief && brief.lang && brief.lang !== "en")) {
     // Nothing more to fetch: the search already brought everything.
     const c = brief || snapAsCard(id);
@@ -2743,20 +2783,21 @@ async function searchYgo(name) {
   if (!r.ok) return [];
   const body = await r.json().catch(() => ({}));
   const out = [];
-  for (const c of body.data || []) {
-    const img = (c.card_images || [])[0] || {};
-    const prices = (c.card_prices || [])[0] || {};
-    const sets = (c.card_sets && c.card_sets.length) ? c.card_sets : [{ set_name: "", set_code: "", set_rarity: "" }];
-    sets.forEach((st, i) => {
-      out.push({
-        id: "ygo:" + c.id + (st.set_code ? ":" + st.set_code + ":" + i : ""), game: "ygo", name: c.name, localId: st.set_code || "", rarity: st.set_rarity || "", suffix: "",
-        ygoType: c.type, ygoDesc: c.desc || "", image: "", ptcgImages: { small: img.image_url_small || "", large: img.image_url || "" },
-        set: { id: st.set_code ? st.set_code.split("-")[0] : "", name: st.set_name || "", releaseDate: "", logo: "", cardCount: { official: "" } },
-        ygoPrices: prices, setPrice: Number(st.set_price) || 0
-      });
-    });
-  }
+  for (const c of body.data || []) out.push(...ygoPrintingsOf(c));
   return out;
+}
+// Every printing of one database entry, as tiles. Shared by the search and
+// by "Cards that look the same", so a printing has the same id either way.
+function ygoPrintingsOf(c) {
+  const img = (c.card_images || [])[0] || {};
+  const prices = (c.card_prices || [])[0] || {};
+  const sets = (c.card_sets && c.card_sets.length) ? c.card_sets : [{ set_name: "", set_code: "", set_rarity: "" }];
+  return sets.map((st, i) => ({
+    id: "ygo:" + c.id + (st.set_code ? ":" + st.set_code + ":" + i : ""), game: "ygo", name: c.name, localId: st.set_code || "", rarity: st.set_rarity || "", suffix: "",
+    ygoType: c.type, ygoDesc: c.desc || "", image: "", ptcgImages: { small: img.image_url_small || "", large: img.image_url || "" },
+    set: { id: st.set_code ? st.set_code.split("-")[0] : "", name: st.set_name || "", releaseDate: "", logo: "", cardCount: { official: "" } },
+    ygoPrices: prices, setPrice: Number(st.set_price) || 0
+  }));
 }
 function ygoFinish(c) {
   const r = String(c.rarity || "").toLowerCase();
@@ -3352,7 +3393,7 @@ $("money-save").addEventListener("click", () => {
 $("money-input").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); $("money-save").click(); } });
 $("money-close").addEventListener("click", () => closeSheet("money-sheet"));
 $("money-back").addEventListener("click", () => closeSheet("money-sheet"));
-$("card-back").addEventListener("click", () => closeSheet("card-sheet"));
+$("card-back").addEventListener("click", () => cardBack());
 $("options-back").addEventListener("click", () => closeSheet("options-sheet"));
 
 // Selling: one fewer of the card (or gone), the money in, a line in the log.
@@ -3970,7 +4011,7 @@ let marketCache = new Map(); // cardId -> eBay/Google answer
 async function openCard(cardId) {
   openCardId = cardId;
   openCardData = null;
-  const brief = results.find(c => c.id === cardId) || snapAsCard(cardId);
+  const brief = results.find(c => c.id === cardId) || cardCache.get(cardId) || lookBriefs.get(cardId) || snapAsCard(cardId);
   if (brief.name === "Card" && setsOpen) { brief.set = { id: setsOpen, name: "" }; }
   renderCardSheet(brief, true);
   openSheet("card-sheet");
@@ -3983,9 +4024,10 @@ async function openCard(cardId) {
     renderCardSheet(full, false);
     noteRecent(full, pendingRecentHow || "typed");
     pendingRecentHow = "";
-    // Two slow things, after the sheet is already readable.
+    // Slow things, after the sheet is already readable.
     fillPacks(full);
     fillSymbol(full);
+    fillLookalikes(full);
   } catch (e) {
     if (openCardId !== cardId) return;
     setStatus("app-status", e.message, true);
@@ -4021,7 +4063,7 @@ function rarityHint(c) {
   if (/promo/.test(r)) return "a black star with <b>PROMO</b> printed beside it";
   if (/holo/.test(r)) return "a black <b>star ★</b>, and the <b>picture</b> is shiny (a reverse holo has a shiny <i>frame</i> and a plain picture instead)";
   if (/^rare$/.test(r)) return "a black <b>star ★</b>, with a plain (not shiny) picture";
-  if (/shiny|radiant/.test(r)) return "a shiny card with the Pokémon in its <b>different colours</b>";
+  if (/shiny|radiant/.test(r)) return "a shiny card with the Pokémon in its <b>different colors</b>";
   return "the rarity mark printed beside the number";
 }
 function familyHint(c) {
@@ -4168,7 +4210,7 @@ function whyHtml(c, price) {
   else if (fin === "ultra") reasons.push("It's an <b>ultra rare</b> — shiny all over, about one in fourteen packs.");
   else if (fin === "gallery") reasons.push("It's a <b>Trainer Gallery</b> card — a small bonus set at the back, not in every pack.");
   else if (fin === "amazing") reasons.push("It's an <b>Amazing or Radiant rare</b> — a special swirl art, only a few per set.");
-  else if (fin === "shiny") reasons.push("It's a <b>shiny</b> — the Pokémon in its rare colours.");
+  else if (fin === "shiny") reasons.push("It's a <b>shiny</b> — the Pokémon in its rare colors.");
   else if (fin === "promo") reasons.push("It's a <b>promo</b> — it only came with a product or an event, never in packs.");
   if (c.family === "EX" || c.family === "ex" || c.family === "gx" || c.family === "v" || c.family === "vmax" || c.family === "vstar") reasons.push(`It's a <b>${escapeHtml(kindWords(c).split(" · ")[0])}</b> — a big-hitter card, always in more demand than a plain one.`);
   if (FAVORITES.test(c.name || "")) reasons.push(`It's <b>${escapeHtml(String(c.name).split(" ")[0])}</b> — one of the most collected Pokémon; anything with it on costs more.`);
@@ -4265,6 +4307,8 @@ function renderCardSheet(c, loading) {
       </div>
     </div>
 
+    <div id="look-box">${lookHtml(c)}</div>
+
     <h4>What it's worth</h4>
     ${priceHtml}
     <div class="price-box" id="market-box" style="margin-top:10px">
@@ -4281,6 +4325,8 @@ function renderCardSheet(c, loading) {
     <h4>Is the card in your hand this one?</h4>
     <ol class="check-list">${identity.map(t => `<li>${t}</li>`).join("")}</ol>`;
 
+  // Came here from a look-alike: Back says which card it goes back to.
+  $("card-back").textContent = cardTrail.length ? "‹ Back to " + cardTrail[cardTrail.length - 1].label : "‹ Back";
   $("qty-num").textContent = String(have);
   $("qty-row").classList.toggle("hide", !have);
   $("btn-add").textContent = have ? "Add another" : (who ? "Add to my cards" : (isOwner() ? "Add to my cards (pick a name first)" : "Ask to be added to a name first"));
@@ -4367,6 +4413,451 @@ async function fillSymbol(c) {
   else if (c.set.logo) slot.innerHTML = `<img class="sym" src="${escapeAttr(c.set.logo + ".webp")}" alt="set logo" loading="lazy">`;
 }
 
+// =========================================================================
+// CARDS THAT LOOK THE SAME
+// =========================================================================
+// Asked for 2026-09-22: "if two cards look the same when i click on one it
+// should also show the other and tell me how to know the difference".
+// When a card opens, the other printings with the SAME PICTURE are found and
+// shown beside it, with a plain list of what to look at to tell them apart.
+//
+// Pokémon, checked against the live database before this was written:
+//  1. Same name and same illustrator (one light GraphQL call). Asking that
+//     call for attacks fails the WHOLE answer when any one card has an
+//     attack with no name (it does, for Pikachu), so attacks come from step 2.
+//  2. Each of those cards in full: the same HP, attacks (name and damage),
+//     ability names and Pokédex line. This drops Stormfront's Charizard
+//     103/100 -- same artist, same attacks, a different picture.
+//  3. The pictures themselves, shrunk to 12 x 16 and compared. Reprints
+//     measured 0.5-16 apart (Base Set 2, Legendary Collection, Paldean
+//     Fates); Paldean Fates' shiny Charizard ex 234 -- same artist and text
+//     as Obsidian Flames 223, a different picture -- measured 45. A card
+//     with no picture in the database (Celebrations Classic Collection,
+//     McDonald's) is kept on steps 1-2 alone.
+// Yu-Gi-Oh!: every other printing of the same card. When the card has more
+// than one artwork, YGOPRODeck's set lookup says which artwork each printing
+// has, and only the same artwork is kept.
+// Nothing found: the section is not drawn at all. Anything failing: the same.
+const LOOK_CAP = 6;            // shown before "Show more"
+const LOOK_PIC_MAX = 22;       // picture difference still counted as the same picture
+const lookCache = new Map();   // cardId -> { list, more, ai } once worked out
+const lookBusy = new Set();
+const lookBriefs = new Map();  // a look-alike's card, so tapping it opens at once
+let cardTrail = [];            // [{ id, label }] the cards you came from through a look-alike
+const lookNorm = s => String(s == null ? "" : s).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "");
+function lookEligible(c) {
+  if (!c || !c.id || !c.name || c.name === "Card") return false;
+  if (c.game === "ygo") return /^ygo:\d+:/.test(c.id);
+  if (String(c.id).startsWith("ptcg:")) return false;
+  return !c.lang || c.lang === "en";
+}
+function lookSig(x) {
+  const base = [lookNorm(x.name), lookNorm(x.illustrator)];
+  if (x.category !== "Pokemon") return base.concat(lookNorm(x.effect)).join("|");
+  return base.concat(String(x.hp || ""),
+    (x.attacks || []).map(a => lookNorm(a.name) + ":" + lookNorm(a.damage)).join(","),
+    (x.abilities || []).map(a => lookNorm(a.name)).join(",")).join("|");
+}
+function sameDexLine(a, b) { const x = lookNorm(a.description), y = lookNorm(b.description); return !x || !y || x === y; }
+
+// ---------- The picture check ----------
+// assets.tcgdex.net answers with Access-Control-Allow-Origin: *, so the
+// picture can be read into a canvas -- except when its server sends that
+// header TWICE, which a browser refuses. Counted 2026-09-22 on 29 cards:
+// low.jpg 5 bad, low.webp 2, low.png 1, high.webp 0, high.png 0. So
+// high.webp (80-120KB, about low.png's size), then low.png. A "?something"
+// on the address was tried too: the picture then fails to load at all.
+// Any failure: no picture to compare, and the card is kept.
+const picVecCache = new Map();
+function picVectorFrom(url) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const timer = setTimeout(() => reject(new Error("picture took too long")), 8000);
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      clearTimeout(timer);
+      try {
+        const W = 12, H = 16, cv = document.createElement("canvas");
+        cv.width = W; cv.height = H;
+        const g = cv.getContext("2d");
+        // The middle of the card -- picture and words, not the outer border.
+        g.drawImage(img, img.naturalWidth * 0.08, img.naturalHeight * 0.08, img.naturalWidth * 0.84, img.naturalHeight * 0.84, 0, 0, W, H);
+        resolve(g.getImageData(0, 0, W, H).data);
+      } catch (e) { reject(e); }
+    };
+    img.onerror = () => { clearTimeout(timer); reject(new Error("picture")); };
+    img.src = url;
+  });
+}
+function picVector(x) {
+  const base = x && x.image ? x.image : "";
+  if (!base) return Promise.reject(new Error("no picture"));
+  if (picVecCache.has(base)) return picVecCache.get(base);
+  const p = picVectorFrom(base + "/high.webp").catch(() => picVectorFrom(base + "/low.png"));
+  picVecCache.set(base, p);
+  p.catch(() => picVecCache.delete(base));
+  return p;
+}
+function picDistance(a, b) {
+  let s = 0, n = 0;
+  for (let i = 0; i < a.length; i += 4) { s += Math.abs(a[i] - b[i]) + Math.abs(a[i + 1] - b[i + 1]) + Math.abs(a[i + 2] - b[i + 2]); n += 3; }
+  return n ? s / n : 999;
+}
+
+// ---------- Finding them ----------
+function rarityClass(r) {
+  r = String(r || "").toLowerCase().trim();
+  if (!r || r === "none" || /classic collection/.test(r)) return "";
+  if (/promo/.test(r)) return "promo";
+  if (/special illustration/.test(r)) return "sir";
+  if (/illustration/.test(r)) return "ir";
+  if (/hyper|rainbow|secret|gold/.test(r)) return "gold";
+  if (/double rare/.test(r)) return "double";
+  if (/ultra|full art/.test(r)) return "ultra";
+  if (/shiny/.test(r)) return "shiny";
+  if (/amazing|radiant/.test(r)) return "amazing";
+  if (/ace spec/.test(r)) return "ace";
+  if (/^uncommon$/.test(r)) return "uncommon";
+  if (/^common$/.test(r)) return "common";
+  // "Rare", "Holo Rare", "Rare Holo": the same black star on the card; the
+  // shine is a separate line.
+  if (/^(rare|holo rare|rare holo)$/.test(r)) return "rare";
+  return r;
+}
+function shineWords(x) {
+  const v = x.variants;
+  if (!v || typeof v !== "object") return "";
+  const w = [];
+  if (v.holo) w.push("holo");
+  if (v.reverse) w.push("reverse holo");
+  if (v.normal) w.push("plain");
+  if (!w.length) return "";
+  const s = w.length === 1 ? w[0] + " only" : w.slice(0, -1).join(", ") + " or " + w[w.length - 1];
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+async function pokemonLookalikes(c) {
+  if (!c.illustrator || c.category === "Energy") return [];
+  const safe = String(c.name).trim().toLowerCase().replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+  const data = await gql(`{ cards(filters:{name:"${safe}"}) { id name illustrator hp category rarity set { id } } }`);
+  const cand = (data.cards || []).filter(x => x && x.id !== c.id && !isPocket(x)
+    && lookNorm(x.name) === lookNorm(c.name) && lookNorm(x.illustrator) === lookNorm(c.illustrator)
+    && (c.category !== "Pokemon" || String(x.hp) === String(c.hp))).slice(0, 16);
+  if (!cand.length) return [];
+  const full = (await Promise.all(cand.map(x => fullCard(x.id).catch(() => null)))).filter(Boolean);
+  let hits = full.filter(x => lookSig(x) === lookSig(c) && sameDexLine(x, c));
+  if (!hits.length) return [];
+  const dist = new Map();
+  const mine = await picVector(c).catch(() => null);
+  if (mine) {
+    await Promise.all(hits.map(x => picVector(x).then(v => dist.set(x.id, picDistance(mine, v))).catch(() => {})));
+    hits = hits.filter(x => !dist.has(x.id) || dist.get(x.id) < LOOK_PIC_MAX);
+  }
+  // The hardest to tell apart first: closest picture, same rarity mark, same shine.
+  const score = x => (dist.has(x.id) ? dist.get(x.id) : 12) + (rarityClass(x.rarity) !== rarityClass(c.rarity) ? 10 : 0) + (shineWords(x) !== shineWords(c) ? 6 : 0);
+  hits.sort((a, b) => score(a) - score(b) || String(a.year || "").localeCompare(String(b.year || "")));
+  hits.forEach(x => { if (!x.year) x.year = yearOf(x); lookBriefs.set(x.id, x); });
+  return hits;
+}
+// Yu-Gi-Oh!: the card by its passcode, then which artwork a printing has.
+// YGOPRODeck blocks an address for an hour past 20 requests a second, so the
+// artwork lookups go four at a time with a pause between.
+// By NAME, not by passcode: asked by passcode the database lists only that
+// one artwork (Blue-Eyes White Dragon: 1 picture instead of 8), which would
+// hide that its printings do not all share a picture.
+const ygoByPass = new Map(), ygoArt = new Map();
+async function ygoCard(pass, name) {
+  if (ygoByPass.has(pass)) return ygoByPass.get(pass);
+  const r = await fetch("https://db.ygoprodeck.com/api/v7/cardinfo.php?name=" + encodeURIComponent(name));
+  if (!r.ok) throw new Error("ygo " + r.status);
+  const body = await r.json();
+  const card = (body.data || []).find(x => String(x.id) === String(pass)) || null;
+  ygoByPass.set(pass, card);
+  return card;
+}
+async function ygoArtOf(code) {
+  if (!code) return null;
+  if (ygoArt.has(code)) return ygoArt.get(code);
+  const r = await fetch("https://db.ygoprodeck.com/api/v7/cardsetsinfo.php?setcode=" + encodeURIComponent(code));
+  const d = r.ok ? await r.json().catch(() => null) : null;
+  const id = d && d.id ? Number(d.id) : null;
+  ygoArt.set(code, id);
+  return id;
+}
+async function ygoLookalikes(c) {
+  const parts = String(c.id).split(":");
+  const card = await ygoCard(parts[1], c.name);
+  if (!card) return [];
+  let list = ygoPrintingsOf(card).filter(x => x.id !== c.id && x.localId);
+  const images = card.card_images || [];
+  if (images.length > 1) {
+    // More than one artwork: keep only the printings with this one's.
+    const mine = await ygoArtOf(c.localId);
+    if (!mine) return [];
+    list = list.slice(0, 24);
+    const arts = [];
+    for (let i = 0; i < list.length; i += 4) {
+      arts.push(...await Promise.all(list.slice(i, i + 4).map(x => ygoArtOf(x.localId).catch(() => null))));
+      if (i + 4 < list.length) await new Promise(res => setTimeout(res, 300));
+    }
+    list = list.filter((x, i) => arts[i] === mine);
+    // The search shows every printing with the card's FIRST artwork; this
+    // printing's own is now known, so this card and its look-alikes wear it.
+    const img = images.find(im => Number(im.id) === mine);
+    if (img) [c, ...list].forEach(x => { x.ptcgImages = { small: img.image_url_small || "", large: img.image_url || "" }; });
+  }
+  list.forEach(decorate);
+  // Same rarity first (the hardest to tell apart), then the biggest price gap.
+  const mineP = headlinePrice(c) || 0;
+  list.sort((a, b) => ((a.rarity === c.rarity ? 0 : 1) - (b.rarity === c.rarity ? 0 : 1)) || (Math.abs((headlinePrice(b) || 0) - mineP) - Math.abs((headlinePrice(a) || 0) - mineP)));
+  list.forEach(x => { cardCache.set(x.id, x); lookBriefs.set(x.id, x); });
+  return list;
+}
+async function fillLookalikes(c) {
+  if (!lookEligible(c)) return;
+  const had = lookCache.get(c.id);
+  if ((had && !had.failed) || lookBusy.has(c.id)) { paintLook(c); return; }
+  lookBusy.add(c.id);
+  let list = [], failed = false;
+  try { list = c.game === "ygo" ? await ygoLookalikes(c) : await pokemonLookalikes(c); }
+  catch (e) { list = []; failed = true; }   // quietly nothing now; tried again the next time the card opens
+  // The set symbols and letters, before anything is drawn, so the lines
+  // don't jump as pictures arrive.
+  if (list.length && c.game !== "ygo") await Promise.all([c, ...list.slice(0, 24)].map(x => setInfo(x.set && x.set.id).catch(() => null)));
+  lookCache.set(c.id, { list, more: false, ai: "", failed });
+  lookBusy.delete(c.id);
+  paintLook(c);
+}
+function paintLook(c) {
+  if (!c || openCardId !== c.id) return;
+  const box = $("look-box");
+  if (box) box.innerHTML = lookHtml(openCardData || c);
+  const hero = document.querySelector("#card-body img.card-pic"), want = imgUrl(openCardData || c, "high");
+  if (hero && want && hero.getAttribute("src") !== want) hero.setAttribute("src", want);
+}
+
+// ---------- Drawing them ----------
+// Where things sit on the card, by when it was printed. Checked on the
+// scans themselves (2026-09-22): Base Set, Base Set 2, Jungle and Legendary
+// Collection put the number and rarity star in the bottom right corner and
+// the set symbol on the right just under the picture, with the 1st Edition
+// stamp on the left there; Dragon, Stormfront, Undaunted, Legendary
+// Treasures and Evolutions put the number and the symbol together bottom
+// right; Team Up, Vivid Voltage and Obsidian Flames put them bottom left.
+// The Classic Collection reprints copy an old card's look. Celebrations'
+// one was checked on its scan (Charizard): it prints the OLD number (4/102),
+// no set symbol, the old copyright line, and a small "25" logo at the bottom
+// right of the picture. The 30th Classic Collection (out 2026-09-16) has no
+// picture anywhere to check yet, so it is only ever called "not checked yet".
+const CLASSIC_25 = /^cel25cc/i, CLASSIC_30 = /^30th-c/i;
+const classicOf = x => { const id = String((x.set && x.set.id) || ""); return CLASSIC_25.test(id) ? "25" : CLASSIC_30.test(id) ? "30" : ""; };
+function lookEra(x) {
+  if (classicOf(x)) return "";
+  if (/^ecard/i.test(String((x.set && x.set.id) || ""))) return "mid";
+  const y = Number(x.year) || 0;
+  if (!y) return "";
+  return y <= 2002 ? "old" : y <= 2016 ? "mid" : "new";
+}
+const WHERE = {
+  number: { old: "bottom right corner", mid: "bottom right corner", new: "bottom left corner" },
+  symbol: { old: "on the right, just under the picture", mid: "bottom right, next to the number", new: "bottom left, next to the number" }
+};
+// One place to look for all of them, or "" when it depends on the card.
+function whereFor(kind, cards) {
+  const ws = [...new Set(cards.filter(x => lookEra(x)).map(x => WHERE[kind][lookEra(x)]))];
+  return ws.length === 1 ? ws[0] : "";
+}
+function isPromoCard(x) { return /promo/i.test(String(x.rarity || "")) || /promo/i.test(String((x.set && x.set.name) || "")); }
+// What is printed: a promo prints its own number alone (SVP 074, SWSH066).
+function printedNumber(x) {
+  if (x.game === "ygo") return x.localId || "";
+  if (classicOf(x) === "25") return "Same number as the card it copies";
+  if (classicOf(x) === "30") return "Not checked yet";
+  return isPromoCard(x) ? String(x.localId || "") : numberLabel(x);
+}
+function lookLabel(x, all) {
+  if (x.game === "ygo") return x.localId || (x.set && x.set.name) || "";
+  const name = (x.set && x.set.name) || "";
+  return all.some(y => y !== x && y.set && y.set.name === name) ? name + " " + (x.localId || "") : name;
+}
+function lookSkeleton() {
+  return `<div class="look-skel-line"></div><div class="look-row" aria-hidden="true"><div class="look-tile skel"></div><div class="look-tile skel"></div><div class="look-tile skel"></div></div>`;
+}
+function lookTileHtml(x, me, label) {
+  const pic = imgUrl(x, "low");
+  const price = headlinePrice(x) || (me ? (x.snapPrice || 0) : 0);
+  // A Yu-Gi-Oh! tile names the set and then its code; a Pokémon one the number and year.
+  if (x.game === "ygo") label = (x.set && x.set.name) || label;
+  const line2 = x.game === "ygo" ? (x.localId || "") : [classicOf(x) ? "Reprint" : printedNumber(x), x.year].filter(Boolean).join(" · ");
+  const inner = `${me ? `<span class="lt-tag">THIS ONE</span>` : ""}
+    ${pic ? `<img src="${escapeAttr(pic)}" alt="" loading="lazy" decoding="async" onerror="this.outerHTML='<div class=&quot;lt-blank&quot;>No picture yet</div>'">` : `<div class="lt-blank">No picture yet</div>`}
+    <div class="lt-set">${escapeHtml(label)}</div>
+    <div class="lt-num">${escapeHtml(line2)}</div>
+    <div class="lt-price${price ? "" : " none"}">${price ? money(price) : "no price"}</div>`;
+  return me ? `<div class="look-tile me">${inner}</div>`
+    : `<button type="button" class="look-tile" data-look-open="${escapeAttr(x.id)}" aria-label="Open ${escapeAttr(x.name + " — " + label)}">${inner}</button>`;
+}
+function lookHtml(c) {
+  if (!lookEligible(c)) return "";
+  const got = lookCache.get(c.id);
+  if (!got) return lookSkeleton();
+  if (!got.list.length) return "";
+  const shown = got.more ? got.list.slice(0, 24) : got.list.slice(0, LOOK_CAP);
+  const rest = Math.min(got.list.length, 24) - shown.length;
+  const all = [c, ...shown];
+  const n = got.list.length;
+  return `<h4>Cards that look the same</h4>
+    <p class="look-sub">${n === 1 ? "One other printing has" : n + " other printings have"} the same picture. Tap one to open it.</p>
+    <div class="look-row" id="look-row">${lookTileHtml(c, true, lookLabel(c, all))}${shown.map(x => lookTileHtml(x, false, lookLabel(x, all))).join("")}</div>
+    ${rest > 0 ? `<button type="button" class="link" id="look-more" style="padding:4px 2px;min-height:0">Show ${rest} more</button>` : ""}
+    <div class="price-box look-diff" id="look-diff">
+      <div class="box-title">How to tell them apart</div>
+      ${c.game === "ygo" ? ygoDiffHtml(c, shown, all) : pokemonDiffHtml(c, shown, all)}
+      <div id="look-ai">${got.ai ? got.ai : `<button type="button" class="btn secondary look-ask" id="btn-look-ask">Ask Gemini what else is different</button>`}</div>
+    </div>`;
+}
+// Under a line, one row per card: "This one | 4/102", "Base Set 2 | 4/130".
+// When the place to look depends on the card, it goes under that card's value.
+function lookVals(c, cards, all, valueOf, whereKind, sharedWhere, labelOf) {
+  return `<div class="look-vals">${cards.map(x => {
+    const own = whereKind && !sharedWhere && lookEra(x) ? `<small>${escapeHtml(WHERE[whereKind][lookEra(x)])}</small>` : "";
+    return `<div class="look-val${x === c ? " me" : ""}"><span class="lv-who">${x === c ? "This one" : escapeHtml(labelOf ? labelOf(x) : lookLabel(x, all))}</span><span class="lv-what">${valueOf(x)}${own}</span></div>`;
+  }).join("")}</div>`;
+}
+function differs(cards, f) { return new Set(cards.map(f)).size > 1; }
+const lookHead = (what, where) => `<b>${what}</b>${where ? ` <span class="where">— ${escapeHtml(where)}</span>` : ""}`;
+function pokemonDiffHtml(c, shown, all) {
+  const cards = [c, ...shown];
+  const lines = [], printMarks = [];
+  // 1. The set symbol (since Scarlet & Violet, the set's letters in a box).
+  if (differs(cards, x => (x.set && x.set.id) || "")) {
+    const w = whereFor("symbol", cards);
+    const mark = x => {
+      if (classicOf(x) === "25") return `None<small>a small “25” logo on the picture instead</small>`;
+      if (classicOf(x) === "30") return "Not checked yet";
+      const info = setInfoCache.get(x.set && x.set.id) || {};
+      const letters = info.abbr ? escapeHtml(info.abbr) : "";
+      // Scarlet & Violet on, the "symbol" IS the letters in a box (OBF, PAF),
+      // too small to read as a picture here -- so the letters are written too.
+      const lettersToo = letters && /^(sv|me)/i.test(String(x.set && x.set.id));
+      if (info.symbol) return `<span class="lv-sym"><img class="sym" src="${escapeAttr(info.symbol)}" alt="${escapeAttr(((x.set && x.set.name) || "") + " symbol")}" onerror="this.style.display='none';if(this.nextElementSibling)this.nextElementSibling.hidden=false">${letters ? `<span${lettersToo ? "" : " hidden"}>${letters}</span>` : ""}</span>`;
+      if (x.set && x.set.id === "base1") return "None at all";
+      return letters || "Not on file";
+    };
+    lines.push(lookHead("The set symbol", w) + lookVals(c, cards, all, mark, "symbol", !!w));
+  }
+  // 2. The number.
+  if (differs(cards, printedNumber)) {
+    const w = whereFor("number", cards);
+    lines.push(lookHead("The number", w) + lookVals(c, cards, all, x => escapeHtml(printedNumber(x) || "?"), "number", !!w));
+  }
+  // 3. Celebrations' little "25" logo.
+  if (cards.some(x => classicOf(x) === "25") && cards.some(x => classicOf(x) !== "25")) {
+    printMarks.push("25");
+    const has = cards.filter(x => classicOf(x) === "25");
+    lines.push(lookHead("A small “25” logo", "bottom right of the picture") + `<div class="look-lead" style="margin-top:4px">Only ${has.map(x => x === c ? "this one" : "the " + escapeHtml(lookLabel(x, all)) + " one").join(" and ")} ${has.length === 1 ? "has" : "have"} it.</div>`);
+  }
+  // 4. The rarity mark -- only a different MARK, not a different word for the same star.
+  if (cards.every(x => rarityClass(x.rarity)) && differs(cards, x => rarityClass(x.rarity))) {
+    printMarks.push("rarity");
+    lines.push(lookHead("The rarity mark", "right after the number") + lookVals(c, cards, all, x => escapeHtml(isPromoCard(x) ? "Promo (a black star)" : x.rarity || "?")));
+  }
+  // 5. The shine.
+  if (cards.every(x => shineWords(x)) && differs(cards, shineWords)) {
+    printMarks.push("shine");
+    lines.push(lookHead("The shine", "a shiny picture is holo; a shiny frame around a plain picture is reverse holo") + lookVals(c, cards, all, x => escapeHtml(shineWords(x))));
+  }
+  // 6. The 1st Edition stamp.
+  if (cards.every(x => x.variants) && differs(cards, x => !!x.variants.firstEdition)) {
+    printMarks.push("first");
+    lines.push(lookHead("The 1st Edition stamp", "on the left, just under the picture") + lookVals(c, cards, all, x => x.variants.firstEdition ? "Can have one" : "Never has one"));
+  }
+  // 7. The regulation mark.
+  if (cards.some(x => x.regulationMark) && differs(cards, x => x.regulationMark || "")) {
+    printMarks.push("reg");
+    lines.push(lookHead("The small letter in a box", "bottom left") + lookVals(c, cards, all, x => x.regulationMark ? escapeHtml(x.regulationMark) : "None"));
+  }
+  // 8. The year on the copyright line. Left out: a Classic Collection card
+  // (it copies the old line) and a promo (its "set" spans years of promos,
+  // so the set's date is not the card's).
+  const dated = cards.filter(x => x.year && !classicOf(x) && !isPromoCard(x));
+  if (dated.length > 1 && differs(dated, x => String(x.year))) {
+    lines.push(lookHead("The year", "the tiny copyright line along the bottom edge; it can say a year earlier") + lookVals(c, dated, all, x => escapeHtml(String(x.year))));
+  }
+  // 9. The price, when it is a big difference.
+  const pc = headlinePrice(c) || c.snapPrice || 0;
+  const far = pc ? shown.filter(x => { const p = headlinePrice(x) || 0; return p && Math.max(p, pc) >= 2 * Math.min(p, pc) && Math.abs(p - pc) >= 2; }) : [];
+  if (far.length) {
+    // Celebrations' copy prints the same number, so the number alone won't do.
+    const tail = far.some(x => classicOf(x) === "25") || classicOf(c) === "25" ? "check the number, and look for the “25” logo!" : "check the number!";
+    lines.push(`<b>This one is worth ${money(pc)}</b>; ${far.map(x => escapeHtml(lookLabel(x, all)) + " <b>" + money(headlinePrice(x)) + "</b>").join(", ")} — ${tail}`);
+  }
+  const lead = printMarks.length ? "" : `<p class="look-lead">Apart from the set, they're printed exactly the same — same picture, same words. These are the only ways to tell:</p>`;
+  return lead + (lines.length ? `<ol class="check-list">${lines.map(l => `<li>${l}</li>`).join("")}</ol>` : `<p class="look-lead">The database shows no difference at all — look closely at the bottom of the card.</p>`);
+}
+// Yu-Gi-Oh!: what the rarity looks like on the card.
+function ygoRarityLook(r) {
+  r = String(r || "").toLowerCase();
+  if (/starlight/.test(r)) return "the whole card sparkles";
+  if (/ghost/.test(r)) return "a pale, ghostly shiny picture";
+  if (/ultimate/.test(r)) return "raised, bumpy name and frame";
+  if (/secret/.test(r)) return "rainbow-sparkle name and a shiny picture";
+  if (/ultra/.test(r)) return "gold name and a shiny picture";
+  if (/super/.test(r)) return "plain name, shiny picture";
+  if (/^rare$/.test(r)) return "silver name, flat picture";
+  if (/^common$/.test(r)) return "plain name, flat picture";
+  return "";
+}
+function ygoDiffHtml(c, shown, all) {
+  const cards = [c, ...shown];
+  const lines = [];
+  lines.push(lookHead("The set code", "under the picture, on the right") + lookVals(c, cards, all, x => escapeHtml(x.localId || "?"), "", false, x => (x.set && x.set.name) || x.localId || ""));
+  if (differs(cards, x => x.rarity || "")) {
+    lines.push(lookHead("The rarity", "the name's lettering and the shine") + lookVals(c, cards, all, x => escapeHtml(x.rarity || "?") + (ygoRarityLook(x.rarity) ? `<small>${escapeHtml(ygoRarityLook(x.rarity))}</small>` : "")));
+  }
+  const pc = headlinePrice(c) || c.snapPrice || 0;
+  const far = pc ? shown.filter(x => { const p = headlinePrice(x) || 0; return p && Math.max(p, pc) >= 2 * Math.min(p, pc) && Math.abs(p - pc) >= 2; }) : [];
+  if (far.length) lines.push(`<b>This one is worth ${money(pc)}</b>; ${far.map(x => escapeHtml(lookLabel(x, all)) + " <b>" + money(headlinePrice(x)) + "</b>").join(", ")} — check the set code!`);
+  const lead = differs(cards, x => x.rarity || "") ? "" : `<p class="look-lead">Same picture, same rarity — only the set code gives it away.</p>`;
+  return lead + `<ol class="check-list">${lines.map(l => `<li>${l}</li>`).join("")}</ol>`
+    + `<p class="field-note">Also look under the picture on the left: “1st Edition” printed there is often worth more than a copy with nothing there. The database doesn't say which of these came as 1st Edition.</p>`;
+}
+// Tapping a look-alike opens it like any card; Back returns to this one.
+function openLookalike(id) {
+  if (!id || id === openCardId) return;
+  const from = openCardData || lookBriefs.get(openCardId) || null;
+  if (openCardId) cardTrail.push({ id: openCardId, label: from ? (from.game === "ygo" ? from.localId : (from.set && from.set.name) || from.name) : "the last card" });
+  openCard(id);
+}
+function cardBack() {
+  if (cardTrail.length) { const prev = cardTrail.pop(); openCard(prev.id); return; }
+  closeSheet("card-sheet");
+}
+// The Ask Gemini button, the same way "Why it costs what it costs" asks.
+const LOOK_SYSTEM = "You help a kid tell apart printings of the same trading card that share one picture. In at most five short plain sentences, no markdown, say what ELSE is different between the card they have and the others named, beyond the set symbol, number, rarity and year they already know: stamps or logos on the picture, border color, the holo pattern, text changes, anything a kid can see. Only say what you are sure of. Use web search.";
+async function askLookDiff(c) {
+  const box = $("look-ai");
+  const got = c && lookCache.get(c.id);
+  if (!box || !got) return;
+  box.innerHTML = `<div class="status-line">Asking…</div>`;
+  const shown = got.more ? got.list.slice(0, 24) : got.list.slice(0, LOOK_CAP);
+  // The database's own number and set here, not the kid-worded ones on screen.
+  const say = x => `"${x.name}" ${x.game === "ygo" ? x.localId : numberLabel(x)} from ${(x.set && x.set.name) || ""}${x.rarity ? ", " + x.rarity : ""}${x.year ? ", " + x.year : ""}`;
+  try {
+    const out = await askGemini({ system: LOOK_SYSTEM, search: true, parts: [{ text: `I have the ${c.game === "ygo" ? "Yu-Gi-Oh!" : "Pokémon"} card ${say(c)}. These look the same: ${shown.map(say).join("; ")}. What else is different?` }] });
+    if (openCardId !== c.id) return;
+    got.ai = `<p style="margin:10px 0 0;font-size:var(--body);color:var(--ink)">${escapeHtml(out.text)}</p>${sourcesHtml(out.sources)}`;
+    if ($("look-ai")) $("look-ai").innerHTML = got.ai;
+  } catch (e) {
+    if ($("look-ai")) $("look-ai").innerHTML = `<div class="status-line err">${escapeHtml(e.message)}</div><button type="button" class="btn secondary look-ask" id="btn-look-ask">Try again</button>`;
+  }
+}
+$("card-body").addEventListener("click", e => {
+  const t = e.target.closest("[data-look-open]");
+  if (t) { openLookalike(t.dataset.lookOpen); return; }
+  if (e.target.closest("#look-more")) { const g = lookCache.get(openCardId); if (g) { g.more = true; paintLook(openCardData || lookBriefs.get(openCardId)); } return; }
+  if (e.target.closest("#btn-look-ask")) { const c = openCardData || lookBriefs.get(openCardId); if (c) askLookDiff(c); }
+});
+
 // ---------- eBay & Google, via Gemini's web search ----------
 const MARKET_SYSTEM = "You are a price researcher for Pokémon trading cards. Use web search. Reply with JSON only, no prose, in this exact shape: "
   + '{"ebay":{"lowest":12.5,"highest":40,"note":"sold listings, last 30 days"},"google":{"lowest":15,"highest":38,"note":"Google Shopping"},'
@@ -4434,16 +4925,25 @@ function nextOrder() {
   Object.values(state.cards).forEach(c => { if (c && !c.deletedAt && c.who === who && Number(c.order) > max) max = Number(c.order); });
   return max + 1;
 }
-// The set's letters (OBF, SVI, PAF) come from the set itself; fetched once.
-const abbrCache = new Map();
-async function setAbbr(setId) {
-  if (!setId) return "";
-  if (abbrCache.has(setId)) return abbrCache.get(setId);
-  let a = "";
-  try { const r = await fetch(DEX + "/en/sets/" + encodeURIComponent(setId)); const d = r.ok ? await r.json() : {}; a = (d.abbreviation && d.abbreviation.official) || ""; } catch (e) {}
-  abbrCache.set(setId, a);
-  return a;
+// The set's letters (OBF, SVI, PAF) and its symbol come from the set itself;
+// fetched once. The database names the symbol at .../univ/<series>/<set>/symbol,
+// which answers with a web page, not a picture; the same path under /en/ with
+// .png is the picture (checked 2026-09-22 on Base Set 2, Legendary
+// Collection, Vivid Voltage, Obsidian Flames, Paldean Fates).
+const setInfoCache = new Map();
+async function setInfo(setId) {
+  if (!setId) return { abbr: "", symbol: "" };
+  if (setInfoCache.has(setId)) return setInfoCache.get(setId);
+  let info = { abbr: "", symbol: "" };
+  try {
+    const r = await fetch(DEX + "/en/sets/" + encodeURIComponent(setId));
+    const d = r.ok ? await r.json() : {};
+    info = { abbr: (d.abbreviation && d.abbreviation.official) || "", symbol: d.symbol ? String(d.symbol).replace("/univ/", "/en/") + ".png" : "" };
+  } catch (e) {}
+  setInfoCache.set(setId, info);
+  return info;
 }
+async function setAbbr(setId) { return (await setInfo(setId)).abbr; }
 let confirmFor = null;
 async function confirmThenAdd(c) {
   if (!who) { openWho(); return; }
@@ -4845,7 +5345,7 @@ function closeSheet(id) {
   sheet.classList.remove("sheet-dragging", "sheet-snap", "sheet-leaving");
   sheet.style.transform = "";
   back.style.background = "";
-  if (id === "card-sheet") { openCardId = null; openCardData = null; }
+  if (id === "card-sheet") { openCardId = null; openCardData = null; cardTrail = []; }
   if (id === "cam-sheet") stopCamera();
 }
 ["card-sheet", "who-sheet", "options-sheet", "cam-sheet", "money-sheet", "trade-add-sheet", "time-sheet", "confirm-sheet"].forEach(id => {
@@ -4861,7 +5361,7 @@ function attachSheetSwipe(id) {
   const paint = d => { sheet.style.transform = `translateX(${d}px)`; back.style.background = `rgba(0,0,0,${(0.65 * Math.max(0, 1 - d / 320)).toFixed(3)})`; };
   sheet.addEventListener("pointerdown", e => {
     if (e.button !== undefined && e.button !== 0) return;
-    if (e.clientX > SHEET_EDGE_ZONE && e.target.closest("input, select, textarea, button, a, table")) return;
+    if (e.clientX > SHEET_EDGE_ZONE && e.target.closest("input, select, textarea, button, a, table, .look-row")) return;
     pointerId = e.pointerId; startX = e.clientX; startY = e.clientY; dx = 0; dragging = null;
     sheet.classList.remove("sheet-snap", "sheet-leaving");
   });
@@ -4889,6 +5389,12 @@ function attachSheetSwipe(id) {
       sheet.classList.add("sheet-leaving");
       paint(sheet.getBoundingClientRect().width);
       back.style.background = "rgba(0,0,0,0)";
+      // Reached a card through "Cards that look the same"? Then back is the
+      // card you came from, sliding in again -- the same as the Back button.
+      if (id === "card-sheet" && cardTrail.length) {
+        setTimeout(() => { sheet.classList.remove("sheet-leaving"); sheet.classList.add("sheet-snap"); paint(0); back.style.background = ""; cardBack(); }, 200);
+        return;
+      }
       setTimeout(() => closeSheet(id), 200);
     } else {
       sheet.classList.add("sheet-snap");
@@ -5054,6 +5560,7 @@ function takeKeysFromLink() {
 // not seen yet, once. (Asked for: "when I go back on, it will say this was
 // updated, and who asked to update it.")
 const CHANGES = [
+  { id: 29, date: "2026-09-22", by: "Moshe", what: "Cards that look the same: a card's page now shows the other printings with the same picture right beside it, and a \"How to tell them apart\" list says where to look — the set symbol, the number, the rarity mark, the shine, the year and the price. Tap one to open it; Back takes you back." },
   { id: 28, date: "2026-09-20", by: "Dad", what: "Options: each notification box now sits under its own heading with its own test button (the owner box had slipped under My own notifications)." },
   { id: 27, date: "2026-09-20", by: "Dad", what: "Fixed: screens no longer slide sideways as you swipe (Options was drifting left)." },
   { id: 26, date: "2026-09-20", by: "Moshe", what: "An All choice on the type screen. Every language is back (Japanese, French, German, Spanish, Italian, Korean, Chinese) and a card's prices are that printing's own. Scanning: a bad key no longer stops the other readers, and Groq goes first by itself once its key is in. Screen modes in Options: Classic red, Ocean, Forest, Pikachu, Night, Ember. Dad's Approve button now sends a request straight into his Claude chat." },
