@@ -2237,9 +2237,17 @@ const usd = (eur) => (eur === null || eur === undefined || isNaN(eur)) ? null : 
 function tcgplayerRows(c) {
   const p = c.pricing && c.pricing.tcgplayer;
   if (!p) return [];
-  const names = { normal: "Regular", holofoil: "Holo", reverseHolofoil: "Reverse holo", "1stEdition": "1st edition", "1stEditionHolofoil": "1st edition holo", unlimited: "Unlimited", unlimitedHolofoil: "Unlimited holo" };
-  return Object.keys(p).filter(k => p[k] && typeof p[k] === "object").map(k => ({ finish: names[k] || k, ...p[k] }));
+  return Object.keys(p).filter(k => p[k] && typeof p[k] === "object").map(k => ({ finish: finishName(k), ...p[k] }));
 }
+// The finishes, in words. TCGdex's keys, as it really sends them (29 cards
+// checked 2026-09-22): holofoil, reverse-holofoil, normal, 1st-edition,
+// 1st-edition-holofoil, unlimited, unlimited-holofoil. The old camelCase
+// spellings (reverseHolofoil) are kept too. Cards saved before this fix may
+// hold the raw key ("reverse-holofoil") as their finish: it is read through
+// this same function everywhere, so nothing stored had to be rewritten.
+const FINISH_NAMES = { normal: "Regular", holofoil: "Holo", reverseholofoil: "Reverse holo", "1stedition": "1st edition", "1steditionholofoil": "1st edition holo", unlimited: "Unlimited", unlimitedholofoil: "Unlimited holo" };
+function finishName(k) { const s = String(k || ""); return FINISH_NAMES[s.toLowerCase().replace(/[^a-z0-9]+/g, "")] || s; }
+const sameFinish = (a, b) => !!a && !!b && finishName(a) === finishName(b);
 function cardmarket(c) { return c.pricing && c.pricing.cardmarket ? c.pricing.cardmarket : null; }
 // The one number a tile shows: TCGplayer market price, the first finish
 // that has one. Kept in the collection snapshot too.
@@ -2900,7 +2908,7 @@ function tileHtml(c, extra) {
     ${extra && extra.how === "scan" ? `<span class="have" style="background:var(--accent)">scanned</span>` : ""}
     <div class="t-name">${escapeHtml(c.name)}</div>
     <div class="t-sub">${escapeHtml((c.set && c.set.name) || "")}${(c.year || (c.year = yearOf(c))) ? " · " + c.year : ""} · <span class="t-num">${escapeHtml(numberLabel(c))}</span></div>
-    <div class="t-kind">${kindArt(c.kind, 30)}<span>${escapeHtml(kindWords(c))}</span></div>
+    <div class="t-kind">${kindArt(c.kind, 30)}<span>${escapeHtml(kindWithFinish(c, extra && extra.finish))}</span></div>
     ${c.rarity && !/^(common|uncommon|rare)$/i.test(c.rarity) && !kindWords(c).toLowerCase().includes(c.rarity.toLowerCase()) ? `<div class="t-rarity">${escapeHtml(c.rarity)}</div>` : ""}
     ${priceText ? `<div class="t-row"><span class="t-price">${priceText}</span><span class="t-sub" style="margin:0">market today${extra && Number(extra.qty) > 1 ? " · ×" + Number(extra.qty) : ""}</span></div>` : ""}
     ${who && (!extra || !extra.noCtl) ? `<div class="t-ctl"><button type="button" class="plus" data-tile-plus="${escapeAttr(c.id)}" aria-label="Add one">+</button><button type="button" class="minus" data-tile-minus="${escapeAttr(c.id)}" aria-label="One fewer" ${have ? "" : "disabled"}>−</button><button type="button" class="sold" data-tile-sold="${escapeAttr(c.id)}" aria-label="Sold" ${have ? "" : "disabled"}>💰</button></div>` : ""}
@@ -2908,6 +2916,13 @@ function tileHtml(c, extra) {
   </div>`;
 }
 
+// A card in My cards also says which finish you have. For a Regular card the
+// finish IS the kind (Regular, Holo, Reverse holo); anything else adds it.
+function kindWithFinish(c, finish) {
+  const f = finish ? finishName(finish) : "";
+  if (!f) return kindWords(c);
+  return c.kind === "regular" ? f : kindWords(c) + " · " + f;
+}
 function renderResults() {
   renderKinds();
   renderRecent();
@@ -4080,10 +4095,11 @@ function familyHint(c) {
 
 // The finish you hold -- Regular, Holo, Reverse holo -- kept on your entry;
 // its own market price becomes the card's price for you.
-function entryFinish(c) { const e = who ? entryFor(c.id, who) : null; return e ? e.finish || "" : ""; }
+function entryFinish(c) { const e = who ? entryFor(c.id, who) : null; return e ? finishName(e.finish || "") : ""; }
 function setEntryFinish(c, finish) {
   const e = who ? entryFor(c.id, who) : null;
-  const row = tcgplayerRows(c).find(r => r.finish === finish);
+  finish = finishName(finish);
+  const row = tcgplayerRows(c).find(r => sameFinish(r.finish, finish));
   const price = row && (row.marketPrice || row.midPrice) ? (row.marketPrice || row.midPrice) : headlinePrice(c) || 0;
   if (!e) { pendingFinish = finish; renderCardSheet(c, false); return; }
   const before = state.cards[e.id], after = { ...before, finish, snap: { ...before.snap, price, priceAt: Date.now() } };
@@ -4247,8 +4263,12 @@ function renderCardSheet(c, loading) {
   const hero = imgUrl(c, "high") || imgUrl(c, "low");
   const num = numberLabel(c);
   const have = who ? haveCount(c.id, who) : 0;
-  const headline = headlinePrice(c) || (c.snapPrice || 0);
   const rows = tcgplayerRows(c);
+  // The big price is the finish you have (or picked), when that one has a
+  // price -- a reverse holo's page used to say the regular price up here
+  // while My cards counted the reverse holo one.
+  const mine = rows.length > 1 ? rows.find(r => sameFinish(r.finish, entryFinish(c) || pendingFinish)) : null;
+  const headline = (mine && (mine.marketPrice || mine.midPrice)) || headlinePrice(c) || (c.snapPrice || 0);
   const cm = cardmarket(c);
   const identity = c.game === "ygo" ? [
     `The set code at the bottom right reads <b>${escapeHtml(c.localId || "?")}</b> (that is the set and the card's number in it).`,
@@ -4292,8 +4312,8 @@ function renderCardSheet(c, loading) {
         <div class="have-people">${holdersHtml(c.id)}</div>
         ${claimLine(c)}
         ${who ? holdersOther(c.id).map(n => `<button type="button" class="pill-btn" data-trade-ask="${escapeAttr(n)}" style="margin-top:8px;margin-right:6px">Ask ${escapeHtml(n)} to trade it</button>`).join("") : ""}
-        ${rows.length > 1 ? `<div class="chips" id="finish-chips" style="margin-top:8px">${rows.map(r => `<button type="button" class="chip${(entryFinish(c) || pendingFinish || rows[0].finish) === r.finish ? " on" : ""}" data-finish="${escapeAttr(r.finish)}">${escapeHtml(r.finish)}${r.marketPrice ? " · " + money(r.marketPrice) : ""}</button>`).join("")}</div><div class="field-note" style="margin-top:4px">Which one is yours? A shiny picture is holo; a shiny frame with a plain picture is reverse holo.</div>` : ""}
-        <div class="hero-price${headline ? "" : " none"}">${headline ? money(headline) + "<small>market price</small>" : (loading ? "Fetching the price…" : "No store price")}</div>
+        ${rows.length > 1 ? `<div class="chips" id="finish-chips" style="margin-top:8px">${rows.map(r => `<button type="button" class="chip${sameFinish(entryFinish(c) || pendingFinish || rows[0].finish, r.finish) ? " on" : ""}" data-finish="${escapeAttr(r.finish)}">${escapeHtml(r.finish)}${r.marketPrice ? " · " + money(r.marketPrice) : ""}</button>`).join("")}</div><div class="field-note" style="margin-top:4px">Which one is yours? A shiny picture is holo; a shiny frame with a plain picture is reverse holo.</div>` : ""}
+        <div class="hero-price${headline ? "" : " none"}">${headline ? money(headline) + (mine ? `<small style="display:block;margin:2px 0 0">market price · ${escapeHtml(mine.finish.toLowerCase())}</small>` : "<small>market price</small>") : (loading ? "Fetching the price…" : "No store price")}</div>
         <div class="hero-ctl">
           <button type="button" class="plus" id="hero-plus" aria-label="Add one to my cards">+</button>
           <button type="button" class="minus" id="hero-minus" aria-label="Take one out of my cards" ${have ? "" : "disabled"}>−</button>
@@ -4558,13 +4578,18 @@ async function pokemonLookalikes(c) {
   hits.forEach(x => { if (!x.year) x.year = yearOf(x); lookBriefs.set(x.id, x); });
   return hits;
 }
-// Yu-Gi-Oh!: the card by its passcode, then which artwork a printing has.
-// YGOPRODeck blocks an address for an hour past 20 requests a second, so the
-// artwork lookups go four at a time with a pause between.
-// By NAME, not by passcode: asked by passcode the database lists only that
-// one artwork (Blue-Eyes White Dragon: 1 picture instead of 8), which would
-// hide that its printings do not all share a picture.
-const ygoByPass = new Map(), ygoArt = new Map();
+// Yu-Gi-Oh!: every other printing of the same card, by its passcode.
+// Which artwork a printing wears is NOT known: YGOPRODeck's set lookup
+// (cardsetsinfo.php) answers with the card's LAST artwork id for every
+// printing -- 89631146, the Kaiba one, for all twelve Blue-Eyes White Dragon
+// codes tried, LOB-001 included, which wears the classic 89631139; and for
+// MP14-EN129 it names a different card altogether (checked 2026-09-22). So a
+// card with several artworks gets every printing, and says plainly that the
+// picture may differ; nothing is filtered or re-pictured on that lookup.
+// By NAME, not by passcode: asked by passcode the database lists only one
+// artwork (Blue-Eyes White Dragon: 1 picture instead of 8), which would hide
+// that the card has several.
+const ygoByPass = new Map();
 async function ygoCard(pass, name) {
   if (ygoByPass.has(pass)) return ygoByPass.get(pass);
   const r = await fetch("https://db.ygoprodeck.com/api/v7/cardinfo.php?name=" + encodeURIComponent(name));
@@ -4574,37 +4599,12 @@ async function ygoCard(pass, name) {
   ygoByPass.set(pass, card);
   return card;
 }
-async function ygoArtOf(code) {
-  if (!code) return null;
-  if (ygoArt.has(code)) return ygoArt.get(code);
-  const r = await fetch("https://db.ygoprodeck.com/api/v7/cardsetsinfo.php?setcode=" + encodeURIComponent(code));
-  const d = r.ok ? await r.json().catch(() => null) : null;
-  const id = d && d.id ? Number(d.id) : null;
-  ygoArt.set(code, id);
-  return id;
-}
 async function ygoLookalikes(c) {
   const parts = String(c.id).split(":");
   const card = await ygoCard(parts[1], c.name);
   if (!card) return [];
-  let list = ygoPrintingsOf(card).filter(x => x.id !== c.id && x.localId);
-  const images = card.card_images || [];
-  if (images.length > 1) {
-    // More than one artwork: keep only the printings with this one's.
-    const mine = await ygoArtOf(c.localId);
-    if (!mine) return [];
-    list = list.slice(0, 24);
-    const arts = [];
-    for (let i = 0; i < list.length; i += 4) {
-      arts.push(...await Promise.all(list.slice(i, i + 4).map(x => ygoArtOf(x.localId).catch(() => null))));
-      if (i + 4 < list.length) await new Promise(res => setTimeout(res, 300));
-    }
-    list = list.filter((x, i) => arts[i] === mine);
-    // The search shows every printing with the card's FIRST artwork; this
-    // printing's own is now known, so this card and its look-alikes wear it.
-    const img = images.find(im => Number(im.id) === mine);
-    if (img) [c, ...list].forEach(x => { x.ptcgImages = { small: img.image_url_small || "", large: img.image_url || "" }; });
-  }
+  c.ygoArtCount = (card.card_images || []).length;
+  const list = ygoPrintingsOf(card).filter(x => x.id !== c.id && x.localId);
   list.forEach(decorate);
   // Same rarity first (the hardest to tell apart), then the biggest price gap.
   const mineP = headlinePrice(c) || 0;
@@ -4705,8 +4705,14 @@ function lookHtml(c) {
   const rest = Math.min(got.list.length, 24) - shown.length;
   const all = [c, ...shown];
   const n = got.list.length;
-  return `<h4>Cards that look the same</h4>
-    <p class="look-sub">${n === 1 ? "One other printing has" : n + " other printings have"} the same picture. Tap one to open it.</p>
+  // A Yu-Gi-Oh! card printed with several pictures: nobody's data says which
+  // printing has which, so it says so instead of claiming they match.
+  const arts = c.game === "ygo" ? Number(c.ygoArtCount) || 0 : 0;
+  const sub = arts > 1
+    ? `${n === 1 ? "One other printing" : n + " other printings"} of this card. It was printed with ${arts} different pictures, and the card database doesn't say which printing has which — so check the picture too. Tap one to open it.`
+    : `${n === 1 ? "One other printing has" : n + " other printings have"} the same picture. Tap one to open it.`;
+  return `<h4>${arts > 1 ? "Other printings of this card" : "Cards that look the same"}</h4>
+    <p class="look-sub">${sub}</p>
     <div class="look-row" id="look-row">${lookTileHtml(c, true, lookLabel(c, all))}${shown.map(x => lookTileHtml(x, false, lookLabel(x, all))).join("")}</div>
     ${rest > 0 ? `<button type="button" class="link" id="look-more" style="padding:4px 2px;min-height:0">Show ${rest} more</button>` : ""}
     <div class="price-box look-diff" id="look-diff">
@@ -4817,7 +4823,8 @@ function ygoDiffHtml(c, shown, all) {
   const pc = headlinePrice(c) || c.snapPrice || 0;
   const far = pc ? shown.filter(x => { const p = headlinePrice(x) || 0; return p && Math.max(p, pc) >= 2 * Math.min(p, pc) && Math.abs(p - pc) >= 2; }) : [];
   if (far.length) lines.push(`<b>This one is worth ${money(pc)}</b>; ${far.map(x => escapeHtml(lookLabel(x, all)) + " <b>" + money(headlinePrice(x)) + "</b>").join(", ")} — check the set code!`);
-  const lead = differs(cards, x => x.rarity || "") ? "" : `<p class="look-lead">Same picture, same rarity — only the set code gives it away.</p>`;
+  const arts = Number(c.ygoArtCount) || 0;
+  const lead = differs(cards, x => x.rarity || "") ? "" : `<p class="look-lead">${arts > 1 ? "Same rarity — the set code gives it away (and the picture may differ)." : "Same picture, same rarity — only the set code gives it away."}</p>`;
   return lead + `<ol class="check-list">${lines.map(l => `<li>${l}</li>`).join("")}</ol>`
     + `<p class="field-note">Also look under the picture on the left: “1st Edition” printed there is often worth more than a copy with nothing there. The database doesn't say which of these came as 1st Edition.</p>`;
 }
@@ -4973,10 +4980,10 @@ function addCard(c) {
   if (existing) { setQty(existing.id, (Number(existing.qty) || 1) + 1); return; }
   const id = newId();
   const rows = tcgplayerRows(c);
-  const finish = pendingFinish || (rows.length > 1 ? rows[0].finish : "");
+  const finish = finishName(pendingFinish || (rows.length > 1 ? rows[0].finish : ""));
   pendingFinish = "";
   const snap = snapshotOf(c);
-  const frow = rows.find(r => r.finish === finish);
+  const frow = rows.find(r => sameFinish(r.finish, finish));
   if (frow && (frow.marketPrice || frow.midPrice)) snap.price = frow.marketPrice || frow.midPrice;
   const after = { who, cardId: c.id, qty: 1, fav: false, order: nextOrder(), addedAt: Date.now(), finish, snap };
   pushAction({ label: "Added " + c.name, undo: [{ field: "cards", id, value: null }], redo: [{ field: "cards", id, value: after }] });
@@ -5113,7 +5120,7 @@ async function repriceStale() {
       let full;
       try { full = await fullCard(e.cardId); } catch (err) { continue; }
       const rows = tcgplayerRows(full);
-      const frow = e.finish ? rows.find(r => r.finish === e.finish) : null;
+      const frow = e.finish ? rows.find(r => sameFinish(r.finish, e.finish)) : null;
       const price = frow && (frow.marketPrice || frow.midPrice) ? (frow.marketPrice || frow.midPrice) : (headlinePrice(full) || 0);
       const cur = state.cards[id];
       if (!cur) continue;
@@ -5148,7 +5155,7 @@ function renderMine() {
     return;
   }
   if (!list.length) { root.innerHTML = `<div class="status-line">Nothing matches that.</div>`; if (trashed.length) root.appendChild(buildTrashBlock(trashed)); return; }
-  root.innerHTML = `<div class="grid" id="mine-grid">${list.map(c => tileHtml(snapAsCard(c.cardId), { entryId: c.id, fav: c.fav, qty: c.qty, addedAt: c.addedAt, runningTotal: c.runningTotal })).join("")}</div>`;
+  root.innerHTML = `<div class="grid" id="mine-grid">${list.map(c => tileHtml(snapAsCard(c.cardId), { entryId: c.id, fav: c.fav, qty: c.qty, addedAt: c.addedAt, runningTotal: c.runningTotal, finish: c.finish })).join("")}</div>`;
   if (trashed.length) root.appendChild(buildTrashBlock(trashed));
   // Whose it is, when looking at everyone's.
   if (person === "*") list.forEach(c => {
@@ -5560,6 +5567,7 @@ function takeKeysFromLink() {
 // not seen yet, once. (Asked for: "when I go back on, it will say this was
 // updated, and who asked to update it.")
 const CHANGES = [
+  { id: 30, date: "2026-09-22", by: "Dad", what: "Finishes read in plain words everywhere (Reverse holo, not reverse-holofoil), My cards says which finish you have, and a card added as Reverse holo from the type screen now gets the reverse holo price (it was getting the regular one). A Yu-Gi-Oh! card printed with several different pictures no longer claims all its printings look the same, and its page keeps the picture it had." },
   { id: 29, date: "2026-09-22", by: "Moshe", what: "Cards that look the same: a card's page now shows the other printings with the same picture right beside it, and a \"How to tell them apart\" list says where to look — the set symbol, the number, the rarity mark, the shine, the year and the price. Tap one to open it; Back takes you back." },
   { id: 28, date: "2026-09-20", by: "Dad", what: "Options: each notification box now sits under its own heading with its own test button (the owner box had slipped under My own notifications)." },
   { id: 27, date: "2026-09-20", by: "Dad", what: "Fixed: screens no longer slide sideways as you swipe (Options was drifting left)." },
