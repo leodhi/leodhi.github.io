@@ -1181,7 +1181,7 @@
       </div>
     </div>
 
-    <div class="opt-section" data-words="request requests change ask family ntfy push notification approve claude">
+    <div class="opt-section" data-words="request requests change ask family ntfy push notification alert approve claude changes cards added activity tell me">
       <h4>Requests from the family</h4>
       <div class="opt-row">
         <div class="opt-text">Changes people asked for<small id="opt-req-line"></small></div>
@@ -1198,6 +1198,10 @@
       </div>
       <input type="text" id="opt-ntfy" placeholder="ntfy topic name" autocomplete="off" autocapitalize="off">
       <p class="field-note">The same topic your reminders use. Leave it blank and requests only show here.</p>
+      <div class="opt-row" id="opt-activity-row">
+        <div class="opt-text">Tell me when someone changes their cards<small>A notification on your phone when someone in the family adds, removes, sells or trades cards. Ten changes in a row come as one notification. Your own changes never send one.</small></div>
+        <div class="chips" id="opt-activity-chips"></div>
+      </div>
       <div class="opt-row">
         <div class="opt-text">Send approvals into my Claude Code chat<small>The "Send to Claude" button on the notification drops the request into this chat on the Mac (needs the phone on Tailscale). Blank chat id = whichever chat you touched last.</small></div>
       </div>
@@ -1573,6 +1577,7 @@ onAuthStateChanged(authClient, async user => {
     showScreen("app");
     safely("keys", takeKeysFromLink);
     safely("approve", takeApproveFromLink);
+    safely("resend", () => { resendUnpushedRequests(); });
     if (!askedHowLong) { askedHowLong = true; safely("timer", askHowLong); }
   }, err => {
     if (/permission|insufficient/i.test(err && err.message ? err.message : "")) {
@@ -1610,6 +1615,7 @@ async function saveEntry(field, id, value) {
 // ---------- Undo / redo ----------
 let undoStack = [], redoStack = [];
 function pushAction(action) {
+  try { noteActivity(action && action.label); } catch (e) {}
   undoStack.push(action);
   if (undoStack.length > 50) undoStack.shift();
   redoStack.length = 0;
@@ -1636,6 +1642,9 @@ async function doUndo() {
   if (!undoStack.length) return;
   const action = undoStack.pop();
   redoStack.push(action);
+  // Taken back before the push went: don't tell the owner about it.
+  const told = activity.lastIndexOf(action.label);
+  if (told >= 0) activity.splice(told, 1);
   renderUndo();
   hideToast();
   await applySteps(action.undo);
@@ -3670,6 +3679,11 @@ function topicOf(name) {
   if (p && typeof p.ntfy === "string" && p.ntfy.trim()) return p.ntfy.trim();
   // The owner's request topic is the owner's phone too.
   if (p && state.ownerEmail && lowerEmail(p.email) === lowerEmail(state.ownerEmail)) return ntfyTopic();
+  // A name with no email on it can only be used from the owner's own
+  // sign-in (everyone else IS the name their email is on), so it is the
+  // owner's phone too. Without this, a trade waiting for Dad never pushed:
+  // his name has no email on it.
+  if (p && !lowerEmail(p.email)) return ntfyTopic();
   return "";
 }
 // A push to one family member, on their own topic (set in Options on
@@ -3682,9 +3696,10 @@ async function pushToPerson(name, title, text) {
 }
 // ntfy's JSON form: headers can only carry plain ASCII, and a request has
 // dashes, accents and arrows in it -- as JSON everything goes through.
-async function ntfyPublish(topic, title, message, actions) {
+async function ntfyPublish(topic, title, message, actions, leaving) {
   try {
-    const r = await fetch("https://ntfy.sh/", { method: "POST", headers: { "content-type": "application/json" },
+    // keepalive: a push started as the app is being closed still goes out.
+    const r = await fetch("https://ntfy.sh/", { method: "POST", keepalive: !!leaving, headers: { "content-type": "application/json" },
       body: JSON.stringify({ topic, title, message, priority: 4, tags: ["cards"], ...(actions && actions.length ? { actions: actions.slice(0, 3) } : {}) }) });
     return r.ok;
   } catch (e) { return false; }
@@ -3779,15 +3794,85 @@ $("req-send").addEventListener("click", async () => {
   const text = $("req-text").value.trim();
   if (!text) { $("req-text").focus(); return; }
   const id = newId();
-  const r = { by: who, text, at: Date.now(), status: "new" };
+  // pushed:false until the phone push is known to have gone out -- so a
+  // push that fails is tried again next time this person opens the app,
+  // instead of the request sitting in the list with nobody told.
+  const r = { by: who, text, at: Date.now(), status: "new", pushed: false };
   state.requests = { ...(state.requests || {}), [id]: r };
   saveEntry("requests", id, r);
   $("req-text").value = "";
   setStatus("req-status", "Sending…");
   const pushed = await pushToOwner("Poké Scan request from " + who, text, id);
-  setStatus("req-status", pushed ? "Sent — it's on " + (state.ownerEmail ? state.ownerEmail.split("@")[0] : "the owner") + "'s phone now." : "Saved — " + (state.ownerEmail ? state.ownerEmail.split("@")[0] : "the owner") + " will see it in Options.");
+  const ownerName = state.ownerEmail ? state.ownerEmail.split("@")[0] : "the owner";
+  if (pushed) markRequestPushed(id);
+  setStatus("req-status", pushed ? "Sent — it's on " + ownerName + "'s phone now." : ntfyTopic() ? "Saved, but it didn't reach " + ownerName + "'s phone yet. It will try again next time you open Poké Scan." : "Saved — " + ownerName + " will see it in Options.", !pushed && !!ntfyTopic());
   renderRequests();
 });
+function markRequestPushed(id) {
+  const cur = (state.requests || {})[id];
+  if (!cur || cur.pushed === true) return;
+  const next = { ...cur, pushed: true };
+  state.requests = { ...state.requests, [id]: next };
+  saveEntry("requests", id, next);
+}
+// Once per open: this person's own requests whose push never went out.
+// Only ones marked pushed:false -- requests from before this existed have
+// no mark and are never sent again.
+let resentThisOpen = false;
+async function resendUnpushedRequests() {
+  if (resentThisOpen || !who || !ntfyTopic()) return;
+  resentThisOpen = true;
+  const weekAgo = Date.now() - 7 * 86400000;
+  for (const r of myRequests()) {
+    if (r.pushed !== false || r.status !== "new" || !(r.at > weekAgo)) continue;
+    if (await pushToOwner("Poké Scan request from " + r.by, r.text, r.id)) markRequestPushed(r.id);
+  }
+}
+
+// =========================================================================
+// TELLING THE OWNER WHAT THE FAMILY CHANGED
+// =========================================================================
+// Asked for 2026-09-23: "every time the user updates the PokeScan app, I
+// never get an alert". Nothing did that -- only requests pushed. Now every
+// change a family member makes (cards added, removed, sold, counts, trades,
+// claims) goes into one push to the owner's phone, gathered for 45 seconds
+// so a burst of ten cards is one notification, not ten. Sent early when the
+// app is put away. The owner's own changes never push. Off switch in
+// Options (owner only), on unless he turns it off.
+// Quiet: tidying, the owner's own decisions, and the trade check (a
+// side-by-side sum, nobody's cards move).
+const QUIET_CHANGES = /^(Reordered|Cleared .*recent list|Approved|Declined|Marked done|Removed the .* key|Trade check cleared|Price typed for|Typed price taken off)|(put in|taken out of) the trade check$/;
+const ACTIVITY_WAIT_MS = 45000;
+let activity = [], activityTimer = null;
+function activityPushOn() { return state.settings.activityPush !== false; }
+function noteActivity(label) {
+  if (!label || !who || isOwner() || !activityPushOn() || !ntfyTopic() || QUIET_CHANGES.test(label)) return;
+  activity.push(label);
+  clearTimeout(activityTimer);
+  activityTimer = setTimeout(() => sendActivity(false), ACTIVITY_WAIT_MS);
+}
+function sendActivity(leaving) {
+  clearTimeout(activityTimer); activityTimer = null;
+  if (!activity.length || !ntfyTopic()) { activity = []; return; }
+  const list = activity.splice(0);
+  const lines = list.slice(0, 8).map(s => "• " + s);
+  if (list.length > 8) lines.push("…and " + (list.length - 8) + " more");
+  ntfyPublish(ntfyTopic(), "Poké Scan: " + who + " made " + (list.length === 1 ? "a change" : list.length + " changes"), lines.join("\n"),
+    [{ action: "view", label: "Open Poké Scan", url: location.origin + location.pathname }], leaving);
+}
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") sendActivity(true); });
+window.addEventListener("pagehide", () => sendActivity(true));
+$("opt-activity-chips").addEventListener("click", e => {
+  const b = e.target.closest("[data-activity]");
+  if (!b || !isOwner()) return;
+  saveSettings({ activityPush: b.dataset.activity === "on" });
+  renderActivityChips();
+});
+function renderActivityChips() {
+  const on = activityPushOn();
+  $("opt-activity-chips").innerHTML = `<button type="button" class="chip${on ? " on" : ""}" data-activity="on">On</button><button type="button" class="chip${on ? "" : " on"}" data-activity="off">Off</button>`;
+  $("opt-activity-row").classList.toggle("hide", !isOwner());
+}
 $("opt-req-line").addEventListener("click", async e => {
   if (!isOwner() || !e.target.closest("#req-approve-all")) return;
   const open = allRequests().filter(r => r.status === "new");
@@ -5848,6 +5933,7 @@ function openOptions() {
   $("opt-mine-ntfy-line").textContent = who ? (topicOf(who) ? "Set. Trades waiting for you and answers to your requests are pushed to your phone." : "Not set — open the ntfy app on your phone, tap +, make up a topic name, subscribe, and type the same name here.") : "Pick a name first.";
   $("opt-ntfy-line").textContent = ntfyTopic() ? "Set to “" + ntfyTopic() + "”. Every new request is pushed there with an Approve button. If tests say Sent but nothing arrives, this name is not the one your phone listens to." : "NOT SET — requests only show here until you paste your ntfy topic.";
   renderRequests();
+  renderActivityChips();
   $("opt-account-line").textContent = currentUser && currentUser.email ? "as " + currentUser.email : "";
   renderGeminiLine();
   openSheet("options-sheet");
@@ -6122,6 +6208,7 @@ function takeKeysFromLink() {
 // not seen yet, once. (Asked for: "when I go back on, it will say this was
 // updated, and who asked to update it.")
 const CHANGES = [
+  { id: 34, date: "2026-09-23", by: "Dad", what: "Dad's phone now gets a notification when someone adds, removes, sells or trades cards (one push for a burst of changes), and a request that didn't reach his phone is sent again next time you open the app." },
   { id: 33, date: "2026-09-23", by: "Dad", what: "Trade check, at the top of the Trade tab: before a swap, each side taps Scan (or Type) under their name and adds the cards they'd give. It adds both sides up at today's store prices and says Fair trade, or who gives more and by how much. A card with no store price can have a price typed in. Trading with someone in the family? Send it to them as a real trade." },
   { id: 32, date: "2026-09-22", by: "Dad", what: "Yu-Gi-Oh! cards no longer wear the Poké Ball: a plain card shape marks a regular one (with a rainbow picture when it is Super Rare shiny), and the rarer ones keep the purple star. A Yu-Gi-Oh! Rare is now called Regular, not Holo — its picture isn't shiny, only its name." },
   { id: 31, date: "2026-09-22", by: "Dad", what: "Yu-Gi-Oh! cards printed in more than one picture (Blue-Eyes White Dragon, Dark Magician…) now show each printing's own picture, from Yugipedia — in the search and on the card page. A printing Yugipedia has no picture for says \"Picture may differ\"." },
