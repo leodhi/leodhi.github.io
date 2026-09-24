@@ -1278,7 +1278,7 @@ import {
   sendEmailVerification, sendSignInLinkToEmail, isSignInWithEmailLink, signInWithEmailLink
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 
-import { ask as askLLM, listModels as listLlmModels } from "https://leodhi.github.io/claude/ask-llm.js";
+import { ask as askLLM, listModels as listLlmModels, GEMINI_DEFAULT, GEMINI_PLAIN, geminiLive, geminiLearn, geminiWhy, geminiAlternates } from "https://leodhi.github.io/claude/ask-llm.js";
 
 // iOS Safari ignores the viewport zoom restrictions, so block the gestures.
 document.addEventListener("gesturestart", e => e.preventDefault());
@@ -2627,7 +2627,8 @@ $("opt-gemini-remove").addEventListener("click", () => { removeKey("geminiKey", 
 let geminiModels = null;
 async function geminiModel(key) {
   const saved = typeof llmSettings.googleModel === "string" ? llmSettings.googleModel.trim() : "";
-  if (saved) return saved;
+  // A model Google has retired goes straight to what replaced it.
+  if (saved) return geminiLive(saved);
   if (!geminiModels) {
     try {
       const r = await fetch(`${GOOGLE}/models?key=${encodeURIComponent(key)}`);
@@ -2641,7 +2642,9 @@ async function geminiModel(key) {
       geminiModels = list;
     } catch (e) { geminiModels = []; }
   }
-  return geminiModels[0] || "gemini-2.5-flash";
+  // The cheap default Google itself recommends, not the newest Flash, which is
+  // the one Google most often runs out of room on.
+  return geminiModels.includes(GEMINI_DEFAULT) ? GEMINI_DEFAULT : (geminiModels[0] || GEMINI_DEFAULT);
 }
 async function askGemini(opts) {
   const { key } = geminiKey();
@@ -2652,7 +2655,14 @@ async function askGemini(opts) {
     system_instruction: { parts: [{ text: opts.system || "" }] }
   };
   if (opts.search) body.tools = [{ google_search: {} }];
-  for (let attempt = 0; attempt < 3; attempt++) {
+  // Google retires models with no warning (2026-09-23: gemini-2.5-flash, "no
+  // longer available to new users"). A model that is gone, too busy, or not on
+  // the key's plan is swapped for Google's own suggestion, then the cheap
+  // default, then the newest Flash on the key's list; a GONE model's
+  // replacement is remembered. Google's own error text never reaches the screen.
+  const first = model;
+  let firstWhy = "", alts = null, busyRetried = false;
+  for (let attempt = 0; attempt < 7; attempt++) {
     const url = `${GOOGLE}/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(key)}`;
     let r, raw = "", json = {};
     try { r = await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }); }
@@ -2663,23 +2673,29 @@ async function askGemini(opts) {
       const cand = (json.candidates || [])[0] || {};
       const text = ((cand.content || {}).parts || []).map(p => p.text || "").join("").trim();
       if (!text) throw new Error(cand.finishReason === "SAFETY" ? "Google declined to answer that one." : "Gemini sent nothing back. Worth trying again.");
+      if (firstWhy === "gone" && model !== first) geminiLearn(first, model);
       const chunks = ((cand.groundingMetadata || {}).groundingChunks || []).map(ch => ch.web || {}).filter(w => w.uri);
       return { text, sources: chunks, model };
     }
     const msg = ((json.error || {}).message) || "";
-    // A retired model names its replacement in the message; take the hint.
-    const named = /use\s+models\/([A-Za-z0-9.\-]+)/.exec(msg);
-    if (r.status === 404 && named && named[1] !== model) { model = named[1]; continue; }
-    if (r.status === 404 && geminiModels && geminiModels.length > 1 && geminiModels.indexOf(model) < geminiModels.length - 1) { model = geminiModels[geminiModels.indexOf(model) + 1]; continue; }
     // An older model that does not know the search tool: ask again plainly.
     if (r.status === 400 && body.tools) { delete body.tools; continue; }
-    if (r.status >= 500 && attempt < 2) { await new Promise(res => setTimeout(res, 800)); continue; }
-    if (r.status === 429) throw new Error("Gemini's free allowance is used up for now — wait a minute and try again.");
     const where = geminiKey().from === "llms" ? "the key saved in the LLMs app" : "the key pasted in Options";
     if (r.status === 401 || r.status === 403 || /API key not valid|API_KEY_INVALID/i.test(msg)) throw new Error("Google says the Gemini key isn't valid — that's " + where + ". Paste a fresh one from aistudio.google.com.");
-    throw new Error("Gemini: " + (msg || ("said no (" + r.status + ")")));
+    const why = geminiWhy(r.status, msg);
+    if (why) {
+      if (!firstWhy) firstWhy = why;
+      // Busy is usually a moment: once more on the same model before moving.
+      if (why === "busy" && !busyRetried) { busyRetried = true; await new Promise(res => setTimeout(res, 800)); continue; }
+      if (!alts) alts = await geminiAlternates(key, model, msg);
+      const next = alts.shift();
+      if (next) { model = next; continue; }
+      throw new Error(firstWhy === "plan" ? "That Gemini model isn't included in the free Google plan the key is on. Pick a Flash model in the LLMs app." : GEMINI_PLAIN);
+    }
+    if (r.status === 429) throw new Error("Gemini's free allowance is used up for now — wait a minute and try again.");
+    throw new Error(GEMINI_PLAIN);
   }
-  throw new Error("Gemini kept failing. Try again in a moment.");
+  throw new Error(GEMINI_PLAIN);
 }
 function firstJson(text) {
   const a = text.indexOf("{"), b = text.lastIndexOf("}");
