@@ -1544,6 +1544,7 @@ onAuthStateChanged(authClient, async user => {
     stickySigninMessage = null;
     return;
   }
+  try { window.appOpen && window.appOpen.noteWho(user, user.displayName || null); } catch (e) {}
   setStatus("signin-status", "");
   setStage("list");
   let ownershipSettled = false;
