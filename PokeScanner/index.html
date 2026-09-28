@@ -1285,7 +1285,7 @@ import {
 import { askWithCost as askLLMWithCost, listModels as listLlmModels, GEMINI_DEFAULT, GEMINI_PLAIN, geminiLive, geminiLearn, geminiWhy, geminiAlternates } from "https://leodhi.github.io/claude/ask-llm.js";
 // Idea 732: which AI answered and what it cost, shown under each answer and
 // counted in this browser. Every use is failure-safe: cost never stops an answer.
-import { noteAnswer, showLine } from "../../ai-cost.js";
+import { noteAnswer, showLine } from "https://leodhi.github.io/claude/ai-cost.js";
 const AI_APP = "Poké Scan (web)";
 async function aiCost(provider, model, body) {
   try { return await noteAnswer({ app: AI_APP, provider, model, body }); } catch (e) { return null; }
