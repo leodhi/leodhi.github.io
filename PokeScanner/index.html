@@ -1143,7 +1143,7 @@
       </div>
     </div>
 
-    <div class="opt-section" data-words="price prices pack packs cost dollars ebay google gemini groq key ai worth scan backup reader free">
+    <div class="opt-section" data-words="price prices pack packs cost dollars ebay google gemini groq chatgpt openai permission key ai worth scan backup reader free">
       <h4>Prices and packs</h4>
       <div class="opt-row">
         <div class="opt-text">Price of one booster pack<small>Used for "how much would it cost in packs". Today's shelf price for a new pack is about $4.49.</small></div>
@@ -4061,7 +4061,9 @@ async function resendUnpushedRequests() {
 const QUIET_CHANGES = /^(Reordered|Cleared .*recent list|Approved|Declined|Marked done|Removed the .* key|Trade check cleared|Price typed for|Typed price taken off)|(put in|taken out of) the trade check$/;
 const ACTIVITY_WAIT_MS = 45000;
 let activity = [], activityTimer = null;
-function activityPushOn() { return state.settings.activityPush !== false; }
+// Off unless he switches it on himself (his words 2026-09-28: "I also don't want a notification every
+// time someone trades, adds, or removes a card. That's not the kind of thing I want to be notified about.")
+function activityPushOn() { return state.settings.activityPush === true; }
 function noteActivity(label) {
   if (!label || !who || isOwner() || !activityPushOn() || !ntfyTopic() || QUIET_CHANGES.test(label)) return;
   activity.push(label);
@@ -6620,6 +6622,7 @@ function takeKeysFromLink() {
 // not seen yet, once. (Asked for: "when I go back on, it will say this was
 // updated, and who asked to update it.")
 const CHANGES = [
+  { id: 41, date: "2026-09-28", by: "Lew", what: "No more notifications when someone adds, removes, sells or trades cards. You can switch them back on in Options (Tell me when someone changes their cards). Requests and trades waiting for your answer still come through." },
   { id: 40, date: "2026-09-28", by: "Moshe", what: "Search results show each card's price as you look: the same market price My cards will show, with the finish (Holo, Reverse holo…) when a card comes in more than one. Prices fill in a few at a time, are kept for a day, and a card the database has no price for says \"No price\"." },
   { id: 39, date: "2026-09-28", by: "Moshe", what: "A card's page has \"The picture on the card\": who drew it, and a Tell me about the design button that describes what the picture shows, the art style, and whether it's full art, textured or shiny. The answer is kept, so the same card isn't asked twice." },
   { id: 38, date: "2026-09-28", by: "Moshe", what: "After you add a card (the + on a tile, or Add on the card's page), the search results stay exactly where they were, same type picked, and only the search box is emptied, ready for the next name." },
