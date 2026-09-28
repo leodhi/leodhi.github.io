@@ -586,6 +586,17 @@
     cursor: pointer; touch-action: manipulation; transition: transform 0.12s cubic-bezier(.2,.9,.3,1.1);
   }
   .chip:active { transform: scale(0.94); }
+  .reader-row { margin: 10px 0 4px; }
+  .reader-row:empty { display: none; }
+  .reader-title { font-size: calc(12px * var(--scale, 1)); font-weight: 700; color: var(--ink-muted); margin: 0 0 6px; }
+  .reader-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+  .reader { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+  .reader-pick { font: inherit; text-align: left; padding: 7px 9px; border-radius: 12px; border: 1px solid var(--line); background: var(--panel-2); color: var(--ink); cursor: pointer; touch-action: manipulation; min-width: 0; min-height: 44px; }
+  .reader-pick b { display: block; font-size: calc(13px * var(--scale, 1)); }
+  .reader-pick small { display: block; font-size: calc(11px * var(--scale, 1)); color: var(--ink-muted); line-height: 1.25; overflow-wrap: anywhere; }
+  .reader.on .reader-pick { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+  .reader.off .reader-pick { opacity: 0.75; cursor: default; }
+  .reader-ask { font-size: calc(12px * var(--scale, 1)); min-height: 32px; padding: 4px 8px; }
   .chip.on { background: var(--accent); border-color: var(--accent); color: #fff; }
   .sheet-actions { display: flex; flex-direction: column; gap: 9px; margin-top: 18px; }
   .sheet-actions button, .btn {
@@ -866,6 +877,7 @@
         <input type="file" id="file-photo" accept="image/*" class="hide">
       </div>
       <div class="search-hint" id="search-hint">Scan uses the camera on whatever you're on — a phone's camera app, or the webcam on a laptop. After the name you can add the number (25/102) or a year (2023) to narrow it down; a year on its own shows that year's sets.</div>
+      <div class="reader-row" data-reader-row id="reader-row-find"></div>
       <div class="langs" id="games"></div>
       <div class="langs" id="langs"></div>
       <div id="scanned" class="scanned hide"></div>
@@ -1131,7 +1143,7 @@
       </div>
     </div>
 
-    <div class="opt-section" data-words="price prices pack packs cost dollars ebay google gemini groq chatgpt openai key ai worth scan backup permission">
+    <div class="opt-section" data-words="price prices pack packs cost dollars ebay google gemini groq key ai worth scan backup reader free">
       <h4>Prices and packs</h4>
       <div class="opt-row">
         <div class="opt-text">Price of one booster pack<small>Used for "how much would it cost in packs". Today's shelf price for a new pack is about $4.49.</small></div>
@@ -1438,7 +1450,7 @@ $("btn-register").addEventListener("click", async () => {
 $("btn-reset").addEventListener("click", async () => {
   const { email } = creds();
   if (!email) return setStatus("signin-status", "Type your email first, then tap this again.", true);
-  try { await sendPasswordResetEmail(authClient, email); setStatus("signin-status", "Password reset email sent."); }
+  try { await sendPasswordResetEmail(authClient, email); setStatus("signin-status", "Sent. Check your inbox and Spam folder."); }
   catch (e) { setStatus("signin-status", friendlyAuthError(e), true); }
 });
 $("btn-signout").addEventListener("click", () => { closeOptions(); signOut(authClient); });
@@ -1464,6 +1476,12 @@ function friendlyAuthError(e) {
   if (code.includes("operation-not-allowed")) return "Sign-in links aren't switched on for this app yet — in the Firebase console, Authentication → Sign-in method → Email/Password → tick “Email link”.";
   if (code.includes("invalid-action-code") || code.includes("expired-action-code")) return "That sign-in link has been used or has expired — ask for a new one.";
   if (code.includes("unauthorized-continue-uri") || code.includes("invalid-continue-uri")) return "This page isn't on the allowed list for sign-in links.";
+  // 2026-09-28: a family member tapped Forgot password? and saw the raw
+  // "auth/too-many-requests" -- and no email came.
+  if (code.includes("too-many-requests")) return "Too many tries from this phone for now. Wait about an hour, or try from another phone or Wi-Fi. If you asked for a reset email, check the Spam folder too.";
+  if (code.includes("user-disabled")) return "This account has been switched off. Ask the person who runs Poké Scan to switch it back on.";
+  if (code.includes("quota-exceeded")) return "Too many emails have been sent from Poké Scan today. Try again tomorrow, and check the Spam folder for one that already came.";
+  if (code.includes("missing-email")) return "Type your email first, then tap this again.";
   return (e && e.message) || "Something went wrong.";
 }
 getRedirectResult(authClient)
@@ -2571,21 +2589,107 @@ function setChatgptAllowed(name, allowed) {
   save({ settings: { chatgptAllowed: map, chatgptAsked: asked } });
   renderFamilyList();
 }
-// A family member asks; the owner sees it in Options next to their name.
-function askForChatgpt() {
-  if (!who) return;
+// A family member asks; the owner sees it in Options next to their name,
+// and -- like a request from the request bar -- it is pushed to the owner's
+// phone at once. It used to be only written down, so nobody was told.
+// Returns whether the push reached the owner's phone.
+async function askForChatgpt() {
+  if (!who || isOwner()) return false;
   const asked = { ...(state.settings.chatgptAsked || {}), [who]: Date.now() };
   state.settings = { ...state.settings, chatgptAsked: asked };
   save({ settings: { chatgptAsked: asked } });
+  renderGeminiLine();
+  const pushed = await pushToOwner("Poké Scan: " + who + " asks to use ChatGPT",
+    who + " would like to use ChatGPT to read cards and answer questions. It costs a little money each time. Open Poké Scan, Options, and tap \"Asked for ChatGPT\" next to " + who + " to allow it for an hour, a day, a week or always.");
+  return pushed;
 }
+function ownerWord() { return state.ownerEmail || "the owner"; }
 const SCAN_ORDER_DEFAULT = ["gemini", "groq", "chatgpt"];
 const READER_NAMES = { gemini: "Gemini", groq: "Groq", chatgpt: "ChatGPT" };
 function scanOrder() {
   // Groq goes first by itself once its key is there (Moshe: "move to groq
   // auto") -- it is free and fast; Gemini stays for the web searches.
-  const first = SCAN_ORDER_DEFAULT.includes(state.settings.scanFirst) ? state.settings.scanFirst : (groqKey() ? "groq" : "gemini");
+  // The one tapped on this phone (under "Which AI reads and answers") wins.
+  const mine = pickedReader();
+  const first = mine && readerAvailable(mine) ? mine : SCAN_ORDER_DEFAULT.includes(state.settings.scanFirst) ? state.settings.scanFirst : (groqKey() ? "groq" : "gemini");
   return [first, ...SCAN_ORDER_DEFAULT.filter(x => x !== first)];
 }
+// ---------- All three readers, always in sight ----------
+// Lew, 2026-09-28: "for some reason, Grok is not working. Gemini is not
+// working. So uh, don't hide the chat GPT. Um, maybe show all the options."
+// Every screen that reads a card or asks an AI shows Gemini, Groq and
+// ChatGPT, each with why it can or can't be used right now; tapping one makes
+// it the one tried first on this phone. What went wrong last time is kept
+// for the day, so "didn't answer" or "free allowance used up" stays visible.
+const READER_PICK_KEY = "pokescan-reader";
+const READER_FAIL_KEY = "pokescan-reader-fails";
+function pickedReader() { try { const v = localStorage.getItem(READER_PICK_KEY) || ""; return SCAN_ORDER_DEFAULT.includes(v) ? v : ""; } catch (e) { return ""; } }
+function pickReader(id) { try { localStorage.setItem(READER_PICK_KEY, id); } catch (e) {} renderReaderRows(); }
+function readerFails() {
+  try {
+    const all = JSON.parse(localStorage.getItem(READER_FAIL_KEY) || "{}") || {};
+    const today = new Date().toDateString();
+    return Object.fromEntries(Object.entries(all).filter(([, f]) => f && f.day === today));
+  } catch (e) { return {}; }
+}
+function noteReaderFail(id, e) {
+  const all = readerFails();
+  const msg = String((e && e.message) || "no answer").replace(/\s*ChatGPT could read it.*$/, "");
+  all[id] = { day: new Date().toDateString(), quota: !!(e && (e.quota || /allowance|limit: 0|used up/i.test(msg))), msg };
+  try { localStorage.setItem(READER_FAIL_KEY, JSON.stringify(all)); } catch (x) {}
+  renderReaderRows();
+}
+function noteReaderOk(id) {
+  const all = readerFails();
+  if (!all[id]) return;
+  delete all[id];
+  try { localStorage.setItem(READER_FAIL_KEY, JSON.stringify(all)); } catch (x) {}
+  renderReaderRows();
+}
+function hasReaderKey(id) { return id === "gemini" ? !!geminiKey().key : id === "groq" ? !!groqKey() : !!chatgptKey().key; }
+// { id, name, usable, state, ask } -- state in plain words.
+function readerStates() {
+  const fails = readerFails();
+  return SCAN_ORDER_DEFAULT.map(id => {
+    const name = READER_NAMES[id];
+    if (!hasReaderKey(id)) return { id, name, usable: false, state: "no key yet — " + (isOwner() ? "paste one in Options" : ownerWord() + " adds it in Options") };
+    if (id === "chatgpt" && !isOwner() && !chatgptAllowedFor(who)) {
+      if (!who) return { id, name, usable: false, state: "pick your name first" };
+      return chatgptAskedBy(who) ? { id, name, usable: false, state: "asked " + ownerWord() + " — waiting for an OK" } : { id, name, usable: false, state: "costs money — needs " + ownerWord() + "'s OK", ask: true };
+    }
+    const f = fails[id];
+    if (f) return { id, name, usable: true, state: f.quota ? "free allowance used up today" : "didn't answer: " + f.msg };
+    return { id, name, usable: true, state: id === "chatgpt" ? (isOwner() ? "ready — costs a little each time" : chatgptAllowedText(who).replace(/^ChatGPT ✓ /, "ready · ")) : "ready — free" };
+  });
+}
+function readerRowHtml() {
+  const first = scanOrder()[0];
+  return `<div class="reader-title">Which AI reads and answers</div><div class="reader-list">${readerStates().map(r =>
+    `<div class="reader${r.usable ? "" : " off"}${r.id === first && r.usable ? " on" : ""}" data-reader="${r.id}">`
+    + `<button type="button" class="reader-pick" data-reader-pick="${r.id}" ${r.usable ? "" : "disabled"} aria-pressed="${r.id === first && r.usable}"><b>${escapeHtml(r.name)}</b><small>${escapeHtml(r.state)}</small></button>`
+    + (r.ask ? `<button type="button" class="pill-btn reader-ask" data-reader-ask="chatgpt">Ask to use ChatGPT</button>` : "")
+    + `</div>`).join("")}</div>`;
+}
+function renderReaderRows() {
+  document.querySelectorAll("[data-reader-row]").forEach(el => { el.innerHTML = readerRowHtml(); });
+}
+document.addEventListener("click", async e => {
+  const pick = e.target.closest("[data-reader-pick]");
+  if (pick && !pick.disabled) {
+    const inScan = !!pick.closest("#scanned");   // asked before the rows are redrawn
+    pickReader(pick.dataset.readerPick);
+    // A scan that just failed is read again straight away by the one tapped.
+    if (lastFailedShot && inScan) { const shot = lastFailedShot; lastFailedShot = null; rereadShot(shot); }
+    return;
+  }
+  const ask = e.target.closest("[data-reader-ask]");
+  if (ask) {
+    ask.disabled = true;
+    const pushed = await askForChatgpt();
+    renderReaderRows();
+    showToast(pushed ? "Asked — it's on " + ownerWord() + "'s phone now" : "Asked — " + ownerWord() + " will see it in Options");
+  }
+});
 function readerAvailable(id) {
   if (id === "gemini") return !!geminiKey().key;
   if (id === "groq") return !!groqKey();
@@ -2613,8 +2717,8 @@ function renderGeminiLine() {
   $("opt-chatgpt-line").textContent = ck.from === "llms" ? "Using the ChatGPT key saved in the LLMs app." : ck.from === "here" ? "A key is saved" + (mayEditKey() ? " (ends in …" + ck.key.slice(-4) + ")." : ".") : "No key yet.";
   $("opt-chatgpt-edit").classList.toggle("hide", !mayEditKey());
   $("opt-chatgpt-remove").classList.toggle("hide", !(ck.from === "here" && mayEditKey()));
-  if (!mayEditKey() && ck.key) {
-    $("opt-chatgpt-line").textContent += chatgptAllowedFor(who) ? " You're allowed to use it." : (chatgptAskedBy(who) ? " You've asked to use it — waiting on " + (state.ownerEmail || "the owner") + "." : " Ask " + (state.ownerEmail || "the owner") + " before it can read your scans.");
+  if (!mayEditKey() && who && ck.key) {
+    $("opt-chatgpt-line").textContent += chatgptAllowedFor(who) ? " You're allowed to use it." : (chatgptAskedBy(who) ? " You've asked to use it — waiting on " + ownerWord() + "." : " It costs money, so ask " + ownerWord() + " before you use it.");
   }
   // Order
   const order = scanOrder();
@@ -2731,6 +2835,8 @@ let results = [];          // decorated cards from the last search
 let kindFilter = "all";
 let bestId = null;         // the card a scan pointed at
 let searchSeq = 0;
+let pickFinish = "";       // picked on the type screen (Regular → Holo…), for the whole list
+let shownQuery = "";       // what the results on screen were searched for (the box may be empty)
 
 // "pikachu 25/102" or "charizard 4" -> a name and a number to rank by.
 // "charizard 2023" -> that name, that year; "2023" alone -> that year's sets.
@@ -2792,7 +2898,8 @@ async function runSearch(q, hint, fromScan) {
     // Typing asks the type first; a scan already knows the card, so it
     // shows every printing straight away with a way back to the question.
     pickStep = (fromScan || game === "ygo") ? "cards" : "type";
-    subFilter = "all"; pendingFinish = ""; etypeFilter = ""; yearFilter = "";
+    subFilter = "all"; pendingFinish = ""; pickFinish = ""; etypeFilter = ""; yearFilter = "";
+    shownQuery = q;
     if (bestId) fullCard(bestId).then(full => noteRecent(full, "scan")).catch(() => {});
     kindFilter = "all";
     setStatus("find-status", results.length ? (merged.year && results.every(c => c.year === merged.year) ? "Only " + merged.year + "." : "") : (typeWord(parsed.name) ? "No " + typeWord(parsed.name) + " cards came back — try again in a moment." : "No card called “" + parsed.name + "”. Check the spelling on the card — it's printed at the top."), !results.length);
@@ -2869,22 +2976,22 @@ function renderPicker() {
     return;
   }
   // cards: the breadcrumb says what was chosen, and lets you change it.
-  const subLabel = (kindFilter === "regular" ? (pendingFinish || "") : subFilter !== "all" ? ((SUBKINDS[kindFilter] || []).find(x => x.key === subFilter) || {}).label || "" : "") + (kindFilter === "energy" ? [etypeFilter, yearFilter].filter(Boolean).map(x => " · " + x).join("") : "");
+  const subLabel = (kindFilter === "regular" ? (pickFinish || "") : subFilter !== "all" ? ((SUBKINDS[kindFilter] || []).find(x => x.key === subFilter) || {}).label || "" : "") + (kindFilter === "energy" ? [etypeFilter, yearFilter].filter(Boolean).map(x => " · " + x).join("") : "");
   crumb.innerHTML = kindFilter === "all"
     ? `<button type="button" class="pill-btn" data-pick-back="type">${kindArt("regular", 20)} Choose a type</button><span class="undo-what" style="flex-basis:auto">Showing every printing</span>`
     : `<button type="button" class="pill-btn" data-pick-back="type">${kindArt(kindFilter, 22)} ${escapeHtml(KINDS[kindFilter].label)}${subLabel ? " · " + escapeHtml(subLabel) : ""} ‹ change</button>`;
 }
 function renderKinds() { renderPicker(); }
 $("picker").addEventListener("click", e => {
-  if (e.target.closest("[data-pick-all]")) { kindFilter = "all"; subFilter = "all"; etypeFilter = ""; yearFilter = ""; pickStep = "cards"; renderResults(); return; }
+  if (e.target.closest("[data-pick-all]")) { kindFilter = "all"; subFilter = "all"; pickFinish = ""; etypeFilter = ""; yearFilter = ""; pickStep = "cards"; renderResults(); return; }
   const k = e.target.closest("[data-pick-kind]");
   if (k) {
-    kindFilter = k.dataset.pickKind; subFilter = "all"; etypeFilter = ""; yearFilter = "";
+    kindFilter = k.dataset.pickKind; subFilter = "all"; etypeFilter = ""; yearFilter = ""; pickFinish = "";
     pickStep = (kindFilter === "regular" || SUBKINDS[kindFilter]) ? "sub" : "cards";
     renderResults(); return;
   }
   const f = e.target.closest("[data-pick-finish]");
-  if (f) { pendingFinish = f.dataset.pickFinish === "Regular" ? "" : f.dataset.pickFinish; pickStep = "cards"; renderResults(); return; }
+  if (f) { pickFinish = f.dataset.pickFinish === "Regular" ? "" : f.dataset.pickFinish; pickStep = "cards"; renderResults(); return; }
   const sub = e.target.closest("[data-pick-sub]");
   if (sub) { subFilter = sub.dataset.pickSub; pickStep = kindFilter === "energy" ? "etype" : "cards"; renderResults(); return; }
   const et = e.target.closest("[data-pick-etype]");
@@ -2920,8 +3027,9 @@ $("games").addEventListener("click", e => {
   try { localStorage.setItem("pokescan-game", game); } catch (e2) {}
   renderGames();
   searchCache.clear();
+  const again = $("q").value.trim() || (results.length ? shownQuery : "");
   results = []; bestId = null; renderResults();
-  if ($("q").value.trim()) runSearch($("q").value, null, false);
+  if (again) runSearch(again, null, false);
 });
 renderGames();
 // A Yu-Gi-Oh! card, shaped like a Pokémon one so every screen works on it.
@@ -3009,8 +3117,9 @@ $("langs").addEventListener("click", e => {
   lang = b.dataset.lang;
   renderLangs();
   searchCache.clear();
+  const again = $("q").value.trim() || (results.length ? shownQuery : "");
   results = []; bestId = null; renderResults();
-  if ($("q").value.trim()) runSearch($("q").value, null, false);
+  if (again) runSearch(again, null, false);
 });
 renderLangs();
 const nameCache = new Map();
@@ -3062,7 +3171,7 @@ function tileHtml(c, extra) {
     <div class="t-kind">${cardMark(c, 30)}<span>${escapeHtml(kindWithFinish(c, extra && extra.finish))}</span></div>
     ${c.rarity && !/^(common|uncommon|rare)$/i.test(c.rarity) && !kindWords(c).toLowerCase().includes(c.rarity.toLowerCase()) ? `<div class="t-rarity">${escapeHtml(c.rarity)}</div>` : ""}
     ${ypNote(c) ? `<div class="art-note">${escapeHtml(ypNote(c))}</div>` : ""}
-    ${priceText ? `<div class="t-row"><span class="t-price">${priceText}</span><span class="t-sub" style="margin:0">market today${extra && Number(extra.qty) > 1 ? " · ×" + Number(extra.qty) : ""}</span></div>` : ""}
+    ${extra && extra.priceSlot ? `<div class="t-row t-pslot" data-price-for="${escapeAttr(c.id)}">${tilePriceInner(c)}</div>` : priceText ? `<div class="t-row"><span class="t-price">${priceText}</span><span class="t-sub" style="margin:0">market today${extra && Number(extra.qty) > 1 ? " · ×" + Number(extra.qty) : ""}</span></div>` : ""}
     ${who && (!extra || !extra.noCtl) ? `<div class="t-ctl"><button type="button" class="plus" data-tile-plus="${escapeAttr(c.id)}" aria-label="Add one">+</button><button type="button" class="minus" data-tile-minus="${escapeAttr(c.id)}" aria-label="One fewer" ${have ? "" : "disabled"}>−</button><button type="button" class="sold" data-tile-sold="${escapeAttr(c.id)}" aria-label="Sold" ${have ? "" : "disabled"}>💰</button></div>` : ""}
     ${extra && extra.runningTotal !== undefined ? `<div class="t-row running"><span class="t-sub" style="margin:0">${extra.addedAt ? new Date(extra.addedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : ""}</span><span class="t-price">${money(extra.runningTotal)} <span class="t-sub" style="margin:0">so far</span></span></div>` : ""}
   </div>`;
@@ -3081,22 +3190,84 @@ function renderResults() {
   const root = $("results");
   const list = (kindFilter === "all" ? results : results.filter(c => c.kind === kindFilter)).filter(subkindMatch).filter(c => kindFilter !== "energy" || (etypeMatch(c) && yearMatch(c)));
   if (!results.length || pickStep !== "cards") { root.innerHTML = ""; return; }
-  root.innerHTML = `<div class="grid">${list.map(c => tileHtml(c)).join("")}</div>`;
+  root.innerHTML = `<div class="grid">${list.map(c => tileHtml(c, { priceSlot: true })).join("")}</div>`;
   if (game === "ygo" && list.length) ypFillSearch(list);
-  // Fill in prices as they arrive, without blocking the grid.
-  list.slice(0, 60).forEach(c => {
-    if (c.snapPrice !== undefined) return;
-    fullCard(c.id).then(full => {
-      c.snapPrice = headlinePrice(full) || 0;
-      const t = root.querySelector(`.tile[data-card-id="${CSS.escape(c.id)}"]`);
-      if (t && c.snapPrice) {
-        const row = document.createElement("div");
-        row.className = "t-row";
-        row.innerHTML = `<span class="t-price">${money(c.snapPrice)}</span><span class="t-sub" style="margin:0">market</span>`;
-        t.appendChild(row);
-      }
-    }).catch(() => { c.snapPrice = 0; });
-  });
+  fillTilePrices(list);
+}
+// ---------- Prices on the search tiles ----------
+// Moshe, 2026-09-28: "It doesn't show the price when I'm searching". The old
+// fill fired 60 look-ups at once, dropped any card without a price silently,
+// and put the price under the buttons only once -- redrawn tiles (after an
+// add) lost it. Now every tile has a price line from the start ("Price…"),
+// filled four cards at a time in the order they are shown, kept for a day on
+// this phone, and "No price" when the database has none. The price is the
+// one My cards will show once it is added: the finish picked on the type
+// screen (else the first finish), with the finish named when there are several.
+const TILE_PRICE_KEY = "pokescan-tile-prices-v1";
+const TILE_PRICE_TTL = 86400000;
+let tilePrices = {};
+try { tilePrices = JSON.parse(localStorage.getItem(TILE_PRICE_KEY) || "{}") || {}; } catch (e) { tilePrices = {}; }
+function priceFacts(full) {
+  return { h: headlinePrice(full) || 0, r: tcgplayerRows(full).map(r => [r.finish, r.marketPrice || r.midPrice || 0]), at: Date.now() };
+}
+function tilePriceFor(c) {
+  const f = tilePrices[c.id];
+  if (!f || !(Date.now() - f.at < TILE_PRICE_TTL)) return null;
+  if (f.failed) return { failed: true };
+  let finish = "", price = 0;
+  if (f.r && f.r.length > 1) {
+    const row = (pickFinish && f.r.find(x => sameFinish(x[0], pickFinish))) || f.r[0];
+    finish = row[0]; price = row[1];
+  }
+  return { price: price || f.h || 0, finish };
+}
+function tilePriceInner(c) {
+  const got = tilePriceFor(c);
+  if (!got) return `<span class="t-price none">Price…</span>`;
+  if (got.failed) return `<span class="t-price none">Price didn't load</span>`;
+  if (!got.price) return `<span class="t-price none">No price</span>`;
+  return `<span class="t-price">${money(got.price)}</span><span class="t-sub" style="margin:0">${got.finish ? escapeHtml(got.finish) + " · " : ""}market</span>`;
+}
+let tilePriceGen = 0, tilePriceSaveTimer = null;
+function saveTilePricesSoon() {
+  if (tilePriceSaveTimer) return;   // at most once a second while prices stream in
+  tilePriceSaveTimer = setTimeout(() => {
+    tilePriceSaveTimer = null;
+    const keep = Object.entries(tilePrices).filter(([, f]) => f && !f.failed && Date.now() - f.at < TILE_PRICE_TTL).sort((a, b) => b[1].at - a[1].at).slice(0, 1500);
+    try { localStorage.setItem(TILE_PRICE_KEY, JSON.stringify(Object.fromEntries(keep))); } catch (e) {}
+  }, 1000);
+}
+// Only the tiles on screen (and the next screenful) are looked up: a long
+// list of 200 printings is not 200 look-ups at once, and the card database
+// is asked gently -- four at a time.
+let tilePriceWatch = null;
+function fillTilePrices(list) {
+  const gen = ++tilePriceGen;
+  if (tilePriceWatch) { tilePriceWatch.disconnect(); tilePriceWatch = null; }
+  const byId = new Map(list.map(c => [c.id, c]));
+  const queue = [], queued = new Set();
+  let running = 0;
+  const paint = c => { const slot = document.querySelector(`#results [data-price-for="${CSS.escape(c.id)}"]`); if (slot) slot.innerHTML = tilePriceInner(c); };
+  const pump = () => {
+    while (running < 4 && queue.length && gen === tilePriceGen) {
+      const c = queue.shift();
+      running++;
+      fullCard(c.id).then(full => {
+        tilePrices[c.id] = priceFacts(full);
+        c.snapPrice = headlinePrice(full) || 0;
+        saveTilePricesSoon();
+      }).catch(() => { tilePrices[c.id] = { failed: true, at: Date.now() }; })
+        .finally(() => { running--; paint(c); pump(); });
+    }
+  };
+  const known = c => { const got = tilePriceFor(c); return !!got && !got.failed; };   // one that failed is tried again on the next draw
+  const want = c => { if (!c || queued.has(c.id) || known(c)) return; queued.add(c.id); queue.push(c); pump(); };
+  const slots = [...document.querySelectorAll("#results [data-price-for]")];
+  if (typeof IntersectionObserver !== "function") { list.slice(0, 60).forEach(want); return; }
+  tilePriceWatch = new IntersectionObserver(entries => {
+    entries.forEach(en => { if (en.isIntersecting) { want(byId.get(en.target.dataset.priceFor)); tilePriceWatch && tilePriceWatch.unobserve(en.target); } });
+  }, { rootMargin: "900px 0px" });
+  slots.forEach(el => { const c = byId.get(el.dataset.priceFor); if (c && !known(c)) tilePriceWatch.observe(el); });
 }
 // The three buttons on a tile. Sold opens the card (the price is asked
 // there); + and − act in place.
@@ -3251,9 +3422,14 @@ const SCAN_SYSTEM = "You read Pokémon trading cards from photographs. Reply wit
   + "name is the Pokémon or card name exactly as printed at the top, WITHOUT ex/EX/GX/V/VMAX/VSTAR — put that in suffix (empty if none). "
   + "number and total come from the small fraction near the bottom (like 125/197); leave empty if unreadable. set is the set name if you can tell from the symbol or logo, else empty. "
   + "If it is not a Pokémon card, set is_card to false and put why in notes.";
+let lastFailedShot = null;
 async function scanPhoto(file) {
   let shot;
   try { shot = await shrinkPhoto(file); } catch (e) { setStatus("find-status", e.message, true); return; }
+  return rereadShot(shot);
+}
+async function rereadShot(shot) {
+  lastFailedShot = null;
   const anyone = scanOrder().some(readerAvailable);
   showScanned(anyone ? "<b>Reading the card…</b><br><span>Looking at the name and the number.</span>"
                      : "<b>Reading the card on this device…</b><br><span>No AI key to use, so this is a plain text read — slower and less sure.</span>", shot.dataUrl, true);
@@ -3282,25 +3458,36 @@ async function scanPhoto(file) {
     const fam = read.suffix ? familyOf({ suffix: read.suffix, name: "" }) : "";
     await runSearch(read.name, { number: read.number || "", total: read.total || "", set: read.set || "", family: fam }, true);
   } catch (e) {
-    showScanned(`<b>Couldn't read it.</b><br><span>${escapeHtml(e.message)}</span>${e.gptWaiting && !chatgptAskedBy(who) ? ` <button type="button" class="link" id="btn-ask-chatgpt" style="padding:2px 4px;min-height:0">Ask to use ChatGPT</button>` : ""}`, shot.dataUrl, false);
+    showScanned(`<b>Couldn't read it.</b><br><span>${escapeHtml(e.message)}</span>${e.gptWaiting && !chatgptAskedBy(who) ? ` <button type="button" class="link" id="btn-ask-chatgpt" style="padding:2px 4px;min-height:0">Ask to use ChatGPT</button>` : ""}${e.readerTried ? `<div class="reader-row" data-reader-row>${readerRowHtml()}</div><div class="field-note">Tap another one to read the same picture with it.</div>` : ""}`, shot.dataUrl, false);
+    if (e.readerTried) lastFailedShot = shot;
     aiLine(document.querySelector("#scanned .scanned-text"), e && e.aiCost);
     const ab = $("btn-ask-chatgpt");
-    if (ab) ab.addEventListener("click", () => { askForChatgpt(); ab.replaceWith(Object.assign(document.createElement("span"), { textContent: " Asked — " + (state.ownerEmail || "the owner") + " will see it in Options." })); });
+    if (ab) ab.addEventListener("click", () => { askForChatgpt(); ab.replaceWith(Object.assign(document.createElement("span"), { textContent: " Asked — " + ownerWord() + " gets a notification and sees it in Options." })); });
   }
 }
 // Groq speaks the OpenAI shape. The picture-reading model is picked off the
 // key's own model list (names change), preferring the Llama 4 ones.
 let groqModel = null;
-async function readWithGroq(shot) {
-  const key = groqKey();
+const GROQ_PICTURE_MODEL = "qwen/qwen3.8-27b";   // the one Groq's picture docs name, 2026-09-28
+async function pickGroqModel(key) {
   if (!groqModel) {
     try {
       const r = await fetch("https://api.groq.com/openai/v1/models", { headers: { authorization: "Bearer " + key } });
       const body = await r.json();
       const ids = (body.data || []).map(m => String(m.id || ""));
-      groqModel = ids.find(id => /llama-4.*scout/i.test(id)) || ids.find(id => /llama-4/i.test(id)) || ids.find(id => /vision/i.test(id)) || "meta-llama/llama-4-scout-17b-16e-instruct";
-    } catch (e) { groqModel = "meta-llama/llama-4-scout-17b-16e-instruct"; }
+      // Groq shut Llama 4 Scout down on 2026-07-17 (its deprecations page),
+      // and its picture docs now name only Qwen as reading pictures. Asking
+      // for Scout got an error back on every scan -- that is why Groq "wasn't
+      // working". Qwen first (newest), the old names only if Groq still lists them.
+      const qwen = ids.filter(id => /^qwen\/qwen3\.\d+-\d+b$/i.test(id)).sort((a, b) => parseFloat(b.split("qwen3")[1].slice(1)) - parseFloat(a.split("qwen3")[1].slice(1)));
+      groqModel = qwen[0] || ids.find(id => /vision|-vl\b/i.test(id)) || ids.find(id => /llama-4.*scout/i.test(id)) || GROQ_PICTURE_MODEL;
+    } catch (e) { groqModel = GROQ_PICTURE_MODEL; }
   }
+  return groqModel;
+}
+async function readWithGroq(shot) {
+  const key = groqKey();
+  await pickGroqModel(key);
   const r = await fetch("https://api.groq.com/openai/v1/chat/completions", {
     method: "POST", headers: { "content-type": "application/json", authorization: "Bearer " + key },
     body: JSON.stringify({ model: groqModel, max_tokens: 300, messages: [
@@ -3360,28 +3547,35 @@ function parseCardJson(text, whoSaid) {
 // simply could not make out the card stops there (the others would only
 // guess at the same picture).
 async function readWithAnyone(shot, say) {
-  const tried = [];
+  const tried = [], reasons = [];
   let lastErr = null;
   for (const id of scanOrder()) {
     if (!readerAvailable(id)) continue;
     tried.push(id);
     say(READER_NAMES[id] + " is looking at the name and the number." + (tried.length > 1 ? " (" + READER_NAMES[tried[tried.length - 2]] + " couldn't.)" : ""));
     try {
-      if (id === "gemini") return { read: await readWithGemini(shot), by: id };
-      if (id === "groq") return { read: await readWithGroq(shot), by: id };
-      if (id === "chatgpt") return { read: await readWithChatgpt(shot), by: id };
+      let read = null;
+      if (id === "gemini") read = await readWithGemini(shot);
+      if (id === "groq") read = await readWithGroq(shot);
+      if (id === "chatgpt") read = await readWithChatgpt(shot);
+      noteReaderOk(id);
+      return { read, by: id };
     } catch (e) {
       lastErr = e;
+      const readerTrouble = e && (e.quota || /allowance|refused|isn't valid|not valid|reach Google|isn't answering|free Google plan|kept failing|no model|offered no model|decommission|does not exist|not found|model_not_found|Groq:|ChatGPT/i.test(e.message));
+      if (readerTrouble) reasons.push(READER_NAMES[id] + ": " + e.message);
+      if (!/doesn't look like/i.test((e && e.message) || "")) noteReaderFail(id, e);
       // Anything wrong with the reader itself -- allowance, key, reach --
       // hands over to the next one; only "I looked and can't tell" stops.
-      if (!(e && (e.quota || /allowance|refused|isn't valid|not valid|reach Google|kept failing|no model|offered no model/i.test(e.message)))) throw e;
+      if (!(e && (e.quota || /allowance|refused|isn't valid|not valid|reach Google|isn't answering|free Google plan|kept failing|no model|offered no model|decommission|does not exist|not found|model_not_found/i.test(e.message)))) { if (e && typeof e === "object") e.readerTried = true; throw e; }
     }
   }
   if (!tried.length) return null;                      // nobody to ask: the on-device read
   // Everyone with a key is out. Say which, and whether ChatGPT is waiting on permission.
   const gptWaiting = chatgptKey().key && !isOwner() && !chatgptAllowedFor(who);
-  const err = new Error((lastErr ? lastErr.message : "") + (gptWaiting ? " ChatGPT could read it, but it costs money — ask " + (state.ownerEmail || "the owner") + " to allow it for you." : ""));
+  const err = new Error((reasons.length > 1 ? reasons.join(" ") : lastErr ? lastErr.message : "") + (gptWaiting ? " ChatGPT could read it, but it costs money — ask " + (state.ownerEmail || "the owner") + " to allow it for you." : ""));
   err.gptWaiting = gptWaiting;
+  err.readerTried = true;
   throw err;
 }
 async function readWithGemini(shot) {
@@ -4505,6 +4699,7 @@ let pendingRecentHow = "";   // "scan" when the sheet was reached from a scan's 
 let marketCache = new Map(); // cardId -> eBay/Google answer
 
 async function openCard(cardId) {
+  if (openCardId !== cardId) pendingFinish = "";
   openCardId = cardId;
   openCardData = null;
   const brief = results.find(c => c.id === cardId) || cardCache.get(cardId) || lookBriefs.get(cardId) || snapAsCard(cardId);
@@ -4590,7 +4785,7 @@ function setEntryFinish(c, finish) {
   renderAll();
   renderCardSheet(c, false);
 }
-let pendingFinish = "";
+let pendingFinish = "";   // picked on a card's page, for that card
 function holdersOther(cardId) {
   const names = new Set();
   Object.values(state.cards).forEach(e => { if (live(e) && e.cardId === cardId && e.who !== who) names.add(e.who); });
@@ -4719,7 +4914,7 @@ function whyHtml(c, price) {
   const verdict = price >= 100 ? "very expensive" : price >= 20 ? "expensive" : price >= 5 ? "worth a little" : "cheap";
   return `<div class="box-title">${price ? "At " + money(price) + " it's " + verdict : "No price on file"}</div>
     <ul class="check-list" style="margin-top:6px">${reasons.map(x => `<li>${x}</li>`).join("")}</ul>
-    <div id="why-more"><button type="button" class="btn secondary" id="btn-why" style="margin-top:8px">Ask Gemini for the full story</button></div>`;
+    <div id="why-more"><button type="button" class="btn secondary" id="btn-why" style="margin-top:8px">Ask for the full story</button></div>`;
 }
 const WHY_SYSTEM = "You explain to a kid, in four plain sentences and no markdown, why a specific Pokémon or Yu-Gi-Oh! card costs what it does today: its rarity and pull rate, how popular the character and the art are, how old and how many were printed, and anything special about that printing. Use web search for current facts.";
 async function askWhy(c, price) {
@@ -4727,11 +4922,147 @@ async function askWhy(c, price) {
   if (!box) return;
   box.innerHTML = `<div class="status-line">Asking…</div>`;
   try {
-    const out = await askGemini({ system: WHY_SYSTEM, search: true, parts: [{ text: `Why does the card "${c.name}" ${numberLabel(c)} from ${c.set ? c.set.name : ""} (${c.rarity || ""}, ${c.year || ""}) cost about ${money(price)}?` }] });
+    const out = await askAnyReader({ system: WHY_SYSTEM, search: true, text: `Why does the card "${c.name}" ${numberLabel(c)} from ${c.set ? c.set.name : ""} (${c.rarity || ""}, ${c.year || ""}) cost about ${money(price)}?` });
     if (openCardId !== c.id) return;
     box.innerHTML = `<p style="margin:10px 0 0;font-size:var(--body);color:var(--ink)">${escapeHtml(out.text)}</p>${sourcesHtml(out.sources)}`;
     aiLine(box, out.cost);
   } catch (e) { box.innerHTML = `<div class="status-line err">${escapeHtml(e.message)}</div>`; }
+}
+// =========================================================================
+// THE PICTURE ON THE CARD
+// =========================================================================
+// Moshe, 2026-09-28: "Tell me about the design on the card". Who drew it
+// comes from the card database; what the picture shows and how the card is
+// made (full art, illustration rare, texture, foil) is asked of the AI only
+// when he taps, with the card's own picture attached when the phone can get
+// it. Gemini first, then Groq, then ChatGPT for whoever may use it -- the
+// same order and the same permission as scanning. The answer is kept on this
+// phone, per card, so the same card is never asked twice.
+const DESIGN_KEY = "pokescan-designs-v1";
+let designAnswers = {};
+try { designAnswers = JSON.parse(localStorage.getItem(DESIGN_KEY) || "{}") || {}; } catch (e) { designAnswers = {}; }
+function keepDesign(id, answer) {
+  designAnswers[id] = answer;
+  const keep = Object.entries(designAnswers).sort((a, b) => (b[1].at || 0) - (a[1].at || 0)).slice(0, 300);
+  designAnswers = Object.fromEntries(keep);
+  try { localStorage.setItem(DESIGN_KEY, JSON.stringify(designAnswers)); } catch (e) {}
+}
+const DESIGN_SYSTEM = "You describe the artwork of one trading card to a kid, in plain words and no markdown, in four to six short sentences: what the picture shows (who or what, what they are doing, the background and the colors), the art style (painted, cartoon, 3D, watercolor, pencil…), and the design details a kid can see on the card itself: whether the picture runs over the whole card (full art, illustration rare, special illustration rare), a textured surface, holo foil or reverse holo shine, gold, the border. Name the artist if you are given one. Only say what you can see in the attached picture or are sure of; if no picture is attached, say what you know about this card's art and say you couldn't see it.";
+function designArtistLine(c) {
+  if (c.illustrator) return `Drawn by <b>${escapeHtml(c.illustrator)}</b>.`;
+  if (c.game === "ygo") return "Yu-Gi-Oh! cards don't print who drew them, and the card database doesn't say.";
+  return "The card database doesn't say who drew this one.";
+}
+function designAnswerHtml(a) {
+  const when = a.at ? new Date(a.at).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "";
+  return `<p style="margin:10px 0 0;font-size:var(--body);color:var(--ink)">${escapeHtml(a.text)}</p>${sourcesHtml(a.sources || [])}`
+    + `<div class="field-note" style="margin-top:6px">${escapeHtml((a.by ? "Answered by " + a.by : "Answered") + (when ? " on " + when : "") + (a.sawPicture === false ? " without seeing the picture" : "") + ". Kept on this phone, so it isn't asked again.")}</div>`;
+}
+function designHtml(c) {
+  const saved = designAnswers[c.id];
+  return `<div class="field-note" style="margin:0;font-size:var(--body);color:var(--ink)">${designArtistLine(c)}</div>
+    <div id="design-more">${saved ? designAnswerHtml(saved) : `<button type="button" class="btn secondary" id="btn-design" style="margin-top:8px">Tell me about the design</button>`}</div>`;
+}
+// The card's own picture, as data the AI can look at. The card database's
+// picture server sometimes sends its "anyone may read this" header twice,
+// which the browser then refuses; the second size is tried, and if neither
+// comes the question goes without a picture (and the answer says so).
+async function cardPictureData(c) {
+  const urls = c.game === "ygo" ? [imgUrl(c, "high"), imgUrl(c, "low")]
+    : c.image ? [c.image + "/high.webp", c.image + "/low.png"] : [imgUrl(c, "high")];
+  for (const u of urls.filter(Boolean)) {
+    try {
+      const r = await fetch(u, { mode: "cors" });
+      if (!r.ok) continue;
+      const blob = await r.blob();
+      if (!/^image\//.test(blob.type) || blob.size > 4 * 1024 * 1024) continue;
+      const dataUrl = await new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.onerror = rej; fr.readAsDataURL(blob); });
+      return { mime: blob.type, data: String(dataUrl).split(",")[1], dataUrl: String(dataUrl) };
+    } catch (e) {}
+  }
+  return null;
+}
+// One question, to whichever AI may answer it, in the scanning order: a
+// reader with no key, out of allowance, or not allowed for this person hands
+// over to the next, like a scan does.
+async function askAnyReader(q) {
+  let lastErr = null;
+  for (const id of scanOrder()) {
+    if (!readerAvailable(id)) continue;
+    try {
+      if (id === "gemini") {
+        const out = await askGemini({ system: q.system, search: !!q.search, parts: [...(q.picture ? [{ inline_data: { mime_type: q.picture.mime, data: q.picture.data } }] : []), { text: q.text }] });
+        noteReaderOk(id);
+        return { ...out, by: "Gemini" };
+      }
+      if (id === "groq") {
+        const key = groqKey();
+        const model = await pickGroqModel(key);
+        const content = q.picture ? [{ type: "image_url", image_url: { url: q.picture.dataUrl } }, { type: "text", text: q.text }] : q.text;
+        const r = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+          method: "POST", headers: { "content-type": "application/json", authorization: "Bearer " + key },
+          body: JSON.stringify({ model, max_tokens: 600, messages: [{ role: "system", content: q.system }, { role: "user", content }] })
+        });
+        const body = await r.json().catch(() => ({}));
+        if (!r.ok) {
+          if (r.status === 429) throw Object.assign(new Error("Groq's free allowance is used up for now."), { quota: true });
+          if (r.status === 401 || r.status === 403) throw new Error("Groq refused that key. Check it in Options.");
+          throw new Error("Groq: " + (((body.error || {}).message) || ("said no (" + r.status + ")")));
+        }
+        const cost = await aiCost("groq", model, body);
+        const text = String((((body.choices || [])[0] || {}).message || {}).content || "").trim();
+        if (!text) throw new Error("Groq sent nothing back. Worth trying again.");
+        noteReaderOk(id);
+        return { text, sources: [], cost, by: "Groq" };
+      }
+      if (id === "chatgpt") {
+        const { key } = chatgptKey();
+        if (!chatgptModel) {
+          chatgptModel = (typeof llmSettings.openaiModel === "string" && llmSettings.openaiModel.trim()) || "";
+          if (!chatgptModel) {
+            const ids = (await listLlmModels("openai", key).catch(() => [])).map(m => m.id);
+            chatgptModel = ids.find(x => /^gpt-5-nano/.test(x)) || ids.find(x => /^gpt-5-mini/.test(x)) || ids.find(x => /^gpt-4\.1-mini/.test(x)) || ids.find(x => /^gpt-4o-mini/.test(x)) || ids[0] || "";
+          }
+          if (!chatgptModel) throw new Error("ChatGPT offered no model for that key.");
+        }
+        try {
+          const out = await askLLMWithCost({ provider: "openai", model: chatgptModel, key, system: q.system, maxTokens: 600,
+            turns: [{ role: "user", text: q.text, ...(q.picture ? { image: { media_type: q.picture.mime, data: q.picture.data } } : {}) }] });
+          noteReaderOk(id);
+          return { text: out.text, sources: [], cost: out.cost, by: "ChatGPT" };
+        } catch (e) {
+          if (/rate limit|429|quota|insufficient/i.test(e.message)) throw Object.assign(e, { quota: true });
+          throw e;
+        }
+      }
+    } catch (e) {
+      lastErr = e;
+      noteReaderFail(id, e);
+      if (!(e && (e.quota || /allowance|refused|isn't valid|not valid|reach Google|isn't answering|free Google plan|no model|offered no model|decommission|does not exist|not found|model_not_found/i.test(e.message)))) throw e;
+    }
+  }
+  if (lastErr) throw lastErr;
+  throw new Error("No AI key yet — " + ownerWord() + " adds a free Gemini key in Options.");
+}
+async function askDesign(c) {
+  const box = $("design-more");
+  if (!box || designAnswers[c.id]) return;
+  box.innerHTML = `<div class="status-line">Looking at the picture…</div>`;
+  const picture = await cardPictureData(c);
+  const game = c.game === "ygo" ? "Yu-Gi-Oh!" : "Pokémon";
+  const text = `The ${game} card "${c.name}" ${c.game === "ygo" ? (c.localId || "") : numberLabel(c)} from ${(c.set && c.set.name) || "an unknown set"}${c.rarity ? ", rarity " + c.rarity : ""}${c.year ? ", " + c.year : ""}${c.illustrator ? ", illustrated by " + c.illustrator : ""}. ${picture ? "A picture of the card is attached." : "No picture is attached."} Tell me about its design and artwork.`;
+  try {
+    const out = await askAnyReader({ system: DESIGN_SYSTEM, text, picture, search: true });
+    const answer = { text: out.text, sources: (out.sources || []).slice(0, 5).map(x => ({ uri: x.uri, title: x.title })), by: out.by, at: Date.now(), sawPicture: !!picture };
+    keepDesign(c.id, answer);
+    if (openCardId !== c.id || !$("design-more")) return;
+    $("design-more").innerHTML = designAnswerHtml(answer);
+    aiLine($("design-more"), out.cost);
+  } catch (e) {
+    if (openCardId !== c.id || !$("design-more")) return;
+    $("design-more").innerHTML = `<div class="status-line err">${escapeHtml(e.message)}</div><button type="button" class="btn secondary" id="btn-design">Try again</button>`;
+    const b = $("btn-design"); if (b) b.addEventListener("click", () => askDesign(c));
+  }
 }
 // Everyone who has this card, with counts: "✓ Alex has this one · Sam has 2".
 function holdersHtml(cardId) {
@@ -4749,7 +5080,7 @@ function renderCardSheet(c, loading) {
   // The big price is the finish you have (or picked), when that one has a
   // price -- a reverse holo's page used to say the regular price up here
   // while My cards counted the reverse holo one.
-  const mine = rows.length > 1 ? rows.find(r => sameFinish(r.finish, entryFinish(c) || pendingFinish)) : null;
+  const mine = rows.length > 1 ? rows.find(r => sameFinish(r.finish, entryFinish(c) || pendingFinish || pickFinish)) : null;
   const headline = (mine && (mine.marketPrice || mine.midPrice)) || headlinePrice(c) || (c.snapPrice || 0);
   const cm = cardmarket(c);
   const identity = c.game === "ygo" ? [
@@ -4797,7 +5128,7 @@ function renderCardSheet(c, loading) {
         <div class="have-people">${holdersHtml(c.id)}</div>
         ${claimLine(c)}
         ${who ? holdersOther(c.id).map(n => `<button type="button" class="pill-btn" data-trade-ask="${escapeAttr(n)}" style="margin-top:8px;margin-right:6px">Ask ${escapeHtml(n)} to trade it</button>`).join("") : ""}
-        ${rows.length > 1 ? `<div class="chips" id="finish-chips" style="margin-top:8px">${rows.map(r => `<button type="button" class="chip${sameFinish(entryFinish(c) || pendingFinish || rows[0].finish, r.finish) ? " on" : ""}" data-finish="${escapeAttr(r.finish)}">${escapeHtml(r.finish)}${r.marketPrice ? " · " + money(r.marketPrice) : ""}</button>`).join("")}</div><div class="field-note" style="margin-top:4px">Which one is yours? A shiny picture is holo; a shiny frame with a plain picture is reverse holo.</div>` : ""}
+        ${rows.length > 1 ? `<div class="chips" id="finish-chips" style="margin-top:8px">${rows.map(r => `<button type="button" class="chip${sameFinish(entryFinish(c) || pendingFinish || pickFinish || rows[0].finish, r.finish) ? " on" : ""}" data-finish="${escapeAttr(r.finish)}">${escapeHtml(r.finish)}${r.marketPrice ? " · " + money(r.marketPrice) : ""}</button>`).join("")}</div><div class="field-note" style="margin-top:4px">Which one is yours? A shiny picture is holo; a shiny frame with a plain picture is reverse holo.</div>` : ""}
         <div class="hero-price${headline ? "" : " none"}">${headline ? money(headline) + (mine ? `<small style="display:block;margin:2px 0 0">market price · ${escapeHtml(mine.finish.toLowerCase())}</small>` : "<small>market price</small>") : (loading ? "Fetching the price…" : "No store price")}</div>
         <div class="hero-ctl">
           <button type="button" class="plus" id="hero-plus" aria-label="Add one to my cards">+</button>
@@ -4814,6 +5145,8 @@ function renderCardSheet(c, loading) {
 
     <div id="look-box">${lookHtml(c)}</div>
 
+    <div class="reader-row" data-reader-row>${readerRowHtml()}</div>
+
     <h4>What it's worth</h4>
     ${priceHtml}
     <div class="price-box" id="market-box" style="margin-top:10px">
@@ -4823,6 +5156,9 @@ function renderCardSheet(c, loading) {
 
     <h4>Why it costs what it costs</h4>
     <div class="price-box" id="why-box">${whyHtml(c, headline)}</div>
+
+    <h4>The picture on the card</h4>
+    <div class="price-box" id="design-box">${designHtml(c)}</div>
 
     <h4>How many packs to get it</h4>
     <div class="packs-box" id="packs-box"><div class="big">Working it out…</div></div>
@@ -4853,6 +5189,8 @@ function renderCardSheet(c, loading) {
   $("hero-plus").addEventListener("click", () => confirmThenAdd(c));
   const wb = $("btn-why");
   if (wb) wb.addEventListener("click", () => askWhy(c, headline));
+  const db2 = $("btn-design");
+  if (db2) db2.addEventListener("click", () => askDesign(c));
   const cb = $("claim-btn");
   if (cb) cb.addEventListener("click", () => { cb.remove(); openClaimLooks(c); });
   document.querySelectorAll("#card-body [data-trade-ask]").forEach(b => b.addEventListener("click", () => {
@@ -4902,7 +5240,7 @@ async function findPromoProduct(c) {
   if (!box) return;
   box.innerHTML = `<div class="status-line">Searching…</div>`;
   try {
-    const out = await askGemini({ system: PROMO_SYSTEM, search: true, parts: [{ text: `Which product did the promo card "${c.name}" ${numberLabel(c)} from ${c.set ? c.set.name : ""} come in?` }] });
+    const out = await askAnyReader({ system: PROMO_SYSTEM, search: true, text: `Which product did the promo card "${c.name}" ${numberLabel(c)} from ${c.set ? c.set.name : ""} come in?` });
     if (openCardId !== c.id) return;
     box.innerHTML = `<p style="margin:10px 0 0;font-size:var(--body);color:var(--ink)">${escapeHtml(out.text)}</p>${sourcesHtml(out.sources)}`;
     aiLine(box, out.cost);
@@ -5383,7 +5721,7 @@ function lookHtml(c) {
     <div class="price-box look-diff" id="look-diff">
       <div class="box-title">How to tell them apart</div>
       ${c.game === "ygo" ? ygoDiffHtml(c, shown, all) : pokemonDiffHtml(c, shown, all)}
-      <div id="look-ai">${got.ai ? got.ai : `<button type="button" class="btn secondary look-ask" id="btn-look-ask">Ask Gemini what else is different</button>`}</div>
+      <div id="look-ai">${got.ai ? got.ai : `<button type="button" class="btn secondary look-ask" id="btn-look-ask">Ask what else is different</button>`}</div>
     </div>`;
 }
 // Under a line, one row per card: "This one | 4/102", "Base Set 2 | 4/130".
@@ -5515,7 +5853,7 @@ async function askLookDiff(c) {
   // The database's own number and set here, not the kid-worded ones on screen.
   const say = x => `"${x.name}" ${x.game === "ygo" ? x.localId : numberLabel(x)} from ${(x.set && x.set.name) || ""}${x.rarity ? ", " + x.rarity : ""}${x.year ? ", " + x.year : ""}`;
   try {
-    const out = await askGemini({ system: LOOK_SYSTEM, search: true, parts: [{ text: `I have the ${c.game === "ygo" ? "Yu-Gi-Oh!" : "Pokémon"} card ${say(c)}. These look the same: ${shown.map(say).join("; ")}. What else is different?` }] });
+    const out = await askAnyReader({ system: LOOK_SYSTEM, search: true, text: `I have the ${c.game === "ygo" ? "Yu-Gi-Oh!" : "Pokémon"} card ${say(c)}. These look the same: ${shown.map(say).join("; ")}. What else is different?` });
     if (openCardId !== c.id) return;
     got.ai = `<p style="margin:10px 0 0;font-size:var(--body);color:var(--ink)">${escapeHtml(out.text)}</p>${sourcesHtml(out.sources)}`;
     if ($("look-ai")) { $("look-ai").innerHTML = got.ai; aiLine($("look-ai"), out.cost); }
@@ -5638,14 +5976,42 @@ $("confirm-no").addEventListener("click", () => {
   $("q").value = c.name; $("q-clear").classList.remove("hide");
   runSearch(c.name, null, true);
 });
+// Moshe, 2026-09-28: "After I add a card it should still show the same
+// results but empty the text box". Only the box is emptied: the list, where
+// it is scrolled to, and the type picked all stay, ready for the next name.
+// A search still waiting to start (or on its way) is dropped, so the list on
+// screen is the one that stays.
+// The list stays where it is on screen: the first add puts an Undo line in
+// the header, which pushed the whole list 16 px down on phones whose
+// browser doesn't hold the scroll place by itself (Safari).
+function keepListInPlace(cardId, draw) {
+  const find = id => id && document.querySelector(`#results .tile[data-card-id="${CSS.escape(id)}"]`);
+  const el = tab === "find" ? (find(cardId) || [...document.querySelectorAll("#results .tile")].find(t => t.getBoundingClientRect().bottom > 0)) : null;
+  const id = el && el.dataset.cardId, top = el ? el.getBoundingClientRect().top : 0;
+  draw();
+  const again = find(id);
+  if (again) { const moved = again.getBoundingClientRect().top - top; if (Math.abs(moved) >= 1) window.scrollBy(0, moved); }
+}
+function emptySearchBoxAfterAdd() {
+  if (!$("q").value) return;
+  clearTimeout(typeTimer);
+  if (/^Looking up/.test($("find-status").textContent)) { searchSeq++; setStatus("find-status", ""); }
+  $("q").value = ""; $("q-clear").classList.add("hide");
+}
 function addCard(c) {
   if (!who) { openWho(); return; }
   if (!isOwner() && nameForEmail(currentUser && currentUser.email) !== who) return;
+  keepListInPlace(c.id, () => addCardNow(c));
+  emptySearchBoxAfterAdd();
+}
+function addCardNow(c) {
   const existing = entryFor(c.id, who);
   if (existing) { setQty(existing.id, (Number(existing.qty) || 1) + 1); return; }
   const id = newId();
   const rows = tcgplayerRows(c);
-  const finish = finishName(pendingFinish || (rows.length > 1 ? rows[0].finish : ""));
+  // The card page's own finish choice wins; else the one picked on the type
+  // screen, which stays picked for the next card added from the same list.
+  const finish = finishName(pendingFinish || pickFinish || (rows.length > 1 ? rows[0].finish : ""));
   pendingFinish = "";
   const snap = snapshotOf(c);
   const frow = rows.find(r => sameFinish(r.finish, finish));
@@ -6210,6 +6576,7 @@ function renderAll() {
   if (tab === "trade") safely("trade", renderTrade);
   if (tab === "sets") safely("sets", renderSets);
   safely("find", () => { if (results.length) renderResults(); else renderRecent(); });
+  safely("readers", renderReaderRows);
 }
 
 // Keys handed over by the Keys iPhone app, on this page's own address:
@@ -6253,6 +6620,10 @@ function takeKeysFromLink() {
 // not seen yet, once. (Asked for: "when I go back on, it will say this was
 // updated, and who asked to update it.")
 const CHANGES = [
+  { id: 40, date: "2026-09-28", by: "Moshe", what: "Search results show each card's price as you look: the same market price My cards will show, with the finish (Holo, Reverse holo…) when a card comes in more than one. Prices fill in a few at a time, are kept for a day, and a card the database has no price for says \"No price\"." },
+  { id: 39, date: "2026-09-28", by: "Moshe", what: "A card's page has \"The picture on the card\": who drew it, and a Tell me about the design button that describes what the picture shows, the art style, and whether it's full art, textured or shiny. The answer is kept, so the same card isn't asked twice." },
+  { id: 38, date: "2026-09-28", by: "Moshe", what: "After you add a card (the + on a tile, or Add on the card's page), the search results stay exactly where they were, same type picked, and only the search box is emptied, ready for the next name." },
+  { id: 37, date: "2026-09-28", by: "Lew", what: "All three readers — Gemini, Groq and ChatGPT — now show every time, with why one can't be used right now. Tap one to use it first; when a scan fails, tap another to read the same picture again. Groq works again (it was asking for a reader Groq switched off in July). Anyone can tap Ask to use ChatGPT at any time, and Dad gets a notification." },
   { id: 35, date: "2026-09-28", by: "Dad", what: "Every AI answer now has a small line under it saying which AI answered and what that one answer cost, like \"Gemini 3.6 Flash · $0.0012\" — the card read, Why it costs that, the promo product, what else is different, eBay & Google prices and the shop prices. Each one is also counted on this device." },   // idea 732
   { id: 34, date: "2026-09-23", by: "Dad", what: "Dad's phone now gets a notification when someone adds, removes, sells or trades cards (one push for a burst of changes), and a request that didn't reach his phone is sent again next time you open the app." },
   { id: 33, date: "2026-09-23", by: "Dad", what: "Trade check, at the top of the Trade tab: before a swap, each side taps Scan (or Type) under their name and adds the cards they'd give. It adds both sides up at today's store prices and says Fair trade, or who gives more and by how much. A card with no store price can have a price typed in. Trading with someone in the family? Send it to them as a real trade." },
