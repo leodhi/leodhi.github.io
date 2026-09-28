@@ -3950,8 +3950,17 @@ function claudeRelay() {
   return { host: h, session: sid };
 }
 // Claude, with the request already typed in. claude.ai/new?q= prefills a
-// new conversation; on the phone that opens the Claude app if installed.
+// new conversation.
 function claudeUrlFor(r) { return "https://claude.ai/new?q=" + encodeURIComponent(claudeLineFor(r)); }
+// How that link has to be opened on his phone (his report 2026-09-28: "when I
+// click approve all ... it should take me to the Claude app not to Claude in
+// Safari"). claude.ai/new IS one of the addresses the Claude app claims, but
+// iPhones only hand an address over to an app on a plain tap on a plain link:
+// a link with target="_blank" (and anything opened by window.open) is kept in
+// Safari, every time. So on an iPhone or iPad these buttons carry no
+// target/rel at all. On a computer there is no Claude app to hand it to, so
+// they still open beside the page as before.
+const CLAUDE_LINK_ATTRS = IS_IOS ? "" : ' target="_blank" rel="noopener"';
 let approveFromLink = null;
 (function () {
   try { const u = new URL(location.href); const id = u.searchParams.get("approve"); if (id) { approveFromLink = id; u.searchParams.delete("approve"); history.replaceState(null, "", u.pathname + (u.searchParams.toString() ? "?" + u.searchParams.toString() : "") + u.hash); } } catch (e) {}
@@ -3969,7 +3978,7 @@ async function takeApproveFromLink() {
 function showApproveBanner(r, copied) {
   const box = $("whats-new");
   box.innerHTML = `<div class="wn-title">Approved: ${escapeHtml(r.by)}'s request</div><p style="margin:0 0 8px;font-size: calc(14px * var(--scale, 1))">${escapeHtml(r.text)}</p>
-    <div class="btn-row" style="margin-top:6px"><a class="btn" href="${escapeAttr(claudeUrlFor(r))}" target="_blank" rel="noopener" style="text-align:center;text-decoration:none;display:block">Open in Claude with it typed in</a><button type="button" class="btn secondary" id="approve-copy">Copy again</button></div>
+    <div class="btn-row" style="margin-top:6px"><a class="btn" href="${escapeAttr(claudeUrlFor(r))}"${CLAUDE_LINK_ATTRS} style="text-align:center;text-decoration:none;display:block">Open in Claude with it typed in</a><button type="button" class="btn secondary" id="approve-copy">Copy again</button></div>
     <div class="field-note" style="margin-top:8px">${copied ? "It's on your clipboard too — paste it into any Claude chat." : "Tap Copy again, then paste it into any Claude chat."}</div>
     <button type="button" class="link" id="approve-done">Done</button>`;
   box.classList.remove("hide");
@@ -4106,7 +4115,7 @@ $("opt-req-line").addEventListener("click", async e => {
   closeOptions();
   const box = $("whats-new");
   box.innerHTML = `<div class="wn-title">Approved ${open.length} requests</div><ul>${open.map(r => `<li><b>${escapeHtml(r.by)}</b>: ${escapeHtml(r.text)}</li>`).join("")}</ul>
-    <div class="btn-row" style="margin-top:6px"><a class="btn" href="https://claude.ai/new?q=${encodeURIComponent(combined)}" target="_blank" rel="noopener" style="text-align:center;text-decoration:none;display:block">Open in Claude with all of them typed in</a><button type="button" class="btn secondary" id="approve-copy">Copy again</button></div>
+    <div class="btn-row" style="margin-top:6px"><a class="btn" href="https://claude.ai/new?q=${encodeURIComponent(combined)}"${CLAUDE_LINK_ATTRS} style="text-align:center;text-decoration:none;display:block">Open in Claude with all of them typed in</a><button type="button" class="btn secondary" id="approve-copy">Copy again</button></div>
     <div class="field-note" style="margin-top:8px">${ok ? "They're on your clipboard too." : "Tap Copy again, then paste into any Claude chat."}</div><button type="button" class="link" id="approve-done">Done</button>`;
   box.classList.remove("hide");
   $("approve-copy").addEventListener("click", async () => { const k = await copyText(combined); showToast(k ? "Copied" : "Couldn't copy here"); });
@@ -6622,6 +6631,7 @@ function takeKeysFromLink() {
 // not seen yet, once. (Asked for: "when I go back on, it will say this was
 // updated, and who asked to update it.")
 const CHANGES = [
+  { id: 42, date: "2026-09-28", by: "Lew", what: "Approve all (and Approve on a single request) now opens the Claude app itself on your iPhone and iPad, instead of Claude in Safari. The requests are still copied for you as well." },
   { id: 41, date: "2026-09-28", by: "Lew", what: "No more notifications when someone adds, removes, sells or trades cards. You can switch them back on in Options (Tell me when someone changes their cards). Requests and trades waiting for your answer still come through." },
   { id: 40, date: "2026-09-28", by: "Moshe", what: "Search results show each card's price as you look: the same market price My cards will show, with the finish (Holo, Reverse holo…) when a card comes in more than one. Prices fill in a few at a time, are kept for a day, and a card the database has no price for says \"No price\"." },
   { id: 39, date: "2026-09-28", by: "Moshe", what: "A card's page has \"The picture on the card\": who drew it, and a Tell me about the design button that describes what the picture shows, the art style, and whether it's full art, textured or shiny. The answer is kept, so the same card isn't asked twice." },
