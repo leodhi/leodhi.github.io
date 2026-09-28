@@ -1282,7 +1282,17 @@ import {
   sendEmailVerification, sendSignInLinkToEmail, isSignInWithEmailLink, signInWithEmailLink
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 
-import { ask as askLLM, listModels as listLlmModels, GEMINI_DEFAULT, GEMINI_PLAIN, geminiLive, geminiLearn, geminiWhy, geminiAlternates } from "https://leodhi.github.io/claude/ask-llm.js";
+import { askWithCost as askLLMWithCost, listModels as listLlmModels, GEMINI_DEFAULT, GEMINI_PLAIN, geminiLive, geminiLearn, geminiWhy, geminiAlternates } from "https://leodhi.github.io/claude/ask-llm.js";
+// Idea 732: which AI answered and what it cost, shown under each answer and
+// counted in this browser. Every use is failure-safe: cost never stops an answer.
+import { noteAnswer, showLine } from "../../ai-cost.js";
+const AI_APP = "Poké Scan (web)";
+async function aiCost(provider, model, body) {
+  try { return await noteAnswer({ app: AI_APP, provider, model, body }); } catch (e) { return null; }
+}
+function aiLine(el, cost) {
+  try { if (el && cost) showLine(el, cost); } catch (e) { /* the answer already shows */ }
+}
 
 // iOS Safari ignores the viewport zoom restrictions, so block the gestures.
 document.addEventListener("gesturestart", e => e.preventDefault());
@@ -2682,10 +2692,11 @@ async function askGemini(opts) {
     if (r.ok) {
       const cand = (json.candidates || [])[0] || {};
       const text = ((cand.content || {}).parts || []).map(p => p.text || "").join("").trim();
+      const cost = await aiCost("google", model, json);   // counted even when the answer is empty: it was still paid for
       if (!text) throw new Error(cand.finishReason === "SAFETY" ? "Google declined to answer that one." : "Gemini sent nothing back. Worth trying again.");
       if (firstWhy === "gone" && model !== first) geminiLearn(first, model);
       const chunks = ((cand.groundingMetadata || {}).groundingChunks || []).map(ch => ch.web || {}).filter(w => w.uri);
-      return { text, sources: chunks, model };
+      return { text, sources: chunks, model, cost };
     }
     const msg = ((json.error || {}).message) || "";
     // An older model that does not know the search tool: ask again plainly.
@@ -3265,12 +3276,14 @@ async function scanPhoto(file) {
     if (!read || !read.name) throw new Error("Couldn't make out a name on that card. Try again closer, in better light — or type it.");
     const label = `${escapeHtml(read.name)}${read.suffix ? " " + escapeHtml(read.suffix) : ""}${read.number ? " · #" + escapeHtml(read.number) + (read.total ? "/" + escapeHtml(read.total) : "") : ""}${read.set ? " · " + escapeHtml(read.set) : ""}`;
     showScanned(`<b>Looks like ${label}</b><br><span>${by ? "Read by " + READER_NAMES[by] + ". " : ""}${read.number ? "The best match is marked. " : ""}Not it? Type the name instead.</span>`, shot.dataUrl, false);
+    aiLine(document.querySelector("#scanned .scanned-text"), read.cost);
     $("q").value = read.name + (read.number ? " " + read.number + (read.total ? "/" + read.total : "") : "");
     $("q-clear").classList.remove("hide");
     const fam = read.suffix ? familyOf({ suffix: read.suffix, name: "" }) : "";
     await runSearch(read.name, { number: read.number || "", total: read.total || "", set: read.set || "", family: fam }, true);
   } catch (e) {
     showScanned(`<b>Couldn't read it.</b><br><span>${escapeHtml(e.message)}</span>${e.gptWaiting && !chatgptAskedBy(who) ? ` <button type="button" class="link" id="btn-ask-chatgpt" style="padding:2px 4px;min-height:0">Ask to use ChatGPT</button>` : ""}`, shot.dataUrl, false);
+    aiLine(document.querySelector("#scanned .scanned-text"), e && e.aiCost);
     const ab = $("btn-ask-chatgpt");
     if (ab) ab.addEventListener("click", () => { askForChatgpt(); ab.replaceWith(Object.assign(document.createElement("span"), { textContent: " Asked — " + (state.ownerEmail || "the owner") + " will see it in Options." })); });
   }
@@ -3302,8 +3315,9 @@ async function readWithGroq(shot) {
     if (r.status === 401 || r.status === 403) throw new Error("Groq refused that key. Check it in Options.");
     throw new Error("Groq: " + (msg || ("said no (" + r.status + ")")));
   }
+  const cost = await aiCost("groq", groqModel, body);
   const text = (((body.choices || [])[0] || {}).message || {}).content || "";
-  return parseCardJson(text, "Groq");
+  return withCost(() => parseCardJson(text, "Groq"), cost);
 }
 // ChatGPT, through the same helper the other apps use. Cheapest picture-
 // reading model on the key, unless the LLMs app has one saved.
@@ -3319,15 +3333,21 @@ async function readWithChatgpt(shot) {
     }
     if (!chatgptModel) throw new Error("ChatGPT offered no model for that key.");
   }
-  let text;
+  let text, cost = null;
   try {
-    text = await askLLM({ provider: "openai", model: chatgptModel, key, system: SCAN_SYSTEM, maxTokens: 300,
-      turns: [{ role: "user", text: "What card is this? JSON only.", image: { media_type: shot.mime, data: shot.data } }] });
+    ({ text, cost } = await askLLMWithCost({ provider: "openai", model: chatgptModel, key, system: SCAN_SYSTEM, maxTokens: 300,
+      turns: [{ role: "user", text: "What card is this? JSON only.", image: { media_type: shot.mime, data: shot.data } }] }));
   } catch (e) {
     if (/rate limit|429|quota|insufficient/i.test(e.message)) throw Object.assign(e, { quota: true });
     throw e;
   }
-  return parseCardJson(text, "ChatGPT");
+  return withCost(() => parseCardJson(text, "ChatGPT"), cost);
+}
+// A card read carries the AI line along; so does a "not a card" answer, which
+// was paid for too and is shown in the same box.
+function withCost(read, cost) {
+  try { return Object.assign(read(), { cost }); }
+  catch (e) { if (e && typeof e === "object") e.aiCost = cost; throw e; }
 }
 function parseCardJson(text, whoSaid) {
   const j = firstJson(text);
@@ -3369,10 +3389,12 @@ async function readWithGemini(shot) {
     system: SCAN_SYSTEM,
     parts: [{ inline_data: { mime_type: shot.mime, data: shot.data } }, { text: "What card is this? JSON only." }]
   });
-  const j = firstJson(out.text);
-  if (!j) throw new Error("Gemini didn't answer in the expected shape. Try once more.");
-  if (j.is_card === false) throw new Error(j.notes || "That doesn't look like a Pokémon card.");
-  return { name: String(j.name || "").trim(), suffix: String(j.suffix || "").trim(), number: String(j.number || "").trim(), total: String(j.total || "").trim(), set: String(j.set || "").trim() };
+  return withCost(() => {
+    const j = firstJson(out.text);
+    if (!j) throw new Error("Gemini didn't answer in the expected shape. Try once more.");
+    if (j.is_card === false) throw new Error(j.notes || "That doesn't look like a Pokémon card.");
+    return { name: String(j.name || "").trim(), suffix: String(j.suffix || "").trim(), number: String(j.number || "").trim(), total: String(j.total || "").trim(), set: String(j.set || "").trim() };
+  }, out.cost);
 }
 // Does this photo look like a Pokémon card at all? Read on the phone, with
 // nothing sent anywhere: card words that a photo of a dog, a receipt or a
@@ -4469,6 +4491,7 @@ async function refreshShopPrices() {
     save({ products: state.products });
     setStatus("shop-status", "Updated — " + items.length + " products, real prices.");
     renderShop();
+    aiLine($("shop-status"), out.cost);
   } catch (e) { setStatus("shop-status", e.message, true); }
   finally { shopRefreshing = false; }
 }
@@ -4707,6 +4730,7 @@ async function askWhy(c, price) {
     const out = await askGemini({ system: WHY_SYSTEM, search: true, parts: [{ text: `Why does the card "${c.name}" ${numberLabel(c)} from ${c.set ? c.set.name : ""} (${c.rarity || ""}, ${c.year || ""}) cost about ${money(price)}?` }] });
     if (openCardId !== c.id) return;
     box.innerHTML = `<p style="margin:10px 0 0;font-size:var(--body);color:var(--ink)">${escapeHtml(out.text)}</p>${sourcesHtml(out.sources)}`;
+    aiLine(box, out.cost);
   } catch (e) { box.innerHTML = `<div class="status-line err">${escapeHtml(e.message)}</div>`; }
 }
 // Everyone who has this card, with counts: "✓ Alex has this one · Sam has 2".
@@ -4881,6 +4905,7 @@ async function findPromoProduct(c) {
     const out = await askGemini({ system: PROMO_SYSTEM, search: true, parts: [{ text: `Which product did the promo card "${c.name}" ${numberLabel(c)} from ${c.set ? c.set.name : ""} come in?` }] });
     if (openCardId !== c.id) return;
     box.innerHTML = `<p style="margin:10px 0 0;font-size:var(--body);color:var(--ink)">${escapeHtml(out.text)}</p>${sourcesHtml(out.sources)}`;
+    aiLine(box, out.cost);
   } catch (e) {
     box.innerHTML = `<div class="status-line err">${escapeHtml(e.message)}</div><button type="button" class="btn secondary" id="btn-promo-product">Try again</button>`;
     const pb = $("btn-promo-product"); if (pb) pb.addEventListener("click", () => findPromoProduct(c));
@@ -5493,7 +5518,7 @@ async function askLookDiff(c) {
     const out = await askGemini({ system: LOOK_SYSTEM, search: true, parts: [{ text: `I have the ${c.game === "ygo" ? "Yu-Gi-Oh!" : "Pokémon"} card ${say(c)}. These look the same: ${shown.map(say).join("; ")}. What else is different?` }] });
     if (openCardId !== c.id) return;
     got.ai = `<p style="margin:10px 0 0;font-size:var(--body);color:var(--ink)">${escapeHtml(out.text)}</p>${sourcesHtml(out.sources)}`;
-    if ($("look-ai")) $("look-ai").innerHTML = got.ai;
+    if ($("look-ai")) { $("look-ai").innerHTML = got.ai; aiLine($("look-ai"), out.cost); }
   } catch (e) {
     if ($("look-ai")) $("look-ai").innerHTML = `<div class="status-line err">${escapeHtml(e.message)}</div><button type="button" class="btn secondary look-ask" id="btn-look-ask">Try again</button>`;
   }
@@ -5521,9 +5546,9 @@ async function checkMarket(c) {
     const desc = `${c.name} #${numberLabel(c)} from ${c.set ? c.set.name : ""} (${c.year || "year unknown"}), rarity ${c.rarity || "unknown"}`;
     const out = await askGemini({ system: MARKET_SYSTEM, search: true, parts: [{ text: "Current prices for the Pokémon card: " + desc + ". JSON only." }] });
     const j = firstJson(out.text);
-    const answer = { json: j, text: out.text, sources: out.sources, at: Date.now(), model: out.model };
+    const answer = { json: j, text: out.text, sources: out.sources, at: Date.now(), model: out.model, cost: out.cost };
     marketCache.set(c.id, answer);
-    if (openCardId === c.id && $("market-body")) $("market-body").innerHTML = marketHtml(answer);
+    if (openCardId === c.id && $("market-body")) { $("market-body").innerHTML = marketHtml(answer); aiLine($("market-body"), out.cost); }
   } catch (e) {
     if (openCardId === c.id && $("market-body")) $("market-body").innerHTML = `<div class="status-line err">${escapeHtml(e.message)}</div><button type="button" class="btn secondary" id="btn-market">Try again</button>`;
     const mb = $("btn-market");
@@ -5749,14 +5774,22 @@ function mineEntries() {
 // whose price is more than a day old are re-priced from the database when
 // My cards opens, a few at a time, and the totals move with them.
 // (Moshe: "the prices should be correct".)
+// Every price used to be saved on its own, and each save redrew the whole
+// list, so the pictures blinked once per card (his report 2026-09-28: "Why is
+// this blinking"). Now the new prices go in ONE save, a card is tried once
+// per visit (a card the database can't answer for was retried, and the list
+// redrawn, for ever), and the list is only redrawn when something changed.
 let repricing = false;
+const repriceTried = new Set();
 async function repriceStale() {
   if (repricing) return;
-  const stale = Object.entries(state.cards).filter(([id, e]) => live(e) && e.snap && (!e.snap.priceAt || Date.now() - e.snap.priceAt > 86400000) && !String(e.cardId).startsWith("ygo:") && !String(e.cardId).startsWith("ptcg:")).slice(0, 12);
+  const stale = Object.entries(state.cards).filter(([id, e]) => live(e) && e.snap && !repriceTried.has(id) && (!e.snap.priceAt || Date.now() - e.snap.priceAt > 86400000) && !String(e.cardId).startsWith("ygo:") && !String(e.cardId).startsWith("ptcg:")).slice(0, 12);
   if (!stale.length) return;
   repricing = true;
+  const patch = {};
   try {
     for (const [id, e] of stale) {
+      repriceTried.add(id);
       let full;
       try { full = await fullCard(e.cardId); } catch (err) { continue; }
       const rows = tcgplayerRows(full);
@@ -5766,9 +5799,13 @@ async function repriceStale() {
       if (!cur) continue;
       const after = { ...cur, snap: { ...cur.snap, price, priceAt: Date.now() } };
       state.cards[id] = after;
-      saveEntry("cards", id, after);
+      patch["cards." + id] = after;
     }
-  } finally { repricing = false; renderMine(); }
+  } finally { repricing = false; }
+  if (!Object.keys(patch).length) return;
+  try { await updateDoc(docRef, patch); setStatus("app-status", ""); }
+  catch (err) { for (const k of Object.keys(patch)) await saveEntry("cards", k.slice(6), patch[k]); }
+  renderMine();
 }
 function renderMine() {
   const root = $("mine-root");
@@ -5786,6 +5823,7 @@ function renderMine() {
     : "";
   $("reorder-hint").classList.toggle("hide", !(list.length > 1 && $("mine-sort").value === "order" && person !== "*"));
   if (!all.length) {
+    delete root.dataset.drawn;
     root.innerHTML = `<div class="empty-state">
       <div class="empty-title">${person === "*" ? "Nobody has added a card yet" : (who && person === who ? "No cards yet, " + escapeHtml(who) : "No cards yet")}</div>
       <div class="empty-sub">Find a card by scanning it or typing its name, open it, and tap “Add to my cards”. It shows up here with what it's worth.</div>
@@ -5794,8 +5832,14 @@ function renderMine() {
     if (trashed.length) root.appendChild(buildTrashBlock(trashed));
     return;
   }
-  if (!list.length) { root.innerHTML = `<div class="status-line">Nothing matches that.</div>`; if (trashed.length) root.appendChild(buildTrashBlock(trashed)); return; }
-  root.innerHTML = `<div class="grid" id="mine-grid">${list.map(c => tileHtml(snapAsCard(c.cardId), { entryId: c.id, fav: c.fav, qty: c.qty, addedAt: c.addedAt, runningTotal: c.runningTotal, finish: c.finish })).join("")}</div>`;
+  if (!list.length) { delete root.dataset.drawn; root.innerHTML = `<div class="status-line">Nothing matches that.</div>`; if (trashed.length) root.appendChild(buildTrashBlock(trashed)); return; }
+  const gridHtml = `<div class="grid" id="mine-grid">${list.map(c => tileHtml(snapAsCard(c.cardId), { entryId: c.id, fav: c.fav, qty: c.qty, addedAt: c.addedAt, runningTotal: c.runningTotal, finish: c.finish })).join("")}</div>`;
+  // Nothing on screen changed (another save came in, or a price stayed the
+  // same): leave the tiles alone, so the pictures don't blank and reload.
+  const drawn = gridHtml + "|" + person + "|" + $("mine-sort").value + "|" + trashed.map(c => c.id + (c.deletedAt || "")).join(",");
+  if (root.dataset.drawn === drawn && root.querySelector("#mine-grid")) { if (window.landOnSearchTarget) window.landOnSearchTarget(); return; }
+  root.innerHTML = gridHtml;
+  root.dataset.drawn = drawn;
   if (trashed.length) root.appendChild(buildTrashBlock(trashed));
   // Whose it is, when looking at everyone's.
   if (person === "*") list.forEach(c => {
@@ -6209,6 +6253,7 @@ function takeKeysFromLink() {
 // not seen yet, once. (Asked for: "when I go back on, it will say this was
 // updated, and who asked to update it.")
 const CHANGES = [
+  { id: 35, date: "2026-09-28", by: "Dad", what: "Every AI answer now has a small line under it saying which AI answered and what that one answer cost, like \"Gemini 3.6 Flash · $0.0012\" — the card read, Why it costs that, the promo product, what else is different, eBay & Google prices and the shop prices. Each one is also counted on this device." },   // idea 732
   { id: 34, date: "2026-09-23", by: "Dad", what: "Dad's phone now gets a notification when someone adds, removes, sells or trades cards (one push for a burst of changes), and a request that didn't reach his phone is sent again next time you open the app." },
   { id: 33, date: "2026-09-23", by: "Dad", what: "Trade check, at the top of the Trade tab: before a swap, each side taps Scan (or Type) under their name and adds the cards they'd give. It adds both sides up at today's store prices and says Fair trade, or who gives more and by how much. A card with no store price can have a price typed in. Trading with someone in the family? Send it to them as a real trade." },
   { id: 32, date: "2026-09-22", by: "Dad", what: "Yu-Gi-Oh! cards no longer wear the Poké Ball: a plain card shape marks a regular one (with a rainbow picture when it is Super Rare shiny), and the rarer ones keep the purple star. A Yu-Gi-Oh! Rare is now called Regular, not Holo — its picture isn't shiny, only its name." },
@@ -6279,5 +6324,6 @@ $("trade-add-cancel").addEventListener("click", () => closeSheet("trade-add-shee
 })();
 </script>
 
+<script defer src="https://leodhi.github.io/claude/app-open.js" data-app="pokescan"></script>
 </body>
 </html>
