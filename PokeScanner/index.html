@@ -193,6 +193,7 @@
   .req-list .req-state.approved, .req-list .req-state.done { color: var(--ok); }
   .req-list .req-state.declined { color: var(--ink-faint); }
   .req-list .chips { margin-top: 6px; }
+  .req-list .req-unsent { margin-top: 4px; color: var(--delete); font-weight: 700; font-size: calc(12.5px * var(--scale, 1)); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   /* ---------- Trade ---------- */
   .trade-card { background: var(--panel); border: 1px solid var(--panel-2); border-radius: 16px; padding: 14px; margin-top: 12px; box-shadow: var(--shadow); }
   .trade-card.attention { border-color: var(--accent); }
@@ -3913,13 +3914,36 @@ async function pushToPerson(name, title, text) {
 }
 // ntfy's JSON form: headers can only carry plain ASCII, and a request has
 // dashes, accents and arrows in it -- as JSON everything goes through.
+// Why the last push didn't go: "busy" is ntfy's 429. Its free allowance is
+// 250 a day per internet address, and every phone on the house Wi-Fi shares
+// one address with the house Mac, which sends a lot of its own. On
+// 2026-09-28 it ran out at 6:59 PM and every request after that was refused
+// without anyone seeing it (Lew: "It doesn't look like I'm getting those alerts").
+let lastPushProblem = "";
 async function ntfyPublish(topic, title, message, actions, leaving) {
   try {
     // keepalive: a push started as the app is being closed still goes out.
     const r = await fetch("https://ntfy.sh/", { method: "POST", keepalive: !!leaving, headers: { "content-type": "application/json" },
       body: JSON.stringify({ topic, title, message, priority: 4, tags: ["cards"], ...(actions && actions.length ? { actions: actions.slice(0, 3) } : {}) }) });
+    lastPushProblem = r.ok ? "" : r.status === 429 ? "busy" : "refused";
     return r.ok;
-  } catch (e) { return false; }
+  } catch (e) { lastPushProblem = "offline"; return false; }
+}
+// The plain reason, for the person who asked.
+function pushProblemWords() {
+  return lastPushProblem === "busy" ? "The free notification service has had too many messages from this Wi-Fi today (the house's Mac uses the same one). Try again on mobile data, or later."
+    : lastPushProblem === "refused" ? "The notification service said no this time. Try again in a few minutes."
+    : "It didn't go through: the notification service may be busy, or this phone is offline. Try again on mobile data, or later.";
+}
+// What the family calls the owner: the name on the owner's email, or the
+// name with no email on it (only the owner's sign-in can be that one) --
+// "Dad", not the first half of an email address.
+function ownerName() {
+  const people = state.people || {};
+  const noEmail = Object.keys(people).filter(n => people[n] && !lowerEmail(people[n].email));
+  const own = Object.keys(people).find(n => state.ownerEmail && lowerEmail(people[n] && people[n].email) === lowerEmail(state.ownerEmail))
+    || (noEmail.length === 1 ? noEmail[0] : "");
+  return own || (state.ownerEmail ? state.ownerEmail.split("@")[0] : "the owner");
 }
 async function pushToOwner(title, text, requestId) {
   const topic = ntfyTopic();
@@ -3961,6 +3985,19 @@ function claudeUrlFor(r) { return "https://claude.ai/new?q=" + encodeURIComponen
 // target/rel at all. On a computer there is no Claude app to hand it to, so
 // they still open beside the page as before.
 const CLAUDE_LINK_ATTRS = IS_IOS ? "" : ' target="_blank" rel="noopener"';
+// Poké Scan saved to the Home Screen is its own little app, and there a tap
+// on a claude.ai link opens a Safari sheet inside it, not the Claude app.
+// claude://code/new?q= is the Claude app's own address (Anthropic's help page
+// "Open the Claude mobile app with a link"), which opens the app from
+// anywhere -- it lands in Claude Code with the words typed in. So on the Home
+// Screen that button comes first; in Safari only the chat link shows.
+function onHomeScreen() {
+  try { return navigator.standalone === true || matchMedia("(display-mode: standalone)").matches; } catch (e) { return false; }
+}
+function homeScreenClaudeDoor(text, many) {
+  if (!IS_IOS || !onHomeScreen()) return "";
+  return `<a class="btn" data-claude-door="code" href="claude://code/new?q=${encodeURIComponent(text)}&amp;repo=leodhi%2Fclaude" style="text-align:center;text-decoration:none;display:block;margin-top:6px">Open the Claude app with ${many ? "them" : "it"} typed in (in Claude Code)</a>`;
+}
 let approveFromLink = null;
 (function () {
   try { const u = new URL(location.href); const id = u.searchParams.get("approve"); if (id) { approveFromLink = id; u.searchParams.delete("approve"); history.replaceState(null, "", u.pathname + (u.searchParams.toString() ? "?" + u.searchParams.toString() : "") + u.hash); } } catch (e) {}
@@ -3978,6 +4015,7 @@ async function takeApproveFromLink() {
 function showApproveBanner(r, copied) {
   const box = $("whats-new");
   box.innerHTML = `<div class="wn-title">Approved: ${escapeHtml(r.by)}'s request</div><p style="margin:0 0 8px;font-size: calc(14px * var(--scale, 1))">${escapeHtml(r.text)}</p>
+    ${homeScreenClaudeDoor(claudeLineFor(r))}
     <div class="btn-row" style="margin-top:6px"><a class="btn" href="${escapeAttr(claudeUrlFor(r))}"${CLAUDE_LINK_ATTRS} style="text-align:center;text-decoration:none;display:block">Open in Claude with it typed in</a><button type="button" class="btn secondary" id="approve-copy">Copy again</button></div>
     <div class="field-note" style="margin-top:8px">${copied ? "It's on your clipboard too — paste it into any Claude chat." : "Tap Copy again, then paste it into any Claude chat."}</div>
     <button type="button" class="link" id="approve-done">Done</button>`;
@@ -3989,15 +4027,18 @@ function myRequests() { return Object.entries(state.requests || {}).map(([id, r]
 function allRequests() { return Object.entries(state.requests || {}).map(([id, r]) => ({ id, ...r })).filter(Boolean).sort((a, b) => (b.at || 0) - (a.at || 0)); }
 const REQ_STATE = { new: "Sent — waiting", approved: "Approved — being done", declined: "Not this time", done: "Done" };
 function renderRequests() {
-  $("req-owner-name").textContent = isOwner() ? "yourself (a note to Claude)" : (state.ownerEmail ? state.ownerEmail.split("@")[0] : "the owner");
+  $("req-owner-name").textContent = isOwner() ? "yourself (a note to Claude)" : ownerName();
   const mine = myRequests();
-  $("req-mine").innerHTML = mine.length ? `<ul class="req-list">${mine.slice(0, 5).map(r => `<li>${escapeHtml(r.text)}<small><span class="req-state ${escapeAttr(r.status)}">${escapeHtml(REQ_STATE[r.status] || r.status)}</span> · ${escapeHtml(new Date(r.at).toLocaleDateString(undefined, { month: "short", day: "numeric" }))}</small></li>`).join("")}</ul>` : "";
+  // A request whose push never went out says so, with Try again -- the
+  // person who asked is the only one who can send it (it goes from their phone).
+  const notSent = r => r.status === "new" && r.pushed === false && !isOwner() && !!ntfyTopic();
+  $("req-mine").innerHTML = mine.length ? `<ul class="req-list">${mine.slice(0, 5).map(r => `<li>${escapeHtml(r.text)}<small><span class="req-state ${escapeAttr(r.status)}">${escapeHtml(notSent(r) ? "Saved — not sent yet" : REQ_STATE[r.status] || r.status)}</span> · ${escapeHtml(new Date(r.at).toLocaleDateString(undefined, { month: "short", day: "numeric" }))}</small>${notSent(r) ? `<div class="req-unsent">Not on ${escapeHtml(ownerName())}'s phone yet. <button type="button" class="chip" data-req-retry="${escapeAttr(r.id)}">Try again</button></div>` : ""}</li>`).join("")}</ul>` : "";
   if (!isOwner()) return;
   const all = allRequests();
   const open = all.filter(r => r.status === "new").length;
   $("opt-req-line").innerHTML = (all.length ? (open ? open + " waiting for you. " : "") + "Approve copies the request, ready to paste into Claude." : "Nothing asked for yet.")
     + (open > 1 ? ` <button type="button" class="chip" id="req-approve-all" style="margin-left:6px">Approve all ${open}</button>` : "");
-  $("opt-req-list").innerHTML = all.slice(0, 20).map(r => `<li><b>${escapeHtml(r.by)}</b>: ${escapeHtml(r.text)}<small><span class="req-state ${escapeAttr(r.status)}">${escapeHtml(REQ_STATE[r.status] || r.status)}</span> · ${escapeHtml(new Date(r.at).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }))}</small>
+  $("opt-req-list").innerHTML = all.slice(0, 20).map(r => `<li><b>${escapeHtml(r.by)}</b>: ${escapeHtml(r.text)}<small><span class="req-state ${escapeAttr(r.status)}">${escapeHtml(REQ_STATE[r.status] || r.status)}</span>${r.status === "new" && r.pushed === false ? " · never reached your phone" : ""} · ${escapeHtml(new Date(r.at).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }))}</small>
     <div class="chips">${r.status === "new" ? `<button type="button" class="chip" data-req-approve="${escapeAttr(r.id)}">Approve &amp; copy for Claude</button><button type="button" class="chip" data-req-decline="${escapeAttr(r.id)}">Decline</button>` : r.status === "approved" ? `<button type="button" class="chip" data-req-copy="${escapeAttr(r.id)}">Copy for Claude again</button><button type="button" class="chip" data-req-done="${escapeAttr(r.id)}">Mark done</button>` : ""}</div></li>`).join("");
 }
 function setRequestStatus(id, status) {
@@ -4029,9 +4070,21 @@ $("req-send").addEventListener("click", async () => {
   $("req-text").value = "";
   setStatus("req-status", "Sending…");
   const pushed = await pushToOwner("Poké Scan request from " + who, text, id);
-  const ownerName = state.ownerEmail ? state.ownerEmail.split("@")[0] : "the owner";
+  const boss = ownerName();
   if (pushed) markRequestPushed(id);
-  setStatus("req-status", pushed ? "Sent — it's on " + ownerName + "'s phone now." : ntfyTopic() ? "Saved, but it didn't reach " + ownerName + "'s phone yet. It will try again next time you open Poké Scan." : "Saved — " + ownerName + " will see it in Options.", !pushed && !!ntfyTopic());
+  setStatus("req-status", pushed ? "Sent — it's on " + boss + "'s phone now." : ntfyTopic() ? "Saved, but it did NOT reach " + boss + "'s phone. " + pushProblemWords() + " Tap Try again below; it also tries by itself while Poké Scan is open." : "Saved — " + boss + " will see it in Options.", !pushed && !!ntfyTopic());
+  renderRequests();
+  if (!pushed && ntfyTopic()) retryUnpushedSoon();
+});
+$("req-mine").addEventListener("click", async e => {
+  const b = e.target.closest("[data-req-retry]");
+  if (!b || b.disabled) return;
+  const r = (state.requests || {})[b.dataset.reqRetry];
+  if (!r || r.by !== who) return;
+  b.disabled = true; b.textContent = "Sending…";
+  const ok = await pushToOwner("Poké Scan request from " + r.by, r.text, b.dataset.reqRetry);
+  if (ok) markRequestPushed(b.dataset.reqRetry);
+  setStatus("req-status", ok ? "Sent — it's on " + ownerName() + "'s phone now." : "Still didn't reach " + ownerName() + "'s phone. " + pushProblemWords(), !ok);
   renderRequests();
 });
 function markRequestPushed(id) {
@@ -4044,15 +4097,25 @@ function markRequestPushed(id) {
 // Once per open: this person's own requests whose push never went out.
 // Only ones marked pushed:false -- requests from before this existed have
 // no mark and are never sent again.
-let resentThisOpen = false;
+// And while the app stays open: again every 10 minutes (at most 6 times), so
+// a refusal that clears up later still reaches him without anyone tapping.
+let resentThisOpen = false, retryTimer = null, retriesLeft = 6;
 async function resendUnpushedRequests() {
   if (resentThisOpen || !who || !ntfyTopic()) return;
   resentThisOpen = true;
   const weekAgo = Date.now() - 7 * 86400000;
+  let left = 0;
   for (const r of myRequests()) {
     if (r.pushed !== false || r.status !== "new" || !(r.at > weekAgo)) continue;
     if (await pushToOwner("Poké Scan request from " + r.by, r.text, r.id)) markRequestPushed(r.id);
+    else left++;
   }
+  renderRequests();
+  if (left) retryUnpushedSoon();
+}
+function retryUnpushedSoon() {
+  if (retryTimer || retriesLeft <= 0) return;
+  retryTimer = setTimeout(() => { retryTimer = null; retriesLeft--; resentThisOpen = false; resendUnpushedRequests(); }, 10 * 60000);
 }
 
 // =========================================================================
@@ -4115,6 +4178,7 @@ $("opt-req-line").addEventListener("click", async e => {
   closeOptions();
   const box = $("whats-new");
   box.innerHTML = `<div class="wn-title">Approved ${open.length} requests</div><ul>${open.map(r => `<li><b>${escapeHtml(r.by)}</b>: ${escapeHtml(r.text)}</li>`).join("")}</ul>
+    ${homeScreenClaudeDoor(combined, true)}
     <div class="btn-row" style="margin-top:6px"><a class="btn" href="https://claude.ai/new?q=${encodeURIComponent(combined)}"${CLAUDE_LINK_ATTRS} style="text-align:center;text-decoration:none;display:block">Open in Claude with all of them typed in</a><button type="button" class="btn secondary" id="approve-copy">Copy again</button></div>
     <div class="field-note" style="margin-top:8px">${ok ? "They're on your clipboard too." : "Tap Copy again, then paste into any Claude chat."}</div><button type="button" class="link" id="approve-done">Done</button>`;
   box.classList.remove("hide");
@@ -6631,6 +6695,7 @@ function takeKeysFromLink() {
 // not seen yet, once. (Asked for: "when I go back on, it will say this was
 // updated, and who asked to update it.")
 const CHANGES = [
+  { id: 43, date: "2026-09-28", by: "Lew", what: "When a request doesn't reach Dad's phone, the person who asked now sees it in red under their request with a Try again button (it also tries by itself every 10 minutes while the app is open), and Dad's list says \"never reached your phone\". The free notification service allows only so many messages a day from one home Wi-Fi, and the house Mac uses the same one, so it ran out tonight at 6:59 PM. Anything still waiting is also sent from elsewhere once a day, at 10 AM." },
   { id: 42, date: "2026-09-28", by: "Lew", what: "Approve all (and Approve on a single request) now opens the Claude app itself on your iPhone and iPad, instead of Claude in Safari. The requests are still copied for you as well." },
   { id: 41, date: "2026-09-28", by: "Lew", what: "No more notifications when someone adds, removes, sells or trades cards. You can switch them back on in Options (Tell me when someone changes their cards). Requests and trades waiting for your answer still come through." },
   { id: 40, date: "2026-09-28", by: "Moshe", what: "Search results show each card's price as you look: the same market price My cards will show, with the finish (Holo, Reverse holo…) when a card comes in more than one. Prices fill in a few at a time, are kept for a day, and a card the database has no price for says \"No price\"." },
