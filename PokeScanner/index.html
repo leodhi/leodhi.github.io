@@ -554,6 +554,11 @@
   .sheet-back.show { opacity: 1; visibility: visible; pointer-events: auto; }
   /* Sheets that open on top of the card sheet, wherever they sit in the page. */
   #confirm-sheet, #who-sheet, #time-sheet, #trade-add-sheet, #money-sheet { z-index: 27; }
+  #ask-sheet { z-index: 28; }
+  .fake-badge { display: inline-block; background: var(--delete); color: #fff; font-weight: 800; font-size: calc(11px * var(--scale, 1)); letter-spacing: 0.04em; padding: 2px 7px; border-radius: 999px; }
+  .tile .fake-badge { position: absolute; top: 40px; left: 8px; z-index: 2; }
+  .fake-warn { background: color-mix(in srgb, var(--delete) 12%, transparent); border: 1px solid var(--delete); color: var(--ink); border-radius: 12px; padding: 10px 12px; margin-top: 10px; font-size: calc(13.5px * var(--scale, 1)); line-height: 1.4; }
+  .gone-how { display: block; color: var(--ink-muted); font-size: calc(12px * var(--scale, 1)); margin-top: 2px; }
   .sheet {
     background: var(--panel); border-radius: 18px 18px 0 0; width: 100%; max-width: 720px;
     padding: 14px 18px calc(18px + env(safe-area-inset-bottom));
@@ -966,6 +971,22 @@
   </div>
 </div>
 
+<!-- A plain question with choices: how a card left (Moshe), and the fake-card
+     warning before a trade (Moshe). One sheet, filled in by askSheet(). -->
+<div class="sheet-back" id="ask-sheet">
+  <div class="sheet">
+    <div class="grabber"></div>
+    <h3 id="ask-title"></h3>
+    <p class="sheet-sub" id="ask-sub"></p>
+    <div class="chips" id="ask-chips"></div>
+    <textarea id="ask-note" rows="2" maxlength="300" placeholder="A note, if you want (who, what for, where)" class="hide" style="width:100%;margin-top:10px;background:var(--panel-2);border:1px solid var(--line);border-radius:10px;padding:10px;color:var(--ink);font-family:inherit;font-size: max(16px, calc(15px * var(--scale, 1)))"></textarea>
+    <div class="sheet-actions">
+      <button type="button" class="btn-save" id="ask-yes">OK</button>
+      <button type="button" class="btn-plain" id="ask-no">Cancel</button>
+    </div>
+  </div>
+</div>
+
 <!-- How long, and time's up. Moshe's idea. -->
 <div class="sheet-back" id="time-sheet">
   <div class="sheet">
@@ -1042,6 +1063,8 @@
       <div id="entry-extras" class="hide" style="display:flex;flex-direction:column;gap:8px">
         <input type="url" id="entry-link" placeholder="A link — the listing or page this card is on" inputmode="url" autocapitalize="off" autocomplete="off" style="width:100%;background:var(--panel-2);border:1px solid var(--line);border-radius:10px;padding:12px;color:var(--ink);font-size: max(16px, calc(16px * var(--scale, 1)));font-family:inherit">
         <div id="entry-link-open" class="field-note" style="margin:0"></div>
+        <div class="opt-row" style="margin:0"><div class="opt-text">Is this card real?<small id="entry-fake-line">A fake counts as $0.00, and anyone asking for it in a trade is told first.</small></div>
+          <div class="chips" id="entry-fake-chips" style="flex:none"><button type="button" class="chip" data-fake="0">Real</button><button type="button" class="chip" data-fake="1">Fake</button></div></div>
       </div>
       <button type="button" class="btn-save" id="btn-add">Add to my cards</button>
       <button type="button" class="btn-plain fav-btn" id="btn-fav">☆ Favorite</button>
@@ -3154,8 +3177,9 @@ function entryFor(cardId, person) {
 }
 
 function tileHtml(c, extra) {
-  const price = c.snapPrice !== undefined ? c.snapPrice : null;
-  const priceText = price ? money(price) : "";
+  const fake = !!(extra && extra.fake);
+  const price = fake ? 0 : c.snapPrice !== undefined ? c.snapPrice : null;
+  const priceText = fake ? money(0) : price ? money(price) : "";
   const have = who ? haveCount(c.id, who) : 0;
   const pic = imgUrl(c, "low");
   // A div, not a <button>: the three small buttons live inside it, and a
@@ -3166,13 +3190,14 @@ function tileHtml(c, extra) {
     ${bestId === c.id ? `<div class="best">BEST MATCH</div>` : ""}
     ${have ? `<span class="have">✓${have > 1 ? " ×" + have : ""}</span>` : ""}
     ${extra && extra.fav ? `<span class="fav">★</span>` : ""}
+    ${fake ? `<span class="fake-badge">FAKE</span>` : ""}
     ${extra && extra.how === "scan" ? `<span class="have" style="background:var(--accent)">scanned</span>` : ""}
     <div class="t-name">${escapeHtml(c.name)}</div>
     <div class="t-sub">${escapeHtml((c.set && c.set.name) || "")}${(c.year || (c.year = yearOf(c))) ? " · " + c.year : ""} · <span class="t-num">${escapeHtml(numberLabel(c))}</span></div>
     <div class="t-kind">${cardMark(c, 30)}<span>${escapeHtml(kindWithFinish(c, extra && extra.finish))}</span></div>
     ${c.rarity && !/^(common|uncommon|rare)$/i.test(c.rarity) && !kindWords(c).toLowerCase().includes(c.rarity.toLowerCase()) ? `<div class="t-rarity">${escapeHtml(c.rarity)}</div>` : ""}
     ${ypNote(c) ? `<div class="art-note">${escapeHtml(ypNote(c))}</div>` : ""}
-    ${extra && extra.priceSlot ? `<div class="t-row t-pslot" data-price-for="${escapeAttr(c.id)}">${tilePriceInner(c)}</div>` : priceText ? `<div class="t-row"><span class="t-price">${priceText}</span><span class="t-sub" style="margin:0">market today${extra && Number(extra.qty) > 1 ? " · ×" + Number(extra.qty) : ""}</span></div>` : ""}
+    ${extra && extra.priceSlot ? `<div class="t-row t-pslot" data-price-for="${escapeAttr(c.id)}">${tilePriceInner(c)}</div>` : priceText ? `<div class="t-row"><span class="t-price">${priceText}</span><span class="t-sub" style="margin:0">${fake ? "fake — counts as $0" : "market today"}${extra && Number(extra.qty) > 1 ? " · ×" + Number(extra.qty) : ""}</span></div>` : ""}
     ${who && (!extra || !extra.noCtl) ? `<div class="t-ctl"><button type="button" class="plus" data-tile-plus="${escapeAttr(c.id)}" aria-label="Add one">+</button><button type="button" class="minus" data-tile-minus="${escapeAttr(c.id)}" aria-label="One fewer" ${have ? "" : "disabled"}>−</button><button type="button" class="sold" data-tile-sold="${escapeAttr(c.id)}" aria-label="Sold" ${have ? "" : "disabled"}>💰</button></div>` : ""}
     ${extra && extra.runningTotal !== undefined ? `<div class="t-row running"><span class="t-sub" style="margin:0">${extra.addedAt ? new Date(extra.addedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : ""}</span><span class="t-price">${money(extra.runningTotal)} <span class="t-sub" style="margin:0">so far</span></span></div>` : ""}
   </div>`;
@@ -3779,7 +3804,7 @@ function sellCard(c, amount) {
   if (!e) return;
   const qty = Number(e.qty) || 1;
   const cardBefore = state.cards[e.id];
-  const cardAfter = qty > 1 ? { ...cardBefore, qty: qty - 1 } : { ...cardBefore, deletedAt: Date.now() };
+  const cardAfter = qty > 1 ? { ...cardBefore, qty: qty - 1 } : { ...cardBefore, deletedAt: Date.now(), gone: { how: "sold", note: "for " + money(amount), at: Date.now() } };
   const moneyBefore = (state.money || {})[who] ? { ...(state.money || {})[who] } : null;
   const m = moneyOf(who);
   const moneyAfter = moneyNext(who, m.balance + amount, { type: "sold", what: c.name + (c.set && c.set.name ? " (" + c.set.name + ")" : ""), amount, cardId: c.id });
@@ -4248,7 +4273,7 @@ function requestNotice() {
 // money, in one undoable action.
 function tradeWorth(side) {
   let n = Number(side.money) || 0;
-  (side.cards || []).forEach(id => { const e = state.cards[id]; if (e && e.snap) n += (Number(e.snap.price) || 0); });
+  (side.cards || []).forEach(id => { const e = state.cards[id]; if (e && e.snap) n += cardWorth(e); });
   return Math.round(n * 100) / 100;
 }
 function myTrades() {
@@ -4306,7 +4331,7 @@ function tradeCardHtml(t) {
   const myTurn = t.status === "open" && t.turn === me;
   const state_ = t.status === "accepted" ? "Done — accepted" : t.status === "declined" ? "Declined" : myTurn ? "Your move" : "Waiting for " + other;
   const sideHtml = (side, name, editable) => `<div class="side"><div class="side-name"><span>${escapeHtml(name)} gives</span><span class="side-worth">${money(tradeWorth(side))}</span></div>
-    ${(side.cards || []).map(id => { const e = state.cards[id]; if (!e || !e.snap) return ""; return `<div class="side-item">${snapPic(e.snap) ? `<img src="${escapeAttr(snapPic(e.snap))}" alt="">` : ""}<span class="si-name">${escapeHtml(e.snap.name)}<br><small>${money(e.snap.price)}</small></span>${editable && t.status === "open" ? `<button type="button" class="si-x" data-trade-drop="${escapeAttr(t.id)}" data-entry="${escapeAttr(id)}" data-side="${name === me ? "mine" : "theirs"}">×</button>` : ""}</div>`; }).join("")}
+    ${(side.cards || []).map(id => { const e = state.cards[id]; if (!e || !e.snap) return ""; return `<div class="side-item">${snapPic(e.snap) ? `<img src="${escapeAttr(snapPic(e.snap))}" alt="">` : ""}<span class="si-name">${escapeHtml(e.snap.name)}<br><small>${e.fake ? `<span class="fake-badge">FAKE</span> ${money(0)}` : money(e.snap.price)}</small></span>${editable && t.status === "open" ? `<button type="button" class="si-x" data-trade-drop="${escapeAttr(t.id)}" data-entry="${escapeAttr(id)}" data-side="${name === me ? "mine" : "theirs"}">×</button>` : ""}</div>`; }).join("")}
     ${Number(side.money) ? `<div class="side-money">+ ${money(side.money)} cash</div>` : ""}
     ${!(side.cards || []).length && !Number(side.money) ? `<div class="side-empty">nothing yet</div>` : ""}</div>`;
   return `<div class="trade-card${myTurn ? " attention" : ""}" data-trade="${escapeAttr(t.id)}">
@@ -4334,11 +4359,26 @@ function openTradeAdd(id, whichSide) {
   $("trade-add-title").textContent = which === "mine" ? "What " + who + " gives" : "What you want from " + person;
   $("trade-add-sub").textContent = which === "mine" ? "Your cards and money. Tap a card to put it in or take it out." : person + "'s cards. Tap what you want; add money if you want cash too.";
   $("trade-add-money").value = Number(side.money) ? Number(side.money).toFixed(2) : "";
-  const theirCards = Object.entries(state.cards).map(([eid, e]) => ({ eid, ...e })).filter(e => live(e) && e.who === person).sort((x, y) => (Number(y.snap.price) || 0) - (Number(x.snap.price) || 0));
-  $("trade-add-cards").innerHTML = theirCards.length ? theirCards.map(e => `<button type="button" class="pc${(side.cards || []).includes(e.eid) ? " on" : ""}" data-pc="${escapeAttr(e.eid)}">${snapPic(e.snap) ? `<img src="${escapeAttr(snapPic(e.snap))}" alt="">` : ""}<div class="pc-t">${escapeHtml(e.snap.name)}</div><div class="pc-p">${money(e.snap.price)}</div></button>`).join("") : `<div class="side-empty" style="grid-column:1/-1">${escapeHtml(person)} has no cards yet.</div>`;
+  const theirCards = Object.entries(state.cards).map(([eid, e]) => ({ eid, ...e })).filter(e => live(e) && e.who === person).sort((x, y) => cardWorth(y) - cardWorth(x));
+  $("trade-add-cards").innerHTML = theirCards.length ? theirCards.map(e => `<button type="button" class="pc${(side.cards || []).includes(e.eid) ? " on" : ""}" data-pc="${escapeAttr(e.eid)}"${e.fake ? ' data-fake="1"' : ""}>${snapPic(e.snap) ? `<img src="${escapeAttr(snapPic(e.snap))}" alt="">` : ""}<div class="pc-t">${escapeHtml(e.snap.name)}</div><div class="pc-p">${e.fake ? `<span class="fake-badge">FAKE</span> ${money(0)}` : money(e.snap.price)}</div></button>`).join("") : `<div class="side-empty" style="grid-column:1/-1">${escapeHtml(person)} has no cards yet.</div>`;
   openSheet("trade-add-sheet");
 }
-$("trade-add-cards").addEventListener("click", e => { const b = e.target.closest("[data-pc]"); if (b) b.classList.toggle("on"); });
+$("trade-add-cards").addEventListener("click", async e => {
+  const b = e.target.closest("[data-pc]");
+  if (!b) return;
+  // Asking someone for a card they marked FAKE: said plainly first (Moshe).
+  if (!b.classList.contains("on") && b.dataset.fake && tradeEditing && tradeEditing.which === "theirs") {
+    const en = state.cards[b.dataset.pc];
+    const ok = await askSheet({ title: "This card is marked FAKE", sub: fakeWarning(en), yes: "Ask for it anyway", no: "Leave it" });
+    if (!ok) return;
+  }
+  b.classList.toggle("on");
+});
+// The words for a fake card, shown before anyone asks for it in a trade.
+function fakeWarning(e) {
+  const name = e && e.snap ? e.snap.name : "This card";
+  return (e && e.who ? e.who + " marked " : "Its owner marked ") + name + " as fake — not a real Pokémon card. It counts as $0.00 in every total and on the trade gauge.";
+}
 $("trade-add-go").addEventListener("click", () => {
   if (!tradeEditing) return;
   const t = state.trades[tradeEditing.id];
@@ -4861,6 +4901,15 @@ function setEntryFinish(c, finish) {
   renderCardSheet(c, false);
 }
 let pendingFinish = "";   // picked on a card's page, for that card
+// Someone else's copy marked fake: a red box on the card's page, above the
+// "Ask … to trade it" buttons, so it is seen before anyone asks (Moshe).
+function fakeCopyOf(cardId, person) {
+  return Object.values(state.cards).find(e => live(e) && e.cardId === cardId && e.who === person && e.fake) || null;
+}
+function fakeHoldersHtml(cardId) {
+  const fakes = Object.values(state.cards).filter(e => live(e) && e.cardId === cardId && e.fake);
+  return fakes.map(e => `<div class="fake-warn"><span class="fake-badge">FAKE</span> ${escapeHtml(e.who === who ? "You marked your copy as fake. It counts as $0.00 in your totals and trades." : fakeWarning(e))}</div>`).join("");
+}
 function holdersOther(cardId) {
   const names = new Set();
   Object.values(state.cards).forEach(e => { if (live(e) && e.cardId === cardId && e.who !== who) names.add(e.who); });
@@ -5202,6 +5251,7 @@ function renderCardSheet(c, loading) {
         ${c.set && c.set.logo ? `<img class="set-logo" src="${escapeAttr(c.set.logo + ".webp")}" alt="" loading="lazy">` : ""}
         <div class="have-people">${holdersHtml(c.id)}</div>
         ${claimLine(c)}
+        ${fakeHoldersHtml(c.id)}
         ${who ? holdersOther(c.id).map(n => `<button type="button" class="pill-btn" data-trade-ask="${escapeAttr(n)}" style="margin-top:8px;margin-right:6px">Ask ${escapeHtml(n)} to trade it</button>`).join("") : ""}
         ${rows.length > 1 ? `<div class="chips" id="finish-chips" style="margin-top:8px">${rows.map(r => `<button type="button" class="chip${sameFinish(entryFinish(c) || pendingFinish || pickFinish || rows[0].finish, r.finish) ? " on" : ""}" data-finish="${escapeAttr(r.finish)}">${escapeHtml(r.finish)}${r.marketPrice ? " · " + money(r.marketPrice) : ""}</button>`).join("")}</div><div class="field-note" style="margin-top:4px">Which one is yours? A shiny picture is holo; a shiny frame with a plain picture is reverse holo.</div>` : ""}
         <div class="hero-price${headline ? "" : " none"}">${headline ? money(headline) + (mine ? `<small style="display:block;margin:2px 0 0">market price · ${escapeHtml(mine.finish.toLowerCase())}</small>` : "<small>market price</small>") : (loading ? "Fetching the price…" : "No store price")}</div>
@@ -5254,6 +5304,7 @@ function renderCardSheet(c, loading) {
   $("btn-fav").classList.toggle("hide", !entry);
   $("entry-extras").classList.toggle("hide", !entry);
   if (entry) {
+    $("entry-fake-chips").querySelectorAll("[data-fake]").forEach(b => b.classList.toggle("on", (b.dataset.fake === "1") === !!entry.fake));
     $("entry-link").value = entry.link || "";
     $("entry-link-open").innerHTML = entry.link ? `<a href="${escapeAttr(entry.link)}" target="_blank" rel="noopener">Open the link</a>` : "";
   }
@@ -5268,8 +5319,10 @@ function renderCardSheet(c, loading) {
   if (db2) db2.addEventListener("click", () => askDesign(c));
   const cb = $("claim-btn");
   if (cb) cb.addEventListener("click", () => { cb.remove(); openClaimLooks(c); });
-  document.querySelectorAll("#card-body [data-trade-ask]").forEach(b => b.addEventListener("click", () => {
+  document.querySelectorAll("#card-body [data-trade-ask]").forEach(b => b.addEventListener("click", async () => {
     const other = b.dataset.tradeAsk;
+    const fakeOne = fakeCopyOf(c.id, other);
+    if (fakeOne && !(await askSheet({ title: "This card is marked FAKE", sub: fakeWarning(fakeOne), yes: "Ask for it anyway", no: "Leave it" }))) return;
     const theirs = Object.entries(state.cards).find(([id, e]) => live(e) && e.who === other && e.cardId === c.id);
     closeSheet("card-sheet");
     startTrade(other, theirs ? theirs[0] : null);
@@ -6029,6 +6082,29 @@ async function setInfo(setId) {
   return info;
 }
 async function setAbbr(setId) { return (await setInfo(setId)).abbr; }
+// One question, answered on a sheet. Resolves true / { how, note } for yes,
+// null for no or a close. choices: [[value, words]]; the first is picked.
+let askResolve = null;
+function askSheet({ title, sub, choices, note, yes, no }) {
+  if (askResolve) { askResolve(null); askResolve = null; }
+  $("ask-title").textContent = title || "";
+  $("ask-sub").textContent = sub || "";
+  $("ask-chips").innerHTML = (choices || []).map(([v, w], i) => `<button type="button" class="chip${i === 0 ? " on" : ""}" data-ask="${escapeAttr(v)}">${escapeHtml(w)}</button>`).join("");
+  $("ask-chips").classList.toggle("hide", !(choices && choices.length));
+  $("ask-note").value = ""; $("ask-note").classList.toggle("hide", !note);
+  $("ask-yes").textContent = yes || "OK"; $("ask-no").textContent = no || "Cancel";
+  openSheet("ask-sheet");
+  return new Promise(res => { askResolve = res; });
+}
+function answerAsk(ok) {
+  const res = askResolve; askResolve = null;
+  const pick = $("ask-chips").querySelector(".chip.on");
+  closeSheet("ask-sheet");
+  if (res) res(ok ? ($("ask-chips").classList.contains("hide") ? true : { how: pick ? pick.dataset.ask : "other", note: $("ask-note").value.trim() }) : null);
+}
+$("ask-chips").addEventListener("click", e => { const b = e.target.closest("[data-ask]"); if (!b) return; $("ask-chips").querySelectorAll(".chip").forEach(x => x.classList.toggle("on", x === b)); });
+$("ask-yes").addEventListener("click", () => answerAsk(true));
+$("ask-no").addEventListener("click", () => answerAsk(false));
 let confirmFor = null;
 async function confirmThenAdd(c) {
   if (!who) { openWho(); return; }
@@ -6102,7 +6178,7 @@ function addCardNow(c) {
 function setQty(entryId, qty) {
   const before = state.cards[entryId];
   if (!before) return;
-  if (qty <= 0) { removeEntry(entryId); return; }
+  if (qty <= 0) { takeOut(entryId); return; }
   const after = { ...before, qty };
   pushAction({ label: `${before.snap ? before.snap.name : "Card"} ×${qty}`, undo: [{ field: "cards", id: entryId, value: before }], redo: [{ field: "cards", id: entryId, value: after }] });
   state.cards[entryId] = after;
@@ -6122,10 +6198,31 @@ function toggleFav(entryId) {
 }
 // Removing moves the card to "Recently deleted" rather than destroying it.
 // The toast only lasts a few seconds; the trash survives a reload.
-function removeEntry(entryId) {
+// Moshe, 2026-09-28: "When I take a card out of my collection you should ask
+// me how I lost it." So taking a card out asks how (sold, traded, gave away,
+// lost, damaged, something else, plus a note), and the answer is kept with it
+// in Recently deleted. Not asked for an obvious slip: a card added in the
+// last minute. Cancel leaves the card where it was. Undo still puts it back.
+const GONE_HOW = [["sold", "Sold it"], ["traded", "Traded it"], ["gave", "Gave it away"], ["lost", "Lost it"], ["damaged", "It got damaged"], ["other", "Something else"]];
+const GONE_WORDS = { sold: "Sold", traded: "Traded", gave: "Given away", lost: "Lost", damaged: "Damaged", other: "Other", mistake: "Added by mistake" };
+async function takeOut(entryId) {
+  const en = state.cards[entryId];
+  if (!en) return;
+  if (Date.now() - (Number(en.addedAt) || 0) < 60000) { removeEntry(entryId, { how: "mistake" }); return; }
+  const ans = await askSheet({ title: "How did " + (en.snap ? en.snap.name : "this card") + " leave your collection?", sub: "It goes to Recently deleted with your answer, so you can look back (and put it back if it was a mistake).",
+    choices: GONE_HOW, note: true, yes: "Take it out", no: "Keep it" });
+  if (!ans) return;
+  removeEntry(entryId, ans);
+}
+function goneLine(c) {
+  if (!c.gone || !c.gone.how) return "";
+  return (GONE_WORDS[c.gone.how] || "") + (c.gone.note ? " — " + c.gone.note : "");
+}
+function removeEntry(entryId, gone) {
   const before = state.cards[entryId];
   if (!before) return;
   const after = { ...before, deletedAt: Date.now() };
+  if (gone && gone.how) after.gone = { how: gone.how, ...(gone.note ? { note: String(gone.note).slice(0, 300) } : {}), at: after.deletedAt };
   pushAction({ label: "Removed " + (before.snap ? before.snap.name : "card"), undo: [{ field: "cards", id: entryId, value: before }], redo: [{ field: "cards", id: entryId, value: after }] });
   state.cards[entryId] = after;
   saveEntry("cards", entryId, after);
@@ -6138,6 +6235,7 @@ function restoreEntry(entryId) {
   if (!before) return;
   const after = { ...before };
   delete after.deletedAt;
+  delete after.gone;
   pushAction({ label: "Restored " + (before.snap ? before.snap.name : "card"), undo: [{ field: "cards", id: entryId, value: before }], redo: [{ field: "cards", id: entryId, value: after }] });
   state.cards[entryId] = after;
   saveEntry("cards", entryId, after);
@@ -6154,6 +6252,11 @@ function purgeEntry(entryId) {
   renderAll();
 }
 const live = c => c && c.snap && !c.deletedAt;
+// What one copy of a card counts for, everywhere a total or a trade is
+// added up. A card its owner marked FAKE counts as $0.00 (Moshe, 2026-09-28:
+// "it should count the price as 0.00"); its store price is kept, so marking
+// it real again brings the price back.
+function cardWorth(e) { return e && e.fake ? 0 : (Number(e && e.snap && e.snap.price) || 0); }
 $("btn-add").addEventListener("click", () => { const c = openCardData || (openCardId && snapAsCard(openCardId)); if (c) confirmThenAdd(c); });
 $("qty-plus").addEventListener("click", () => { const e = who && openCardId ? entryFor(openCardId, who) : null; if (e) setQty(e.id, (Number(e.qty) || 1) + 1); });
 $("qty-minus").addEventListener("click", () => { const e = who && openCardId ? entryFor(openCardId, who) : null; if (e) setQty(e.id, (Number(e.qty) || 1) - 1); });
@@ -6171,8 +6274,23 @@ $("entry-link").addEventListener("input", () => {
     $("entry-link-open").innerHTML = link ? `<a href="${escapeAttr(link)}" target="_blank" rel="noopener">Open the link</a>` : "";
   }, 500);
 });
+$("entry-fake-chips").addEventListener("click", e => {
+  const b = e.target.closest("[data-fake]");
+  const en = who && openCardId ? entryFor(openCardId, who) : null;
+  if (!b || !en) return;
+  const fake = b.dataset.fake === "1";
+  if (!!en.fake === fake) return;
+  const before = state.cards[en.id], after = { ...before, fake };
+  if (!fake) delete after.fake;
+  pushAction({ label: "Marked " + (before.snap ? before.snap.name : "card") + (fake ? " as fake" : " as real"), undo: [{ field: "cards", id: en.id, value: before }], redo: [{ field: "cards", id: en.id, value: after }] });
+  state.cards[en.id] = after;
+  saveEntry("cards", en.id, after);
+  showToast(fake ? "Marked fake — it counts as $0.00 now" : "Marked real — its price counts again");
+  renderAll();
+  renderCardSheet(openCardData || snapAsCard(openCardId), false);
+});
 $("btn-fav").addEventListener("click", () => { const e = who && openCardId ? entryFor(openCardId, who) : null; if (e) toggleFav(e.id); });
-$("btn-remove").addEventListener("click", () => { const e = who && openCardId ? entryFor(openCardId, who) : null; if (e) { closeSheet("card-sheet"); removeEntry(e.id); } });
+$("btn-remove").addEventListener("click", () => { const e = who && openCardId ? entryFor(openCardId, who) : null; if (e) { closeSheet("card-sheet"); takeOut(e.id); } });
 $("btn-card-close").addEventListener("click", () => closeSheet("card-sheet"));
 
 // =========================================================================
@@ -6196,7 +6314,7 @@ function mineEntries() {
     history: (a, b) => (b.addedAt || 0) - (a.addedAt || 0),
     name: (a, b) => a.snap.name.localeCompare(b.snap.name) || (a.snap.set || "").localeCompare(b.snap.set || ""),
     set: (a, b) => (b.snap.year || "").localeCompare(a.snap.year || "") || (a.snap.set || "").localeCompare(b.snap.set || "") || String(a.snap.number).localeCompare(String(b.snap.number), undefined, { numeric: true }),
-    value: (a, b) => (Number(b.snap.price) || 0) * (Number(b.qty) || 1) - (Number(a.snap.price) || 0) * (Number(a.qty) || 1)
+    value: (a, b) => cardWorth(b) * (Number(b.qty) || 1) - cardWorth(a) * (Number(a.qty) || 1)
   }[sort] || ((a, b) => 0);
   // Favorites float to the top in every order but "My order", which is
   // exactly what you dragged.
@@ -6206,7 +6324,7 @@ function mineEntries() {
   // the total as it stands.
   if (sort === "history") {
     let running = 0;
-    list.slice().reverse().forEach(c => { running += (Number(c.snap.price) || 0) * (Number(c.qty) || 1); c.runningTotal = running; });
+    list.slice().reverse().forEach(c => { running += cardWorth(c) * (Number(c.qty) || 1); c.runningTotal = running; });
   }
   return { list, person };
 }
@@ -6255,7 +6373,7 @@ function renderMine() {
   const all = Object.values(state.cards).filter(c => live(c) && (person === "*" || c.who === person));
   const trashed = Object.entries(state.cards).map(([id, c]) => ({ id, ...c })).filter(c => c.snap && c.deletedAt && (person === "*" || c.who === person)).sort((a, b) => (b.deletedAt || 0) - (a.deletedAt || 0));
   const count = all.reduce((n, c) => n + (Number(c.qty) || 1), 0);
-  const value = all.reduce((n, c) => n + (Number(c.snap.price) || 0) * (Number(c.qty) || 1), 0);
+  const value = all.reduce((n, c) => n + cardWorth(c) * (Number(c.qty) || 1), 0);
   $("mine-count").textContent = who ? String(Object.values(state.cards).filter(c => live(c) && c.who === who).reduce((n, c) => n + (Number(c.qty) || 1), 0) || "") : "";
   const soldTotal = person === "*" ? Object.keys(state.money || {}).reduce((n, k) => n + moneyOf(k).log.filter(e => e.type === "sold").reduce((a, e) => a + (Number(e.amount) || 0), 0), 0)
                                    : moneyOf(person).log.filter(e => e.type === "sold").reduce((a, e) => a + (Number(e.amount) || 0), 0);
@@ -6274,7 +6392,7 @@ function renderMine() {
     return;
   }
   if (!list.length) { delete root.dataset.drawn; root.innerHTML = `<div class="status-line">Nothing matches that.</div>`; if (trashed.length) root.appendChild(buildTrashBlock(trashed)); return; }
-  const gridHtml = `<div class="grid" id="mine-grid">${list.map(c => tileHtml(snapAsCard(c.cardId), { entryId: c.id, fav: c.fav, qty: c.qty, addedAt: c.addedAt, runningTotal: c.runningTotal, finish: c.finish })).join("")}</div>`;
+  const gridHtml = `<div class="grid" id="mine-grid">${list.map(c => tileHtml(snapAsCard(c.cardId), { entryId: c.id, fav: c.fav, qty: c.qty, addedAt: c.addedAt, runningTotal: c.runningTotal, finish: c.finish, fake: !!c.fake })).join("")}</div>`;
   // Nothing on screen changed (another save came in, or a price stayed the
   // same): leave the tiles alone, so the pictures don't blank and reload.
   const drawn = gridHtml + "|" + person + "|" + $("mine-sort").value + "|" + trashed.map(c => c.id + (c.deletedAt || "")).join(",");
@@ -6306,7 +6424,7 @@ function buildTrashBlock(trashed) {
   const inner = trashed.map(c => `
     <div class="trash-row">
       ${snapPic(c.snap) ? `<img src="${escapeAttr(snapPic(c.snap))}" alt="" loading="lazy">` : `<span style="width:34px;height:47px;flex:none"></span>`}
-      <span class="trash-name">${escapeHtml(c.snap.name)}${Number(c.qty) > 1 ? " ×" + Number(c.qty) : ""}<small>${escapeHtml([c.who, c.snap.set, c.snap.number].filter(Boolean).join(" · "))}</small></span>
+      <span class="trash-name">${escapeHtml(c.snap.name)}${Number(c.qty) > 1 ? " ×" + Number(c.qty) : ""}<small>${escapeHtml([c.who, c.snap.set, c.snap.number].filter(Boolean).join(" · "))}</small>${goneLine(c) ? `<span class="gone-how">${escapeHtml(goneLine(c))}</span>` : ""}</span>
       <button type="button" class="trash-restore" data-restore="${escapeAttr(c.id)}">Restore</button>
       <button type="button" class="trash-purge" data-purge="${escapeAttr(c.id)}">Delete forever</button>
     </div>`).join("");
@@ -6480,8 +6598,9 @@ function closeSheet(id) {
   back.style.background = "";
   if (id === "card-sheet") { openCardId = null; openCardData = null; cardTrail = []; }
   if (id === "cam-sheet") stopCamera();
+  if (id === "ask-sheet" && askResolve) { const r = askResolve; askResolve = null; r(null); }
 }
-["card-sheet", "who-sheet", "options-sheet", "cam-sheet", "money-sheet", "trade-add-sheet", "time-sheet", "confirm-sheet"].forEach(id => {
+["card-sheet", "who-sheet", "options-sheet", "cam-sheet", "money-sheet", "trade-add-sheet", "time-sheet", "confirm-sheet", "ask-sheet"].forEach(id => {
   $(id).addEventListener("click", e => { if (e.target === $(id)) closeSheet(id); });
   attachSheetSwipe(id);
 });
@@ -6695,6 +6814,8 @@ function takeKeysFromLink() {
 // not seen yet, once. (Asked for: "when I go back on, it will say this was
 // updated, and who asked to update it.")
 const CHANGES = [
+  { id: 46, date: "2026-09-28", by: "Moshe", what: "Taking a card out of your collection asks how it left: sold, traded, gave away, lost, damaged or something else, with a note if you want. The answer shows in Recently deleted. A card added in the last minute comes straight out with no question, and Undo still puts it back." },
+  { id: 45, date: "2026-09-28", by: "Moshe", what: "Mark a card Fake on its page (Is this card real? Real / Fake). A fake card shows FAKE, counts as $0.00 in every total and on the trade gauge, and anyone about to ask for it in a trade is warned first." },
   { id: 43, date: "2026-09-28", by: "Lew", what: "When a request doesn't reach Dad's phone, the person who asked now sees it in red under their request with a Try again button (it also tries by itself every 10 minutes while the app is open), and Dad's list says \"never reached your phone\". The free notification service allows only so many messages a day from one home Wi-Fi, and the house Mac uses the same one, so it ran out tonight at 6:59 PM. Anything still waiting is also sent from elsewhere once a day, at 10 AM." },
   { id: 42, date: "2026-09-28", by: "Lew", what: "Approve all (and Approve on a single request) now opens the Claude app itself on your iPhone and iPad, instead of Claude in Safari. The requests are still copied for you as well." },
   { id: 41, date: "2026-09-28", by: "Lew", what: "No more notifications when someone adds, removes, sells or trades cards. You can switch them back on in Options (Tell me when someone changes their cards). Requests and trades waiting for your answer still come through." },
@@ -6753,7 +6874,7 @@ renderWhatsNew();
 // anywhere: every sheet closed, the search cleared. (Asked for: "Home should
 // take me to the Poké Scan main page, not my Home app.")
 function goHome() {
-  ["card-sheet", "who-sheet", "options-sheet", "cam-sheet", "money-sheet", "trade-add-sheet", "time-sheet", "confirm-sheet"].forEach(id => { if ($(id).classList.contains("show")) closeSheet(id); });
+  ["card-sheet", "who-sheet", "options-sheet", "cam-sheet", "money-sheet", "trade-add-sheet", "time-sheet", "confirm-sheet", "ask-sheet"].forEach(id => { if ($(id).classList.contains("show")) closeSheet(id); });
   $("q").value = ""; $("q-clear").classList.add("hide");
   results = []; bestId = null; $("scanned").classList.add("hide"); setStatus("find-status", "");
   renderResults();
