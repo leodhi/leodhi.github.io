@@ -2172,11 +2172,17 @@ async function searchCards(name) {
     // each card's details (rarity, set, and that printing's own prices --
     // a Japanese card is priced as the Japanese card, not the English one)
     // -- capped so a common Pokémon does not mean a hundred requests.
-    const local = await nameInLanguage(name.trim(), lang);
-    const r = await fetch(DEX + "/" + lang + "/cards?name=" + encodeURIComponent(local));
+    // The language is read ONCE, here: tapping English while the brief list
+    // is still on its way changes `lang`, and the 60 detail look-ups then
+    // went to the English database with Japanese ids (57 failed requests
+    // in one test run, 2026-09-28).
+    const l = lang;
+    const local = await nameInLanguage(name.trim(), l);
+    const r = await fetch(DEX + "/" + l + "/cards?name=" + encodeURIComponent(local));
     const brief = r.ok ? await r.json() : [];
-    const full = await Promise.all(brief.slice(0, 60).map(x => fetch(DEX + "/" + lang + "/cards/" + encodeURIComponent(x.id)).then(rr => rr.ok ? rr.json() : null).catch(() => null)));
-    list = full.filter(c => c && !isPocket(c)).map(c => { c.lang = lang; if (!scriptLang(name)) c.englishName = name.trim(); return c; });
+    if (l !== lang) return [];   // switched away meanwhile; that search is not wanted any more
+    const full = await Promise.all(brief.slice(0, 60).map(x => fetch(DEX + "/" + l + "/cards/" + encodeURIComponent(x.id)).then(rr => rr.ok ? rr.json() : null).catch(() => null)));
+    list = full.filter(c => c && !isPocket(c)).map(c => { c.lang = l; if (!scriptLang(name)) c.englishName = name.trim(); return c; });
   }
   list.forEach(decorate);
   searchCache.set(key, list);
@@ -2194,19 +2200,38 @@ async function searchSecondSource(name) {
     set: { id: (c.set || {}).id || "", name: (c.set || {}).name || "", releaseDate: ((c.set || {}).releaseDate || "").replace(/\//g, "-"), logo: "", cardCount: { official: (c.set || {}).printedTotal || (c.set || {}).total || "" } }
   }));
 }
-async function fullCard(id) {
-  if (cardCache.has(id)) return cardCache.get(id);
-  const brief = results.find(c => c.id === id) || lookBriefs.get(id);
+// Which language's card database a card lives in. A Japanese card's id
+// (S12a-205, M-P-131) does not exist in the English one, so asking /en/ for
+// it is a failed request (57 of them in one test run, 2026-09-28): the tile
+// price filler asked after the list had already switched back to English,
+// and a card saved in My cards had no language kept at all. The card itself
+// says first; then what was saved with it; then the writing of its name
+// (cards saved before the language was kept).
+function cardLangOf(id, hint) {
+  const seen = [hint && hint.id === id ? hint : null, results.find(c => c.id === id), lookBriefs.get(id)].find(c => c && !c.fromSnap);
+  if (seen) return seen.lang || "en";
+  const pool = Object.values(state.cards).concat(...Object.values(state.recent || {}).map(l => Array.isArray(l) ? l : []));
+  for (const e of pool) {
+    if (e && e.cardId === id && e.snap) { const l = e.snap.lang || scriptLang(e.snap.name); if (l) return l; }
+  }
+  return "en";
+}
+async function fullCard(id, hint) {
+  const want = /^(ptcg|ygo|mcd):/.test(id) ? "" : cardLangOf(id, hint);
+  const had = cardCache.get(id);
+  if (had && (!want || (had.lang || "en") === want)) return had;
+  const brief = (hint && hint.id === id ? hint : null) || results.find(c => c.id === id) || lookBriefs.get(id);
   if (MCD.isMcdId(id)) { const c = (await MCD.cardById(id)) || brief || snapAsCard(id); cardCache.set(id, c); return c; }
-  if (id.startsWith("ptcg:") || id.startsWith("ygo:") || (brief && brief.lang && brief.lang !== "en")) {
+  if (id.startsWith("ptcg:") || id.startsWith("ygo:") || (brief && brief.lang && brief.lang !== "en" && brief.lang === want && !brief.fromSnap)) {
     // Nothing more to fetch: the search already brought everything.
     const c = brief || snapAsCard(id);
     cardCache.set(id, c);
     return c;
   }
-  const r = await fetch(DEX + "/en/cards/" + encodeURIComponent(id));
+  const r = await fetch(DEX + "/" + want + "/cards/" + encodeURIComponent(id));
   if (!r.ok) throw new Error("Couldn't load that card (" + r.status + ").");
   const c = await r.json();
+  if (want !== "en") c.lang = want;
   decorate(c);
   cardCache.set(id, c);
   return c;
@@ -3412,7 +3437,7 @@ function fillTilePrices(list) {
     while (running < 4 && queue.length && gen === tilePriceGen) {
       const c = queue.shift();
       running++;
-      fullCard(c.id).then(full => {
+      fullCard(c.id, c).then(full => {
         tilePrices[c.id] = priceFacts(full);
         c.snapPrice = headlinePrice(full) || 0;
         saveTilePricesSoon();
@@ -4982,6 +5007,9 @@ function snapAsCard(cardId) {
         ...(s.picSmall ? { ptcgImages: { small: s.picSmall, large: s.picLarge || s.picSmall } } : {}),
         set: { id: s.setId, name: s.set, releaseDate: s.year ? s.year + "-01-01" : "", cardCount: { official: s.total } } });
       built.snapPrice = Number(s.price) || 0;
+      const l = s.lang || scriptLang(s.name);
+      if (l && l !== "en") built.lang = l;
+      built.fromSnap = true;   // only what was saved; fullCard still fetches the rest
       return built;
     }
   }
@@ -6210,6 +6238,7 @@ function snapshotOf(c) {
     name: c.name || "", set: (c.set && c.set.name) || "", setId: (c.set && c.set.id) || "", number: c.localId || "", total: c.total || "",
     year: c.year || "", rarity: c.rarity || "", suffix: c.suffix || "", kind: c.kind || "regular", family: c.family || "", finish: c.finish || "", image: c.image || "",
     regulationMark: c.regulationMark || "", price: headlinePrice(c) || 0, priceAt: Date.now(), game: c.game || "pokemon", realTotal: c.realTotal || "",
+    ...(c.lang && c.lang !== "en" ? { lang: c.lang } : {}),
     ...(c.ptcgImages ? { picSmall: c.ptcgImages.small || "", picLarge: c.ptcgImages.large || "" } : {})
   };
 }
@@ -6236,7 +6265,9 @@ async function setInfo(setId) {
   setInfoCache.set(setId, info);
   return info;
 }
-async function setAbbr(setId) { return (await setInfo(setId)).abbr; }
+// Only the English database is asked: a Japanese set (S12a, M-P) is not in
+// it, and asking is a failed request. Those cards show "—" instead.
+async function setAbbr(setId, lang) { return lang && lang !== "en" ? "" : (await setInfo(setId)).abbr; }
 // One question, answered on a sheet. Resolves true / { how, note } for yes,
 // null for no or a close. choices: [[value, words]]; the first is picked.
 let askResolve = null;
@@ -6316,8 +6347,8 @@ async function confirmThenAdd(c) {
   $("confirm-num").textContent = numberLabel(c) || "—";
   $("confirm-set").textContent = (c.set && c.set.name) || "—";
   openSheet("confirm-sheet");
-  const a = await setAbbr(c.set && c.set.id);
-  if (confirmFor === c) $("confirm-abbr").textContent = a || "(none printed)";
+  const a = await setAbbr(c.set && c.set.id, c.lang);
+  if (confirmFor === c) $("confirm-abbr").textContent = a || (c.lang && c.lang !== "en" ? "—" : "(none printed)");
 }
 $("confirm-stamp-chips").addEventListener("click", e => {
   const b = e.target.closest("[data-stamp]");
