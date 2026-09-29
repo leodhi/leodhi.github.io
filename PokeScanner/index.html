@@ -964,6 +964,12 @@
     <h3>Is this the one in your hand?</h3>
     <p class="sheet-sub">Look at the bottom of your card. The set's letters and the number there should match these.</p>
     <div class="fact-grid"><div class="fact"><div class="k">Set letters</div><div class="v" id="confirm-abbr">—</div></div><div class="fact"><div class="k">Number</div><div class="v" id="confirm-num">—</div></div><div class="fact wide"><div class="k">Set</div><div class="v" id="confirm-set">—</div></div></div>
+    <div id="confirm-stamp" class="hide" style="margin-top:14px">
+      <h4 style="margin:0 0 4px">Anything stamped in the bottom corner?</h4>
+      <p class="sheet-sub" style="margin:0 0 8px">This card also came in Battle Academy boxes, with a small Pokémon and a number printed in the bottom corner. Tap what yours has.</p>
+      <div class="chips" id="confirm-stamp-chips"></div>
+      <div class="field-note" id="confirm-stamp-note" style="margin-top:6px"></div>
+    </div>
     <div class="sheet-actions">
       <button type="button" class="btn-save" id="confirm-yes">Yes — add it</button>
       <button type="button" class="btn-plain" id="confirm-no">No — show the other printings</button>
@@ -3196,6 +3202,7 @@ function tileHtml(c, extra) {
     <div class="t-sub">${escapeHtml((c.set && c.set.name) || "")}${(c.year || (c.year = yearOf(c))) ? " · " + c.year : ""} · <span class="t-num">${escapeHtml(numberLabel(c))}</span></div>
     <div class="t-kind">${cardMark(c, 30)}<span>${escapeHtml(kindWithFinish(c, extra && extra.finish))}</span></div>
     ${c.rarity && !/^(common|uncommon|rare)$/i.test(c.rarity) && !kindWords(c).toLowerCase().includes(c.rarity.toLowerCase()) ? `<div class="t-rarity">${escapeHtml(c.rarity)}</div>` : ""}
+    ${extra && extra.stamp ? `<div class="t-rarity">${escapeHtml(stampLabel(extra.stamp).split(" · ")[0])}</div>` : ""}
     ${ypNote(c) ? `<div class="art-note">${escapeHtml(ypNote(c))}</div>` : ""}
     ${extra && extra.priceSlot ? `<div class="t-row t-pslot" data-price-for="${escapeAttr(c.id)}">${tilePriceInner(c)}</div>` : priceText ? `<div class="t-row"><span class="t-price">${priceText}</span><span class="t-sub" style="margin:0">${fake ? "fake — counts as $0" : "market today"}${extra && Number(extra.qty) > 1 ? " · ×" + Number(extra.qty) : ""}</span></div>` : ""}
     ${who && (!extra || !extra.noCtl) ? `<div class="t-ctl"><button type="button" class="plus" data-tile-plus="${escapeAttr(c.id)}" aria-label="Add one">+</button><button type="button" class="minus" data-tile-minus="${escapeAttr(c.id)}" aria-label="One fewer" ${have ? "" : "disabled"}>−</button><button type="button" class="sold" data-tile-sold="${escapeAttr(c.id)}" aria-label="Sold" ${have ? "" : "disabled"}>💰</button></div>` : ""}
@@ -4887,6 +4894,21 @@ function familyHint(c) {
 // The finish you hold -- Regular, Holo, Reverse holo -- kept on your entry;
 // its own market price becomes the card's price for you.
 function entryFinish(c) { const e = who ? entryFor(c.id, who) : null; return e ? finishName(e.finish || "") : ""; }
+function entryStamp(c) { const e = who ? entryFor(c.id, who) : null; return e ? e.stamp || "" : ""; }
+// Which Battle Academy stamp is on yours (Moshe). Not in your cards yet: kept
+// for the add, the same way the finish is.
+function setEntryStamp(c, stamp) {
+  const e = who ? entryFor(c.id, who) : null;
+  if (!e) { pendingStamp = stamp; renderCardSheet(c, false); return; }
+  if ((e.stamp || "") === stamp) return;
+  const before = state.cards[e.id], after = { ...before };
+  if (stamp) after.stamp = stamp; else delete after.stamp;
+  pushAction({ label: c.name + (stamp ? " has the " + stampLabel(stamp).split(" · ")[0] : " has no stamp"), undo: [{ field: "cards", id: e.id, value: before }], redo: [{ field: "cards", id: e.id, value: after }] });
+  state.cards[e.id] = after;
+  saveEntry("cards", e.id, after);
+  renderAll();
+  renderCardSheet(c, false);
+}
 function setEntryFinish(c, finish) {
   const e = who ? entryFor(c.id, who) : null;
   finish = finishName(finish);
@@ -5254,6 +5276,7 @@ function renderCardSheet(c, loading) {
         ${fakeHoldersHtml(c.id)}
         ${who ? holdersOther(c.id).map(n => `<button type="button" class="pill-btn" data-trade-ask="${escapeAttr(n)}" style="margin-top:8px;margin-right:6px">Ask ${escapeHtml(n)} to trade it</button>`).join("") : ""}
         ${rows.length > 1 ? `<div class="chips" id="finish-chips" style="margin-top:8px">${rows.map(r => `<button type="button" class="chip${sameFinish(entryFinish(c) || pendingFinish || pickFinish || rows[0].finish, r.finish) ? " on" : ""}" data-finish="${escapeAttr(r.finish)}">${escapeHtml(r.finish)}${r.marketPrice ? " · " + money(r.marketPrice) : ""}</button>`).join("")}</div><div class="field-note" style="margin-top:4px">Which one is yours? A shiny picture is holo; a shiny frame with a plain picture is reverse holo.</div>` : ""}
+        ${baStamps(c).length ? `<div class="field-note" style="margin-top:10px"><b>Bottom corner:</b> a small Pokémon and a number printed there means a Battle Academy copy. Which is yours?</div><div class="chips" id="stamp-chips" style="margin-top:6px">${stampChipsHtml(c, entryStamp(c) || pendingStamp, "data-stamp")}</div>` : ""}
         <div class="hero-price${headline ? "" : " none"}">${headline ? money(headline) + (mine ? `<small style="display:block;margin:2px 0 0">market price · ${escapeHtml(mine.finish.toLowerCase())}</small>` : "<small>market price</small>") : (loading ? "Fetching the price…" : "No store price")}</div>
         <div class="hero-ctl">
           <button type="button" class="plus" id="hero-plus" aria-label="Add one to my cards">+</button>
@@ -5327,6 +5350,11 @@ function renderCardSheet(c, loading) {
     closeSheet("card-sheet");
     startTrade(other, theirs ? theirs[0] : null);
   }));
+  const sc = $("stamp-chips");
+  if (sc) sc.addEventListener("click", e => {
+    const b = e.target.closest("[data-stamp]");
+    if (b) setEntryStamp(c, b.dataset.stamp);
+  });
   const fc = $("finish-chips");
   if (fc) fc.addEventListener("click", e => {
     const b = e.target.closest("[data-finish]");
@@ -6105,12 +6133,58 @@ function answerAsk(ok) {
 $("ask-chips").addEventListener("click", e => { const b = e.target.closest("[data-ask]"); if (!b) return; $("ask-chips").querySelectorAll(".chip").forEach(x => x.classList.toggle("on", x === b)); });
 $("ask-yes").addEventListener("click", () => answerAsk(true));
 $("ask-no").addEventListener("click", () => answerAsk(false));
+// =========================================================================
+// BATTLE ACADEMY STAMPS
+// =========================================================================
+// Moshe, 2026-09-28: "Fusion strike Shauna has multiple different arts. It
+// has different Pokemon and numbers In the corner. All cards like this should
+// ask me what I have." Those are Battle Academy copies: the three boxes
+// (the first one, 2022 and 2024) reprinted ordinary cards with the deck's
+// Pokémon and the card's place in that deck stamped in the bottom corner --
+// Shauna 240/264 alone comes as Pikachu #24, #50, #59, Cinderace #21, #50,
+// #59 and Eevee. Neither card database has them, so the list is built in.
+// Source: TCGplayer's own card search, read 2026-09-29 (its three Battle
+// Academy sets, 421 products: 299 cards, the basic energies and sealed boxes
+// left out), each matched to the database's set and number by name. TCGplayer
+// prints the wrong set size on a few 2024 cards (Potion "188/192"); those were
+// matched by name and number inside Scarlet & Violet instead. The last figure
+// is TCGplayer's market price for that stamped copy on the day it was read.
+// Key: set id / number without leading zeros. Value: [box, deck, stamp number
+// (0 = none printed on TCGplayer's listing), price].
+const BA_BOXES = ["", "Battle Academy (the first box)", "Battle Academy 2022", "Battle Academy 2024"];
+const BA_PRICED = "Sept 2026";
+const BA_STAMPS = {"sm3/18":[[1,"Charizard",1,0.67],[1,"Charizard",16,0.46],[1,"Charizard",42,0.57],[1,"Charizard",56,0.54]],"sm7.5/55":[[1,"Charizard",4,0.41],[1,"Charizard",53,0.33]],"sm11/34":[[1,"Charizard",7,0.26],[1,"Charizard",23,0.35],[1,"Charizard",49,0.24]],"sm5/25":[[1,"Charizard",13,0.12],[1,"Charizard",18,0.16],[1,"Charizard",31,0.21]],"sm1/127":[[1,"Charizard",14,0.15],[1,"Charizard",37,0.17],[1,"Mewtwo",0,0.14],[1,"Pikachu",20,0.09],[1,"Pikachu",40,0.28]],"sm115/8":[[1,"Charizard",15,0.33],[1,"Charizard",30,0.31],[1,"Charizard",51,0.63]],"sm5/119":[[1,"Charizard",21,0.47],[1,"Charizard",50,0.44],[1,"Charizard",59,0.4],[1,"Mewtwo",0,0.35],[1,"Pikachu",24,0.44],[1,"Pikachu",50,0.33],[1,"Pikachu",59,0.38]],"sm10/189":[[1,"Charizard",25,0.59]],"sm115/49":[[1,"Charizard",26,0.97],[1,"Charizard",36,1.12],[1,"Mewtwo",0,0.69]],"smp/SM186":[[1,"Charizard",27,1.02],[1,"Charizard",44,1.33]],"sm1/120":[[1,"Charizard",28,0.12],[1,"Charizard",41,0.13],[1,"Charizard",52,0.12],[1,"Charizard",57,0.14],[1,"Mewtwo",0,0.13],[1,"Pikachu",13,1.07],[1,"Pikachu",33,2.28],[1,"Pikachu",42,0.09],[1,"Pikachu",54,0.09]],"sm1/119":[[1,"Charizard",33,0.21],[1,"Charizard",43,0.17],[1,"Charizard",48,0.19],[1,"Charizard",55,0.19],[1,"Mewtwo",0,0.23],[1,"Pikachu",29,0.21],[1,"Pikachu",38,0.25],[1,"Pikachu",49,0.19],[1,"Pikachu",57,0.21]],"sm11/189":[[1,"Charizard",34,0.09],[1,"Charizard",47,0.2],[1,"Mewtwo",0,0.15],[1,"Pikachu",26,0.53],[1,"Pikachu",44,0.15],[1,"Pikachu",46,0.13],[1,"Pikachu",51,0.17]],"sm7.5/3":[[1,"Charizard",39,7.35]],"sm1/132":[[1,"Charizard",40,0.16],[1,"Charizard",58,0.12],[1,"Mewtwo",0,0.26],[1,"Pikachu",36,0.4],[1,"Pikachu",52,0.32]],"sm5/133":[[1,"Charizard",45,0.4],[1,"Pikachu",28,0.28]],"sm8/38":[[1,"Charizard",46,1.15]],"sm1/126":[[1,"Charizard",54,0.3],[1,"Mewtwo",0,0.22]],"sm115/9":[[1,"Charizard",60,14.54]],"sm115/50":[[1,"Mewtwo",0,3.07]],"sm8/89":[[1,"Mewtwo",0,1.29]],"sm115/32":[[1,"Mewtwo",0,3.33]],"sm115/31":[[1,"Mewtwo",0,10.13]],"sm11/97":[[1,"Mewtwo",0,0.31]],"sm8/105":[[1,"Mewtwo",0,0.2]],"sm11/84":[[1,"Mewtwo",0,0.38]],"sm11/87":[[1,"Mewtwo",0,0.27]],"sm8/81":[[1,"Pikachu",1,0.2],[1,"Pikachu",19,0.17],[1,"Pikachu",45,0.16]],"sm115/19":[[1,"Pikachu",2,3.53],[1,"Pikachu",15,2.97],[1,"Pikachu",30,3.17],[1,"Pikachu",55,5.11]],"sm115/46":[[1,"Pikachu",5,0.56],[1,"Pikachu",47,0.72]],"sm5/43":[[1,"Pikachu",6,0.22],[1,"Pikachu",41,0.19],[1,"Pikachu",58,0.18]],"sm11/164":[[1,"Pikachu",14,0.32],[1,"Pikachu",37,0.36]],"sm9/45":[[1,"Pikachu",16,0.29],[1,"Pikachu",23,0.25]],"smp/SM65":[[1,"Pikachu",25,1.18],[1,"Pikachu",56,1.15]],"sm3/43":[[1,"Pikachu",32,0.4],[1,"Pikachu",53,0.37]],"sm8/172":[[1,"Pikachu",34,0.56]],"sm115/20":[[1,"Pikachu",60,2.81]],"swsh8/46":[[2,"Cinderace",1,0.15],[2,"Cinderace",14,0.11],[2,"Cinderace",17,0.12],[2,"Cinderace",56,0.12]],"swsh3.5/7":[[2,"Cinderace",4,0.16],[2,"Cinderace",53,0.23]],"swsh8/30":[[2,"Cinderace",7,0.28],[2,"Cinderace",23,0.28]],"swsh8/29":[[2,"Cinderace",13,0.28],[2,"Cinderace",18,0.28],[2,"Cinderace",31,0.29]],"swsh8/49":[[2,"Cinderace",15,0.12],[2,"Cinderace",30,0.12],[2,"Cinderace",51,0.13]],"swsh6/23":[[2,"Cinderace",19,0.22],[2,"Cinderace",36,0.14],[2,"Cinderace",46,0.16]],"swsh8/240":[[2,"Cinderace",21,0.17],[2,"Cinderace",50,0.06],[2,"Cinderace",59,0.17],[2,"Eevee",0,0.11],[2,"Pikachu",24,0.13],[2,"Pikachu",50,0.13],[2,"Pikachu",59,0.3]],"swsh1/160":[[2,"Cinderace",25,0.12],[2,"Cinderace",37,0.19]],"swsh6/24":[[2,"Cinderace",27,0.27],[2,"Cinderace",44,0.2]],"swsh1/165":[[2,"Cinderace",28,0.11],[2,"Cinderace",41,0.08],[2,"Cinderace",52,0.09],[2,"Cinderace",57,0.08],[2,"Eevee",0,0.11],[2,"Pikachu",13,0.13],[2,"Pikachu",33,0.09],[2,"Pikachu",42,0.11],[2,"Pikachu",54,0.07]],"swsh1/164":[[2,"Cinderace",33,0.13],[2,"Cinderace",43,0.1],[2,"Cinderace",48,0.19],[2,"Cinderace",55,0.09],[2,"Eevee",0,0.21],[2,"Pikachu",29,0.16],[2,"Pikachu",38,0.13],[2,"Pikachu",49,0.14],[2,"Pikachu",57,0.09]],"swsh8/226":[[2,"Cinderace",34,0.1],[2,"Cinderace",47,0.11],[2,"Eevee",0,0.15],[2,"Pikachu",26,0.1],[2,"Pikachu",46,0.1]],"swsh1/29":[[2,"Cinderace",39,0.21]],"swsh1/183":[[2,"Cinderace",40,0.12],[2,"Cinderace",58,0.1],[2,"Eevee",0,0.26],[2,"Pikachu",36,0.11],[2,"Pikachu",52,0.1]],"swsh1/177":[[2,"Cinderace",42,0.12],[2,"Pikachu",18,0.11],[2,"Pikachu",40,0.07]],"swsh2/167":[[2,"Cinderace",45,0.15],[2,"Eevee",0,0.3],[2,"Pikachu",51,0.18]],"swsh1/175":[[2,"Cinderace",49,0.13],[2,"Cinderace",54,0.13]],"swsh8/43":[[2,"Cinderace",60,0.7]],"swshp/SWSH065":[[2,"Eevee",0,5.56]],"swsh8/167":[[2,"Eevee",0,0.39]],"swsh8/170":[[2,"Eevee",0,0.22]],"swshp/SWSH193":[[2,"Eevee",0,0.27]],"swsh8/171":[[2,"Eevee",0,0.2]],"swsh8/163":[[2,"Eevee",0,0.19]],"swsh3/165":[[2,"Eevee",0,0.15]],"swsh3.5/36":[[2,"Eevee",0,0.14]],"swsh3.5/35":[[2,"Eevee",0,0.15]],"swsh8/228":[[2,"Eevee",0,0.22]],"swsh8/162":[[2,"Eevee",0,0.18]],"swsh1/74":[[2,"Pikachu",1,0.31],[2,"Pikachu",58,0.4]],"swsh4/53":[[2,"Pikachu",2,0.17],[2,"Pikachu",15,0.19],[2,"Pikachu",30,0.16],[2,"Pikachu",55,0.16]],"swsh8/102":[[2,"Pikachu",5,0.26]],"swsh8/91":[[2,"Pikachu",6,0.18],[2,"Pikachu",20,0.31],[2,"Pikachu",41,0.2],[2,"Pikachu",45,0.21]],"swsh8/92":[[2,"Pikachu",14,0.22],[2,"Pikachu",37,0.16],[2,"Pikachu",53,0.18]],"swsh1/76":[[2,"Pikachu",16,0.19]],"swsh8/109":[[2,"Pikachu",23,0.44]],"swsh4/54":[[2,"Pikachu",25,0.17],[2,"Pikachu",34,0.14],[2,"Pikachu",56,0.14]],"swsh8/93":[[2,"Pikachu",28,0.24],[2,"Pikachu",47,0.26]],"swsh5/124":[[2,"Pikachu",32,0.24]],"swsh2/154":[[2,"Pikachu",44,0.48]],"swsh4/43":[[2,"Pikachu",60,5.25]],"sv04/23":[[3,"Armarouge",1,0.23],[3,"Armarouge",14,0.21],[3,"Armarouge",17,0.25],[3,"Armarouge",42,0.2]],"sv01/35":[[3,"Armarouge",4,0.16],[3,"Armarouge",53,0.15]],"sv01/33":[[3,"Armarouge",7,0.17],[3,"Armarouge",21,0.16],[3,"Armarouge",39,0.16]],"sv02/39":[[3,"Armarouge",13,0.22],[3,"Armarouge",19,0.25],[3,"Armarouge",56,0.25]],"sv02/36":[[3,"Armarouge",15,0.19],[3,"Armarouge",30,0.18],[3,"Armarouge",51,0.19]],"sv01/198":[[3,"Armarouge",18,0.15],[3,"Armarouge",50,0.14],[3,"Armarouge",59,0.15],[3,"Darkrai",0,0.08],[3,"Pikachu",21,0.21],[3,"Pikachu",50,0.14],[3,"Pikachu",59,0.16]],"sv01/34":[[3,"Armarouge",23,0.23],[3,"Armarouge",27,0.21]],"sv01/188":[[3,"Armarouge",25,0.16],[3,"Armarouge",37,0.17],[3,"Darkrai",0,0.13],[3,"Pikachu",15,0.15],[3,"Pikachu",18,0.15]],"sv01/180":[[3,"Armarouge",28,0.16],[3,"Armarouge",41,0.16],[3,"Armarouge",52,0.14],[3,"Armarouge",57,0.15],[3,"Darkrai",0,0.14],[3,"Pikachu",13,0.14],[3,"Pikachu",33,0.14],[3,"Pikachu",42,0.19],[3,"Pikachu",54,0.14]],"sv03/40":[[3,"Armarouge",31,0.26],[3,"Armarouge",44,0.24]],"svp/114":[[3,"Armarouge",34,0.21],[3,"Armarouge",47,0.26],[3,"Darkrai",0,0.19],[3,"Pikachu",26,0.22],[3,"Pikachu",46,0.21]],"sv01/38":[[3,"Armarouge",36,0.24]],"sv01/194":[[3,"Armarouge",40,0.17],[3,"Armarouge",58,0.12],[3,"Darkrai",0,0.16],[3,"Pikachu",36,0.16],[3,"Pikachu",52,0.2]],"sv02/183":[[3,"Armarouge",43,0.18],[3,"Armarouge",48,0.19],[3,"Armarouge",55,0.17],[3,"Darkrai",0,0.14],[3,"Pikachu",38,0.15],[3,"Pikachu",49,0.2],[3,"Pikachu",57,0.17]],"sv01/181":[[3,"Armarouge",45,0.46],[3,"Darkrai",0,0.46],[3,"Pikachu",44,0.62]],"sv03/41":[[3,"Armarouge",46,0.19]],"sv01/175":[[3,"Armarouge",49,0.31],[3,"Darkrai",0,0.48],[3,"Pikachu",51,0.38]],"sv04/167":[[3,"Armarouge",54,0.17]],"svp/112":[[3,"Darkrai",0,0.31]],"svp/111":[[3,"Darkrai",0,0.2]],"svp/113":[[3,"Darkrai",0,0.56]],"sv02/172":[[3,"Darkrai",0,1.3]],"sv03/139":[[3,"Darkrai",0,0.16]],"sv03/140":[[3,"Darkrai",0,0.16]],"sv04/118":[[3,"Darkrai",0,0.19]],"sv02/137":[[3,"Darkrai",0,0.15]],"sv01/164":[[3,"Darkrai",0,0.15]],"sv02/66":[[3,"Pikachu",1,0.18],[3,"Pikachu",30,0.16],[3,"Pikachu",34,0.15],[3,"Pikachu",55,0.17]],"svp/107":[[3,"Pikachu",2,1.08],[3,"Pikachu",19,0.36],[3,"Pikachu",41,0.73],[3,"Pikachu",45,0.46]],"svp/108":[[3,"Pikachu",5,2.23],[3,"Pikachu",37,0.59],[3,"Pikachu",53,0.67]],"sv02/67":[[3,"Pikachu",6,0.19],[3,"Pikachu",25,0.18],[3,"Pikachu",56,0.16]],"sv01/69":[[3,"Pikachu",14,0.18]],"sv01/77":[[3,"Pikachu",17,0.16],[3,"Pikachu",58,0.13]],"svp/148":[[3,"Pikachu",23,1.92]],"svp/109":[[3,"Pikachu",28,2.91],[3,"Pikachu",47,4.17]],"sv01/170":[[3,"Pikachu",32,0.16]],"sv02/82":[[3,"Pikachu",40,0.15]]};
+function baKey(c) {
+  if (!c || c.game === "ygo") return "";
+  const sid = String((c.set && c.set.id) || "").replace(/^sv(\d)$/, "sv0$1");
+  const lid = String(c.localId || "").replace(/^0+(?=.)/, "");
+  return sid && lid ? sid + "/" + lid : "";
+}
+function baStamps(c) { return BA_STAMPS[baKey(c)] || []; }
+const baId = st => st[0] + ":" + st[1] + ":" + st[2];
+// TCGplayer lists a few (the Eevee and Mewtwo decks) without the number.
+function baWords(st) { return st[1] + (st[2] ? " #" + st[2] : " (any number)"); }
+// The label My cards shows, from what the entry saved.
+function stampLabel(id) {
+  const [y, deck, n] = String(id || "").split(":");
+  return deck ? deck + (Number(n) ? " #" + n : "") + " stamp" + (BA_BOXES[y] ? " · " + BA_BOXES[y] : "") : "";
+}
+function stampChipsHtml(c, current, attr) {
+  return `<button type="button" class="chip${current ? "" : " on"}" ${attr}="">Nothing there</button>`
+    + baStamps(c).map(st => `<button type="button" class="chip${current === baId(st) ? " on" : ""}" ${attr}="${escapeAttr(baId(st))}">${escapeHtml(baWords(st))}<small style="opacity:.7;margin-left:6px">${st[0] === 1 ? "first box" : BA_BOXES[st[0]].slice(-4)}${st[3] ? " · " + money(st[3]) : ""}</small></button>`).join("");
+}
+let pendingStamp = "";
 let confirmFor = null;
 async function confirmThenAdd(c) {
   if (!who) { openWho(); return; }
   const existing = entryFor(c.id, who);
   if (existing || c.game === "ygo") { addCard(c); return; }   // another of the same, or a game without set letters: no question
   confirmFor = c;
+  const stamps = baStamps(c);
+  if (!stamps.some(st => baId(st) === pendingStamp)) pendingStamp = "";
+  $("confirm-stamp").classList.toggle("hide", !stamps.length);
+  $("confirm-stamp-chips").innerHTML = stamps.length ? stampChipsHtml(c, pendingStamp, "data-stamp") : "";
+  $("confirm-stamp-note").textContent = stamps.length ? "Prices on the stamped ones are TCGplayer's from " + BA_PRICED + "." : "";
   $("confirm-abbr").textContent = "…";
   $("confirm-num").textContent = numberLabel(c) || "—";
   $("confirm-set").textContent = (c.set && c.set.name) || "—";
@@ -6118,9 +6192,16 @@ async function confirmThenAdd(c) {
   const a = await setAbbr(c.set && c.set.id);
   if (confirmFor === c) $("confirm-abbr").textContent = a || "(none printed)";
 }
+$("confirm-stamp-chips").addEventListener("click", e => {
+  const b = e.target.closest("[data-stamp]");
+  if (!b) return;
+  pendingStamp = b.dataset.stamp;
+  $("confirm-stamp-chips").querySelectorAll(".chip").forEach(x => x.classList.toggle("on", x === b));
+});
 $("confirm-yes").addEventListener("click", () => { const c = confirmFor; confirmFor = null; closeSheet("confirm-sheet"); if (c) addCard(c); });
 $("confirm-no").addEventListener("click", () => {
   const c = confirmFor; confirmFor = null; closeSheet("confirm-sheet");
+  pendingStamp = "";
   if (!c) return;
   closeSheet("card-sheet");
   setTab("find");
@@ -6164,10 +6245,12 @@ function addCardNow(c) {
   // screen, which stays picked for the next card added from the same list.
   const finish = finishName(pendingFinish || pickFinish || (rows.length > 1 ? rows[0].finish : ""));
   pendingFinish = "";
+  const stamp = baStamps(c).some(st => baId(st) === pendingStamp) ? pendingStamp : "";
+  pendingStamp = "";
   const snap = snapshotOf(c);
   const frow = rows.find(r => sameFinish(r.finish, finish));
   if (frow && (frow.marketPrice || frow.midPrice)) snap.price = frow.marketPrice || frow.midPrice;
-  const after = { who, cardId: c.id, qty: 1, fav: false, order: nextOrder(), addedAt: Date.now(), finish, snap };
+  const after = { who, cardId: c.id, qty: 1, fav: false, order: nextOrder(), addedAt: Date.now(), finish, snap, ...(stamp ? { stamp } : {}) };
   pushAction({ label: "Added " + c.name, undo: [{ field: "cards", id, value: null }], redo: [{ field: "cards", id, value: after }] });
   state.cards[id] = after; // draw it now; the write confirms it
   saveEntry("cards", id, after);
@@ -6392,7 +6475,7 @@ function renderMine() {
     return;
   }
   if (!list.length) { delete root.dataset.drawn; root.innerHTML = `<div class="status-line">Nothing matches that.</div>`; if (trashed.length) root.appendChild(buildTrashBlock(trashed)); return; }
-  const gridHtml = `<div class="grid" id="mine-grid">${list.map(c => tileHtml(snapAsCard(c.cardId), { entryId: c.id, fav: c.fav, qty: c.qty, addedAt: c.addedAt, runningTotal: c.runningTotal, finish: c.finish, fake: !!c.fake })).join("")}</div>`;
+  const gridHtml = `<div class="grid" id="mine-grid">${list.map(c => tileHtml(snapAsCard(c.cardId), { entryId: c.id, fav: c.fav, qty: c.qty, addedAt: c.addedAt, runningTotal: c.runningTotal, finish: c.finish, stamp: c.stamp || "", fake: !!c.fake })).join("")}</div>`;
   // Nothing on screen changed (another save came in, or a price stayed the
   // same): leave the tiles alone, so the pictures don't blank and reload.
   const drawn = gridHtml + "|" + person + "|" + $("mine-sort").value + "|" + trashed.map(c => c.id + (c.deletedAt || "")).join(",");
@@ -6814,6 +6897,7 @@ function takeKeysFromLink() {
 // not seen yet, once. (Asked for: "when I go back on, it will say this was
 // updated, and who asked to update it.")
 const CHANGES = [
+  { id: 44, date: "2026-09-29", by: "Moshe", what: "Battle Academy cards: when you add a card that also came in a Battle Academy box (like Shauna from Fusion Strike), it asks what's stamped in the bottom corner — nothing, or which Pokémon and number (Pikachu #24, Cinderace #50…). My cards shows the stamp, and you can change it on the card's page." },
   { id: 46, date: "2026-09-28", by: "Moshe", what: "Taking a card out of your collection asks how it left: sold, traded, gave away, lost, damaged or something else, with a note if you want. The answer shows in Recently deleted. A card added in the last minute comes straight out with no question, and Undo still puts it back." },
   { id: 45, date: "2026-09-28", by: "Moshe", what: "Mark a card Fake on its page (Is this card real? Real / Fake). A fake card shows FAKE, counts as $0.00 in every total and on the trade gauge, and anyone about to ask for it in a trade is warned first." },
   { id: 43, date: "2026-09-28", by: "Lew", what: "When a request doesn't reach Dad's phone, the person who asked now sees it in red under their request with a Try again button (it also tries by itself every 10 minutes while the app is open), and Dad's list says \"never reached your phone\". The free notification service allows only so many messages a day from one home Wi-Fi, and the house Mac uses the same one, so it ran out tonight at 6:59 PM. Anything still waiting is also sent from elsewhere once a day, at 10 AM." },
