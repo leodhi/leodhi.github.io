@@ -113,6 +113,7 @@
   }
   .pill-btn:not(:disabled):active { transform: scale(0.94); border-color: var(--accent); color: var(--accent); }
   .pill-btn:disabled { opacity: 0.4; cursor: default; }
+  #btn-letin:disabled { opacity: 0.5; cursor: default; }
   .undo-what { font-size: calc(11.5px * var(--scale, 1)); color: var(--ink-faint); flex-basis: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
   .money-chip { border-color: rgba(52,199,89,0.5); color: var(--ok); max-width: none; flex: none; }
@@ -822,6 +823,12 @@
       </div>
       <div style="text-align:center;"><button class="link" id="btn-reset" type="button">Forgot password?</button></div>
       <div class="status-line" id="signin-status"></div>
+      <div id="letin-box" class="hide">
+        <label for="letin-name">Your name, the way the family knows you</label>
+        <input type="text" id="letin-name" maxlength="30" autocomplete="given-name" placeholder="First name">
+        <button class="btn" id="btn-letin" type="button" style="margin-top:10px;">Ask to be let in</button>
+        <div class="field-note" id="letin-status" role="status" aria-live="polite"></div>
+      </div>
     </div>
   </div>
 
@@ -1352,6 +1359,9 @@ import { askWithCost as askLLMWithCost, listModels as listLlmModels, GEMINI_DEFA
 // Idea 732: which AI answered and what it cost, shown under each answer and
 // counted in this browser. Every use is failure-safe: cost never stops an answer.
 import { noteAnswer, showLine } from "https://leodhi.github.io/claude/ai-cost.js";
+// Idea 1205: asks answered from the owner's notice (be let in, use ChatGPT) -- sealed, sent to the
+// house Mac, which puts Yes / No on the owner's phone; the answer comes back here.
+import { sendAsk, watchAnswer, loadPending, forgetPending } from "https://leodhi.github.io/claude/ask-owner.js";
 // Moshe 2026-09-28: Grid / List / Big views, and the card beside the list on an iPad (pokescan-views.js).
 import { setupViews } from "./pokescan-views.js";
 // Moshe 2026-09-28: Minecraft Dungeons Arcade cards -- rarity, full sets and trades, never prices (pokescan-mcd.js, mcd-cards.json).
@@ -1584,6 +1594,7 @@ let currentUser = null;
 function newId() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
 
 let pendingDeniedMessage = null;
+let letInSignin = null;
 let askedHowLong = false;
 // Who is allowed: whoever claimed it first, plus anyone whose (verified)
 // email the owner added -- exactly what the Firestore rule enforces. This
@@ -1602,7 +1613,10 @@ async function refuseAccess(user, data) {
     try { await sendEmailVerification(user); } catch (e) {}
     pendingDeniedMessage = "Almost there — verify your email first. A link was just sent to " + user.email + "; open it, then sign in again.";
   } else {
-    pendingDeniedMessage = "You're signed in as " + user.email + ", and that address hasn't been added to this family's Poké Scan yet. Ask whoever set it up to add you in Options.";
+    pendingDeniedMessage = "You're signed in as " + user.email + ", and that address hasn't been added to this family's Poké Scan yet. Ask whoever set it up to add you — you can ask right here, below.";
+    // Idea 1205: the sign-in is kept (in memory, for this visit only) so "Ask to be let in" can
+    // prove to the house Mac who is asking; it runs out by itself within the hour.
+    try { letInSignin = { token: await user.getIdToken(), at: Date.now() }; } catch (e) { letInSignin = null; }
   }
   try { await signOut(authClient); } catch (e) { showScreen("signin"); }
 }
@@ -1628,6 +1642,7 @@ onAuthStateChanged(authClient, async user => {
     setStatus("signin-status", msg, !!msg);
     pendingDeniedMessage = null;
     stickySigninMessage = null;
+    safely("letin", renderLetIn);
     return;
   }
   try { window.appOpen && window.appOpen.noteWho(user, user.displayName || null); } catch (e) {}
@@ -1665,6 +1680,7 @@ onAuthStateChanged(authClient, async user => {
     safely("keys", takeKeysFromLink);
     safely("approve", takeApproveFromLink);
     safely("resend", () => { resendUnpushedRequests(); });
+    safely("asks", resumeAsks);
     if (!askedHowLong) { askedHowLong = true; safely("timer", askHowLong); }
   }, err => {
     if (/permission|insufficient/i.test(err && err.message ? err.message : "")) {
@@ -2688,6 +2704,8 @@ async function askForChatgpt() {
   state.settings = { ...state.settings, chatgptAsked: asked };
   save({ settings: { chatgptAsked: asked } });
   renderGeminiLine();
+  // Idea 1205: through the house Mac first -- Yes and No right on the owner's notice.
+  if (await askChatgptFromNotice()) return true;
   const pushed = await pushToOwner("Poké Scan: " + who + " asks to use ChatGPT",
     who + " would like to use ChatGPT to read cards and answer questions. It costs a little money each time. Open Poké Scan, Options, and tap \"Asked for ChatGPT\" next to " + who + " to allow it for an hour, a day, a week or always.");
   return pushed;
@@ -3647,7 +3665,7 @@ async function rereadShot(shot) {
     if (e.readerTried) lastFailedShot = shot;
     aiLine(document.querySelector("#scanned .scanned-text"), e && e.aiCost);
     const ab = $("btn-ask-chatgpt");
-    if (ab) ab.addEventListener("click", () => { askForChatgpt(); ab.replaceWith(Object.assign(document.createElement("span"), { textContent: " Asked — " + ownerWord() + " gets a notification and sees it in Options." })); });
+    if (ab) ab.addEventListener("click", () => { askForChatgpt(); ab.replaceWith(Object.assign(document.createElement("span"), { textContent: " Asked — it's on " + ownerWord() + "'s phone with Yes and No." })); });
   }
 }
 // Groq speaks the OpenAI shape. The picture-reading model is picked off the
@@ -4062,6 +4080,97 @@ $("sets-root").addEventListener("click", e => {
   const mc = e.target.closest(".mc[data-card-id]");
   if (mc) openCard(mc.dataset.cardId);
 });
+
+// =========================================================================
+// ASKS ANSWERED FROM THE OWNER'S NOTICE (idea 1205, 2026-09-29)
+// =========================================================================
+// Two things only the owner can give -- being let into Poké Scan, and using
+// ChatGPT -- are asked for through the house Mac (ask-owner.js): it checks
+// who is asking from their sign-in and puts one line with Yes and No on the
+// owner's phone. His tap is carried out by the Mac, and the answer shows here
+// within the minute. If the Mac can't be reached, ChatGPT falls back to the
+// old push (answered in Options).
+const ASK_APP = "pokescan";
+const ASK_FINAL = p => p && (p.state === "done" || p.state === "failed" || (p.state === "no" && p.kind !== "chatgpt"));
+const LETIN_WORDS = {
+  sent: "Sent. Waiting for it to reach the owner's phone…",
+  slow: "Not heard back from the house Mac yet. It stays sent, and reaches the owner as soon as the Mac picks it up.",
+  asked: "It's on the owner's phone now, with Yes and No on it. Keep this page open or come back later — the answer shows here.",
+  yes: "They said yes! Setting you up — about a minute.",
+  no: "They said no this time.",
+};
+let letInStop = null, letInSlow = null;
+function letInWords(p) {
+  if (p.state === "done") return p.answer === "yes" ? "You're in. Sign in again above." : LETIN_WORDS.no;
+  if (p.state === "failed") return "They said yes, but it didn't go through: " + (p.why || "something went wrong.") + " They've been told.";
+  return LETIN_WORDS[p.state] || LETIN_WORDS.sent;
+}
+function showLetIn(p) {
+  const waiting = !!p && !ASK_FINAL(p);
+  const inNow = !!p && p.state === "done" && p.answer === "yes";
+  setStatus("letin-status", p ? letInWords(p) : "", !!p && p.state === "failed");
+  // Let in: nothing left to ask, so only the words stay (sign in again above).
+  $("btn-letin").classList.toggle("hide", inNow);
+  $("letin-name").classList.toggle("hide", inNow);
+  document.querySelector('label[for="letin-name"]').classList.toggle("hide", inNow);
+  $("btn-letin").disabled = waiting;
+  $("btn-letin").textContent = waiting ? "Asked — waiting for an answer" : "Ask to be let in";
+  $("letin-name").disabled = waiting;
+  if (p && p.name && !$("letin-name").value) $("letin-name").value = p.name;
+  clearTimeout(letInSlow);
+  if (p && p.state === "sent") {
+    letInSlow = setTimeout(() => { if ($("letin-status").textContent === LETIN_WORDS.sent) setStatus("letin-status", LETIN_WORDS.slow); },
+      Math.max(0, 2 * 60000 - (Date.now() - (p.at || Date.now()))));
+  }
+}
+function renderLetIn() {
+  const pending = loadPending(ASK_APP).find(p => p.kind === "letin");
+  const fresh = !!letInSignin && Date.now() - letInSignin.at < 50 * 60000;
+  $("letin-box").classList.toggle("hide", !(fresh || pending));
+  showLetIn(pending || null);
+  if (pending && !letInStop && !ASK_FINAL(pending)) {
+    letInStop = watchAnswer(ASK_APP, pending, p => { showLetIn(p); if (ASK_FINAL(p)) letInStop = null; });
+  }
+}
+$("btn-letin").addEventListener("click", async () => {
+  const name = $("letin-name").value.replace(/\s+/g, " ").trim();
+  if (!name) { $("letin-name").focus(); setStatus("letin-status", "Type your name first.", true); return; }
+  if (!/^[\p{L}\p{N}][\p{L}\p{N} .'-]{0,29}$/u.test(name)) { setStatus("letin-status", "Just your name, please: letters and numbers, up to 30.", true); return; }
+  if (!letInSignin || Date.now() - letInSignin.at > 50 * 60000) { setStatus("letin-status", "Sign in again first (above), then tap Ask to be let in.", true); return; }
+  $("btn-letin").disabled = true; $("btn-letin").textContent = "Sending…";
+  const r = await sendAsk({ app: ASK_APP, kind: "letin", name, token: letInSignin.token });
+  if (!r.ok) { $("btn-letin").disabled = false; $("btn-letin").textContent = "Ask to be let in"; setStatus("letin-status", r.reason, true); return; }
+  if (letInStop) { letInStop(); letInStop = null; }
+  renderLetIn();
+});
+// Someone already in: ChatGPT, asked through the Mac. True when it went.
+let chatgptWatch = null;
+async function askChatgptFromNotice() {
+  if (!currentUser || !who) return false;
+  const r = await sendAsk({ app: ASK_APP, kind: "chatgpt", name: who, user: currentUser });
+  if (r.ok) watchChatgptAsk(r.pending);
+  return r.ok;
+}
+function watchChatgptAsk(pending) {
+  if (chatgptWatch) chatgptWatch();
+  chatgptWatch = watchAnswer(ASK_APP, pending, p => {
+    const boss = ownerName();
+    if (p.state === "asked") showToast("It's on " + boss + "'s phone now, with Yes and No");
+    else if (p.state === "yes") showToast(boss + " said yes — turning ChatGPT on for you");
+    else if (p.state === "no") showToast(boss + " said no to ChatGPT this time");
+    else if (p.state === "done" && p.answer === "yes") showToast("ChatGPT is on for you");
+    else if (p.state === "failed") showToast(boss + " said yes, but it didn't go through. " + boss + " has been told.");
+    if (ASK_FINAL(p)) { forgetPending(ASK_APP, p.id); chatgptWatch = null; }
+  });
+}
+// Once the app has opened: a "let me in" ask has done its job, and a ChatGPT
+// ask still waiting is picked up again (its answer may have come while closed).
+function resumeAsks() {
+  for (const p of loadPending(ASK_APP)) {
+    if (p.kind === "letin") forgetPending(ASK_APP, p.id);
+    else if (p.kind === "chatgpt" && p.name === who && !chatgptWatch) watchChatgptAsk(p);
+  }
+}
 
 // =========================================================================
 // REQUESTS TO THE OWNER
