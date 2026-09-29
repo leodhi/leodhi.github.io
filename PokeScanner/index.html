@@ -1352,6 +1352,10 @@ import { askWithCost as askLLMWithCost, listModels as listLlmModels, GEMINI_DEFA
 // Idea 732: which AI answered and what it cost, shown under each answer and
 // counted in this browser. Every use is failure-safe: cost never stops an answer.
 import { noteAnswer, showLine } from "https://leodhi.github.io/claude/ai-cost.js";
+// Moshe 2026-09-28: Grid / List / Big views, and the card beside the list on an iPad (pokescan-views.js).
+import { setupViews } from "./pokescan-views.js";
+// Moshe 2026-09-28: Minecraft Dungeons Arcade cards -- rarity, full sets and trades, never prices (pokescan-mcd.js, mcd-cards.json).
+import * as MCD from "./pokescan-mcd.js";
 const AI_APP = "Poké Scan (web)";
 async function aiCost(provider, model, body) {
   try { return await noteAnswer({ app: AI_APP, provider, model, body }); } catch (e) { return null; }
@@ -2142,7 +2146,9 @@ async function searchCards(name) {
   const key = game + "|" + lang + "|" + name.trim().toLowerCase();
   if (searchCache.has(key)) return searchCache.get(key);
   let list = [];
-  if (game === "ygo") {
+  if (game === "mcd") {
+    list = await MCD.search(name);
+  } else if (game === "ygo") {
     list = await searchYgo(name);
   } else if (lang === "en" && typeWord(name)) {
     list = await searchByType(typeWord(name));
@@ -2191,6 +2197,7 @@ async function searchSecondSource(name) {
 async function fullCard(id) {
   if (cardCache.has(id)) return cardCache.get(id);
   const brief = results.find(c => c.id === id) || lookBriefs.get(id);
+  if (MCD.isMcdId(id)) { const c = (await MCD.cardById(id)) || brief || snapAsCard(id); cardCache.set(id, c); return c; }
   if (id.startsWith("ptcg:") || id.startsWith("ygo:") || (brief && brief.lang && brief.lang !== "en")) {
     // Nothing more to fetch: the search already brought everything.
     const c = brief || snapAsCard(id);
@@ -2289,12 +2296,14 @@ const YGO_ART = {
 const isYgo = c => !!c && (c.game === "ygo" || String(c.id || "").startsWith("ygo:"));
 // The mark beside a card's finish, everywhere a card shows one.
 function cardMark(c, size) {
+  if (MCD.isMcd(c)) return MCD.mark(c, size);
   if (isYgo(c) && c.kind !== "special") return `<span class="kind-art" style="width:${size || 44}px;height:${size || 44}px">${YGO_ART[c.finish === "holo" ? "holo" : "plain"]}</span>`;
   return kindArt(c.kind, size);
 }
 // Every card wears its full words, never a two-letter code: "Special
 // illustration rare", "Mega EX", "Tag Team GX", "Holo".
 function kindWords(c) {
+  if (MCD.isMcd(c)) return MCD.kindWords(c);
   const bits = [];
   if (c.kind === "EX") bits.push((isMega(c) ? "Mega " : "") + (c.family === "ex" ? "ex" : "EX"));
   else if (c.kind === "trainer") bits.push(c.trainerType ? c.trainerType : "Trainer");
@@ -2359,6 +2368,7 @@ function yearOf(c) {
   return hit && typeof hit === "object" && hit.date ? String(hit.date).slice(0, 4) : "";
 }
 function decorate(c) {
+  if (MCD.isMcd(c)) return MCD.decorate(c);
   if (c.game === "ygo") {
     c.family = ""; c.finish = ygoFinish(c);
     c.kind = c.finish && c.finish !== "holo" ? "special" : "regular";
@@ -2400,7 +2410,7 @@ function imgUrl(c, size) {
 }
 // Make sure the map is there for the fallback; it loads once and is cached.
 setSymbolUrl("").catch(() => {});
-function numberLabel(c) { return c.localId ? (c.localId + (c.total ? "/" + c.total : "")) : ""; }
+function numberLabel(c) { if (MCD.isMcd(c)) return MCD.numberLabel(c); return c.localId ? (c.localId + (c.total ? "/" + c.total : "")) : ""; }
 
 // ---------- Prices from the stores ----------
 // TCGdex carries TCGplayer (USD) and Cardmarket (EUR). Each printing can have
@@ -2921,7 +2931,7 @@ function rankResults(list, hint) {
 
 async function runSearch(q, hint, fromScan) {
   const seq = ++searchSeq;
-  const parsed = parseQuery(q);
+  const parsed = game === "mcd" ? MCD.parseQuery(q) : parseQuery(q);
   const merged = { ...parsed, ...(hint || {}) };
   if (!parsed.name && parsed.year) {
     // A year on its own: every set from that year.
@@ -2952,7 +2962,7 @@ async function runSearch(q, hint, fromScan) {
     bestId = fromScan && results.length && (merged.number || merged.set) ? results[0].id : null;
     // Typing asks the type first; a scan already knows the card, so it
     // shows every printing straight away with a way back to the question.
-    pickStep = (fromScan || game === "ygo") ? "cards" : "type";
+    pickStep = (fromScan || game === "ygo" || game === "mcd") ? "cards" : "type";
     subFilter = "all"; pendingFinish = ""; pickFinish = ""; etypeFilter = ""; yearFilter = "";
     shownQuery = q;
     if (bestId) fullCard(bestId).then(full => noteRecent(full, "scan")).catch(() => {});
@@ -2989,7 +2999,7 @@ function renderPicker() {
   const pk = $("picker"), crumb = $("crumb");
   if (!results.length || pickStep === "cards") { pk.classList.add("hide"); pk.innerHTML = ""; }
   // Yu-Gi-Oh! has no type question (EX, GX… are Pokémon's), so no way back to one.
-  crumb.classList.toggle("hide", !results.length || pickStep !== "cards" || game === "ygo");
+  crumb.classList.toggle("hide", !results.length || pickStep !== "cards" || game === "ygo" || game === "mcd");
   if (!results.length) return;
   const counts = {};
   results.forEach(c => { counts[c.kind] = (counts[c.kind] || 0) + 1; });
@@ -3064,7 +3074,7 @@ $("crumb").addEventListener("click", e => {
 // free database (YGOPRODeck), which carries eBay, TCGplayer, Cardmarket,
 // Amazon and CoolStuffInc prices for every card. Asked for 2026-09-20:
 // "I have Yu-Gi-Oh cards and I want to add them". Other games: ask.
-const GAMES = [["pokemon", "Pokémon"], ["ygo", "Yu-Gi-Oh!"]];
+const GAMES = [["pokemon", "Pokémon"], ["ygo", "Yu-Gi-Oh!"], ["mcd", "Minecraft Dungeons"]];
 let game = "pokemon";
 try { const g = localStorage.getItem("pokescan-game"); if (GAMES.some(x => x[0] === g)) game = g; } catch (e) {}
 function renderGames() {
@@ -3072,7 +3082,8 @@ function renderGames() {
     + `<button type="button" class="chip" id="game-more" style="border-style:dashed">+ Ask for another game</button>`;
   $("langs").classList.toggle("hide", game !== "pokemon");
   if ($("types")) $("types").classList.toggle("hide", game !== "pokemon");
-  $("q").placeholder = game === "ygo" ? "Type a card name — e.g. Blue-Eyes White Dragon" : "Type a name — e.g. Charizard, or Pikachu 25/102";
+  $("q").placeholder = game === "ygo" ? "Type a card name — e.g. Blue-Eyes White Dragon" : game === "mcd" ? "Type a name or number — e.g. Heartstealer, or 61" : "Type a name — e.g. Charizard, or Pikachu 25/102";
+  MCD.onGame(game);
 }
 $("games").addEventListener("click", e => {
   if (e.target.closest("#game-more")) { $("req-text").value = "Please add another card game: "; $("req-text").focus(); $("req-text").scrollIntoView({ behavior: "smooth", block: "center" }); return; }
@@ -3370,6 +3381,7 @@ function tilePriceFor(c) {
   return { price: price || f.h || 0, finish };
 }
 function tilePriceInner(c) {
+  if (MCD.isMcd(c)) return MCD.tileLine(c);   // no prices for Minecraft cards: how rare it is instead
   const got = tilePriceFor(c);
   if (!got) return `<span class="t-price none">Price…</span>`;
   if (got.failed) return `<span class="t-price none">Price didn't load</span>`;
@@ -3409,7 +3421,7 @@ function fillTilePrices(list) {
     }
   };
   const known = c => { const got = tilePriceFor(c); return !!got && !got.failed; };   // one that failed is tried again on the next draw
-  const want = c => { if (!c || queued.has(c.id) || known(c)) return; queued.add(c.id); queue.push(c); pump(); };
+  const want = c => { if (!c || MCD.isMcd(c) || queued.has(c.id) || known(c)) return; queued.add(c.id); queue.push(c); pump(); };
   const slots = [...document.querySelectorAll("#results [data-price-for]")];
   if (typeof IntersectionObserver !== "function") { list.slice(0, 60).forEach(want); return; }
   tilePriceWatch = new IntersectionObserver(entries => {
@@ -4449,17 +4461,18 @@ function tradeCardHtml(t) {
   // trade check below uses the same rule.)
   const share = total ? wTheirs / total : 0.5;
   const pctMine = total ? Math.round((wMine / total - 0.5) * 200) : 0;
-  const evenText = !total ? "Nothing on either side yet" : pctMine === 0 ? "0% and 0% — even" : pctMine > 0 ? me + " gives " + pctMine + "% more" : other + " gives " + (-pctMine) + "% more";
+  const evenText = !total ? ((mine.cards || []).length || (theirs.cards || []).length ? "No money value on either side" : "Nothing on either side yet") : pctMine === 0 ? "0% and 0% — even" : pctMine > 0 ? me + " gives " + pctMine + "% more" : other + " gives " + (-pctMine) + "% more";
   const myTurn = t.status === "open" && t.turn === me;
   const state_ = t.status === "accepted" ? "Done — accepted" : t.status === "declined" ? "Declined" : myTurn ? "Your move" : "Waiting for " + other;
   const sideHtml = (side, name, editable) => `<div class="side"><div class="side-name"><span>${escapeHtml(name)} gives</span><span class="side-worth">${money(tradeWorth(side))}</span></div>
-    ${(side.cards || []).map(id => { const e = state.cards[id]; if (!e || !e.snap) return ""; return `<div class="side-item">${snapPic(e.snap) ? `<img src="${escapeAttr(snapPic(e.snap))}" alt="">` : ""}<span class="si-name">${escapeHtml(e.snap.name)}<br><small>${e.fake ? `<span class="fake-badge">FAKE</span> ${money(0)}` : money(e.snap.price)}</small></span>${editable && t.status === "open" ? `<button type="button" class="si-x" data-trade-drop="${escapeAttr(t.id)}" data-entry="${escapeAttr(id)}" data-side="${name === me ? "mine" : "theirs"}">×</button>` : ""}</div>`; }).join("")}
+    ${(side.cards || []).map(id => { const e = state.cards[id]; if (!e || !e.snap) return ""; return `<div class="side-item">${snapPic(e.snap) ? `<img src="${escapeAttr(snapPic(e.snap))}" alt="">` : ""}<span class="si-name">${escapeHtml(e.snap.name)}<br><small>${e.fake ? `<span class="fake-badge">FAKE</span> ${money(0)}` : MCD.isMcdSnap(e.snap) ? MCD.NO_VALUE : money(e.snap.price)}</small></span>${editable && t.status === "open" ? `<button type="button" class="si-x" data-trade-drop="${escapeAttr(t.id)}" data-entry="${escapeAttr(id)}" data-side="${name === me ? "mine" : "theirs"}">×</button>` : ""}</div>`; }).join("")}
     ${Number(side.money) ? `<div class="side-money">+ ${money(side.money)} cash</div>` : ""}
     ${!(side.cards || []).length && !Number(side.money) ? `<div class="side-empty">nothing yet</div>` : ""}</div>`;
   return `<div class="trade-card${myTurn ? " attention" : ""}" data-trade="${escapeAttr(t.id)}">
     <div class="trade-head"><span class="trade-who">${escapeHtml(me)} ⇄ ${escapeHtml(other)}</span><span class="trade-state${myTurn ? " turn" : ""}">${escapeHtml(state_)}</span></div>
     <div class="gauge"><div class="needle" style="left:${(share * 100).toFixed(1)}%"></div></div>
     <div class="gauge-labels"><span>${escapeHtml(me)} ${money(wMine)}</span><span class="even">${escapeHtml(evenText)}</span><span>${escapeHtml(other)} ${money(wTheirs)}</span></div>
+    ${MCD.tradeNote([...(mine.cards || []), ...(theirs.cards || [])].map(id => (state.cards[id] || {}).snap))}
     <div class="sides">${sideHtml(mine, me, true)}${sideHtml(theirs, other, true)}</div>
     ${t.status === "open" ? `<div class="trade-actions">
       <button type="button" class="pill-btn" data-trade-edit="${escapeAttr(t.id)}" data-which="mine">Change what I give</button>
@@ -4482,7 +4495,7 @@ function openTradeAdd(id, whichSide) {
   $("trade-add-sub").textContent = which === "mine" ? "Your cards and money. Tap a card to put it in or take it out." : person + "'s cards. Tap what you want; add money if you want cash too.";
   $("trade-add-money").value = Number(side.money) ? Number(side.money).toFixed(2) : "";
   const theirCards = Object.entries(state.cards).map(([eid, e]) => ({ eid, ...e })).filter(e => live(e) && e.who === person).sort((x, y) => cardWorth(y) - cardWorth(x));
-  $("trade-add-cards").innerHTML = theirCards.length ? theirCards.map(e => `<button type="button" class="pc${(side.cards || []).includes(e.eid) ? " on" : ""}" data-pc="${escapeAttr(e.eid)}"${e.fake ? ' data-fake="1"' : ""}>${snapPic(e.snap) ? `<img src="${escapeAttr(snapPic(e.snap))}" alt="">` : ""}<div class="pc-t">${escapeHtml(e.snap.name)}</div><div class="pc-p">${e.fake ? `<span class="fake-badge">FAKE</span> ${money(0)}` : money(e.snap.price)}</div></button>`).join("") : `<div class="side-empty" style="grid-column:1/-1">${escapeHtml(person)} has no cards yet.</div>`;
+  $("trade-add-cards").innerHTML = theirCards.length ? theirCards.map(e => `<button type="button" class="pc${(side.cards || []).includes(e.eid) ? " on" : ""}" data-pc="${escapeAttr(e.eid)}"${e.fake ? ' data-fake="1"' : ""}>${snapPic(e.snap) ? `<img src="${escapeAttr(snapPic(e.snap))}" alt="">` : ""}<div class="pc-t">${escapeHtml(e.snap.name)}</div><div class="pc-p">${e.fake ? `<span class="fake-badge">FAKE</span> ${money(0)}` : (MCD.isMcdSnap(e.snap) ? MCD.NO_VALUE : money(e.snap.price))}</div></button>`).join("") : `<div class="side-empty" style="grid-column:1/-1">${escapeHtml(person)} has no cards yet.</div>`;
   openSheet("trade-add-sheet");
 }
 $("trade-add-cards").addEventListener("click", async e => {
@@ -4590,7 +4603,7 @@ function myCheck() {
 function checkOtherName(c) { return (c.other || "").trim() || "Friend"; }
 function checkSideName(c, side) { return side === "a" ? who : checkOtherName(c); }
 function checkWorth(items) { return Math.round(items.reduce((n, x) => n + (checkPriced(x) ? x.price : 0), 0) * 100) / 100; }
-function checkUnpriced(items) { return items.filter(x => !checkPriced(x)).length; }
+function checkUnpriced(items) { return items.filter(x => !checkPriced(x) && !MCD.isMcdId(x.cardId)).length; }
 // The other side's name, if it is someone in the family (any capitals).
 function checkFamily(c) {
   const t = (c.other || "").trim().toLowerCase();
@@ -4614,7 +4627,8 @@ function checkVerdict(c) {
   if (!c.a.length && !c.b.length) return { cls: "", big: "Is it a fair trade?", sub: "Each side scans (or types) the cards they'd give. The check adds them up at today's store prices." };
   if (!c.a.length) return { cls: "", big: me + " isn't giving anything yet", sub: "Add " + me + "'s cards on the left." };
   if (!c.b.length) return { cls: "", big: them + " isn't giving anything yet", sub: "Add " + them + "'s cards on the right." };
-  if (!A && !B) return { cls: "", big: "Can't tell yet", sub: note };
+  const mcdNote = [...c.a, ...c.b].some(x => MCD.isMcdId(x.cardId)) ? "Minecraft Dungeons cards count as $0 — they have no price, so weigh them by how rare they are." : "";
+  if (!A && !B) return { cls: "", big: mcdNote ? "No money value to weigh" : "Can't tell yet", sub: [mcdNote, note].filter(Boolean).join(" ") };
   const diff = Math.round((A - B) * 100) / 100, big = Math.max(A, B);
   if (Math.abs(diff) <= Math.max(0.5, big * CHECK_FAIR_SHARE)) {
     return { cls: "fair", big: "Fair trade", sub: (diff === 0 ? "Both sides are worth " + money(A) + "." : "Only " + money(Math.abs(diff)) + " apart — close enough.") + (note ? " " + note : "") };
@@ -4635,8 +4649,8 @@ function checkHtml() {
     const sub = [x.set, [x.number, x.finish].filter(Boolean).join(" · ")].filter(Boolean).map(escapeHtml).join("<br>");
     const priced = checkPriced(x);
     return `<div class="side-item">${x.pic ? `<img src="${escapeAttr(x.pic)}" alt="">` : ""}<span class="si-name">${escapeHtml(x.name)}${sub ? `<br><small>${sub}</small>` : ""}<br>`
-      + (priced ? `<span class="si-price${x.guess ? " guess" : ""}">${money(x.price)}${x.guess ? " <small>your guess</small>" : ""}</span>` : `<span class="si-price none">No price</span>`)
-      + (!priced || x.guess ? ` <button type="button" class="si-type" data-check-price="${escapeAttr(x.id)}" data-side="${side}">${priced ? "Change" : "Type a price"}</button>` : "")
+      + (priced ? `<span class="si-price${x.guess ? " guess" : ""}">${money(x.price)}${x.guess ? " <small>your guess</small>" : ""}</span>` : `<span class="si-price none">${MCD.isMcdId(x.cardId) ? MCD.NO_VALUE : "No price"}</span>`)
+      + ((!priced || x.guess) && !MCD.isMcdId(x.cardId) ? ` <button type="button" class="si-type" data-check-price="${escapeAttr(x.id)}" data-side="${side}">${priced ? "Change" : "Type a price"}</button>` : "")
       + `</span><button type="button" class="si-x" data-check-drop="${escapeAttr(x.id)}" data-side="${side}" aria-label="Take ${escapeAttr(x.name)} out">×</button></div>`;
   };
   const sideHtml = side => {
@@ -4650,7 +4664,7 @@ function checkHtml() {
     <div class="check-other"><label for="check-other">Trading with</label><input type="text" id="check-other" value="${escapeAttr(c.other)}" placeholder="a friend's name" maxlength="24" autocomplete="off" autocapitalize="words" enterkeyhint="done"></div>
     ${others.length ? `<div class="chips" style="margin-top:8px;align-items:center"><span class="field-note" style="margin:0">Or someone in the family:</span>${others.map(n => `<button type="button" class="chip${fam === n ? " on" : ""}" data-check-who="${escapeAttr(n)}">${escapeHtml(n)}</button>`).join("")}</div>` : ""}
     ${any ? `<div class="gauge fair-zone"><div class="needle" style="left:${(share * 100).toFixed(1)}%"></div></div>
-    <div class="gauge-labels"><span>${escapeHtml(who)} ${money(A)}</span><span class="even">fair</span><span>${escapeHtml(checkOtherName(c))} ${money(B)}</span></div>` : ""}
+    <div class="gauge-labels"><span>${escapeHtml(who)} ${money(A)}</span><span class="even">fair</span><span>${escapeHtml(checkOtherName(c))} ${money(B)}</span></div>${MCD.tradeNote([...c.a, ...c.b])}` : ""}
     <div class="check-verdict ${v.cls}" id="check-verdict"><div class="cv-big">${escapeHtml(v.big)}</div>${v.sub ? `<div class="cv-sub">${escapeHtml(v.sub)}</div>` : ""}</div>
     <div class="sides check-sides">${sideHtml("a")}${sideHtml("b")}</div>
     ${any ? `<div class="trade-actions">
@@ -4674,12 +4688,12 @@ function renderCheckBanner() {
 function checkPutHtml(c, loading, headline) {
   if (!checkAdding || !who) return "";
   const name = checkSideName(myCheck(), checkAdding);
-  return `<button type="button" class="btn check-put" id="check-put"${loading ? " disabled" : ""}>${loading ? "Getting today's price…" : "Put it in the trade check — " + escapeHtml(name) + " gives" + (headline ? " · " + money(headline) : " · no price")}</button>`;
+  return `<button type="button" class="btn check-put" id="check-put"${loading ? " disabled" : ""}>${loading ? "Getting today's price…" : "Put it in the trade check — " + escapeHtml(name) + " gives" + (headline ? " · " + money(headline) : MCD.isMcd(c) ? " · " + MCD.NO_VALUE : " · no price")}</button>`;
 }
 function putInCheck(c, price, finish) {
   if (!checkAdding || !who) return;
   const side = checkAdding, cur = myCheck();
-  const item = { id: newId(), cardId: c.id, name: c.name || "Card", set: (c.set && c.set.name) || "", number: numberLabel(c) || "", finish: finish ? finishName(finish) : "", lang: c.lang || "",
+  const item = { id: newId(), cardId: c.id, name: c.name || "Card", set: (c.set && c.set.name) || "", number: numberLabel(c) || "", finish: finish ? finishName(finish) : MCD.isMcd(c) ? MCD.rarityInfo(c).name || "" : "", lang: c.lang || "",
     pic: imgUrl(c, "low") || "", price: price > 0 ? Math.round(price * 100) / 100 : null, guess: false, priceAt: Date.now() };
   checkAdding = null;
   closeSheet("card-sheet");
@@ -4693,7 +4707,7 @@ function putInCheck(c, price, finish) {
 async function refreshCheckPrices(force) {
   if (checkRefreshing || !who) return;
   const c = myCheck();
-  const stale = [...c.a, ...c.b].filter(x => !x.guess && !/^(ygo|ptcg):/.test(x.cardId) && (!x.lang || x.lang === "en") && (force || !x.priceAt || Date.now() - x.priceAt > 6 * 3600000));
+  const stale = [...c.a, ...c.b].filter(x => !x.guess && !/^(ygo|ptcg|mcd):/.test(x.cardId) && (!x.lang || x.lang === "en") && (force || !x.priceAt || Date.now() - x.priceAt > 6 * 3600000));
   if (!stale.length) { if (force) showToast("Prices are already today's"); return; }
   checkRefreshing = true;
   if (force) setStatus("trade-status", "Checking today's prices…");
@@ -4953,9 +4967,7 @@ async function openCard(cardId) {
     noteRecent(full, pendingRecentHow || "typed");
     pendingRecentHow = "";
     // Slow things, after the sheet is already readable.
-    fillPacks(full);
-    fillSymbol(full);
-    fillLookalikes(full);
+    if (!MCD.isMcd(full)) { fillPacks(full); fillSymbol(full); fillLookalikes(full); }
   } catch (e) {
     if (openCardId !== cardId) return;
     setStatus("app-status", e.message, true);
@@ -5375,7 +5387,7 @@ function renderCardSheet(c, loading) {
   const market = marketCache.get(c.id);
   // The finish the big price is for -- what a trade check records.
   const shownFinish = mine ? mine.finish : rows.length ? ((rows.find(r => r.marketPrice) || rows.find(r => r.midPrice) || rows[0]).finish) : "";
-  $("card-body").innerHTML = `
+  $("card-body").innerHTML = MCD.isMcd(c) ? MCD.sheetHtml(c, { checkPut: checkPutHtml(c, loading, 0) }) : `
     ${checkPutHtml(c, loading, headline)}
     <div class="hero">
       ${claimHtml(c, Math.max(headline || 0, c.snapPrice || 0))}
@@ -6293,7 +6305,7 @@ let confirmFor = null;
 async function confirmThenAdd(c) {
   if (!who) { openWho(); return; }
   const existing = entryFor(c.id, who);
-  if (existing || c.game === "ygo") { addCard(c); return; }   // another of the same, or a game without set letters: no question
+  if (existing || c.game === "ygo" || MCD.isMcd(c)) { addCard(c); return; }   // another of the same, or a game without set letters: no question
   confirmFor = c;
   const stamps = baStamps(c);
   if (!stamps.some(st => baId(st) === pendingStamp)) pendingStamp = "";
@@ -6540,7 +6552,7 @@ let repricing = false;
 const repriceTried = new Set();
 async function repriceStale() {
   if (repricing) return;
-  const stale = Object.entries(state.cards).filter(([id, e]) => live(e) && e.snap && !repriceTried.has(id) && (!e.snap.priceAt || Date.now() - e.snap.priceAt > 86400000) && !String(e.cardId).startsWith("ygo:") && !String(e.cardId).startsWith("ptcg:")).slice(0, 12);
+  const stale = Object.entries(state.cards).filter(([id, e]) => live(e) && e.snap && !repriceTried.has(id) && (!e.snap.priceAt || Date.now() - e.snap.priceAt > 86400000) && !String(e.cardId).startsWith("ygo:") && !String(e.cardId).startsWith("ptcg:") && !MCD.isMcdId(e.cardId)).slice(0, 12);
   if (!stale.length) return;
   repricing = true;
   const patch = {};
@@ -6568,6 +6580,7 @@ function renderMine() {
   const root = $("mine-root");
   const { list, person } = mineEntries();
   repriceStale();
+  safely("minecraft sets", MCD.renderProgress);
   const all = Object.values(state.cards).filter(c => live(c) && (person === "*" || c.who === person));
   const trashed = Object.entries(state.cards).map(([id, c]) => ({ id, ...c })).filter(c => c.snap && c.deletedAt && (person === "*" || c.who === person)).sort((a, b) => (b.deletedAt || 0) - (a.deletedAt || 0));
   const count = all.reduce((n, c) => n + (Number(c.qty) || 1), 0);
@@ -7012,6 +7025,8 @@ function takeKeysFromLink() {
 // not seen yet, once. (Asked for: "when I go back on, it will say this was
 // updated, and who asked to update it.")
 const CHANGES = [
+  { id: 50, date: "2026-09-28", by: "Moshe", what: "Minecraft Dungeons Arcade cards: pick Minecraft Dungeons above the search, then type a card's name or the number on its back, or tap a series to see all of it. All 144 cards from the five series are in. There are no prices for these: each card says how rare it is (Common, Rare, Unique, Hero or Legendary) in plain words, My cards shows how close you are to each full series and which cards are missing, and they trade like any other card. In a trade they count as $0, and the gauge says so." },
+  { id: 49, date: "2026-09-28", by: "Moshe", what: "On an iPad or a computer, tapping a card opens its page on the right side, like Google, and the list stays right where it was. Tap another card to swap it, or ✕ Close to close it. On a phone it slides up as before. And a View choice on the search results and on My cards: Grid, List (one row per card with its picture, set, number, price and how many) or Big (large pictures). Each person's choice is remembered on that device." },
   { id: 48, date: "2026-09-29", by: "Moshe", what: "Battle Academy cards: when you add a card that also came in a Battle Academy box (like Shauna from Fusion Strike), it asks what's stamped in the bottom corner — nothing, or which Pokémon and number (Pikachu #24, Cinderace #50…). My cards shows the stamp, and you can change it on the card's page." },
   { id: 47, date: "2026-09-28", by: "Moshe", what: "Languages are now just English and Other. Other asks \"Which writing is on your card?\": it shows the Pokémon's name as each language writes it, with the little word printed at the top left, so you tap the one that looks like your card. You can also type the letters you see (like ピカチュウ) and it works out the language. Typing Japanese, Korean or Chinese letters in the search box switches by itself." },
   { id: 46, date: "2026-09-28", by: "Moshe", what: "Taking a card out of your collection asks how it left: sold, traded, gave away, lost, damaged or something else, with a note if you want. The answer shows in Recently deleted. A card added in the last minute comes straight out with no question, and Undo still puts it back." },
@@ -7092,6 +7107,9 @@ $("trade-add-cancel").addEventListener("click", () => closeSheet("trade-add-shee
   try { wanted = new URLSearchParams(location.search).get("find"); } catch (e) {}
   if (wanted) setTab("mine");
 })();
+safely("views", () => setupViews({ who: () => who, openCardId: () => openCardId }));
+safely("minecraft", () => MCD.setup({ who: () => who, state: () => state, live, haveCount, holdersHtml, holdersOther, openCard,
+  mineWho: () => $("mine-who").value || who || "*", search: q => runSearch(q, null, false) }));
 </script>
 
 <script defer src="https://leodhi.github.io/claude/app-open.js" data-app="pokescan"></script>

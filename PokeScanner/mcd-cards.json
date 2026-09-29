@@ -1,0 +1,1448 @@
+{
+ "_comment": "Minecraft Dungeons Arcade cards for Poke Scan (docs/pokescan/pokescan-mcd.js). There is no public card database, so this list was built by hand on 2026-09-28 from the sources in about.sources (the Minecraft Wiki's Dungeons:Card page and its photos of every card back first, cross-checked against two collector lists). No prices: these cards are for playing and trading.",
+ "about": {
+  "built": "2026-09-28",
+  "sources": [
+   {
+    "name": "Minecraft Wiki - Dungeons:Card",
+    "url": "https://minecraft.wiki/w/Dungeons:Card",
+    "used_for": "Master list: number, name, type, rarity, barcode, front/back scans of all 144 cards; series sizes; image URLs"
+   },
+   {
+    "name": "Minecraft Wiki card back scans (read one by one)",
+    "url": "https://minecraft.wiki/w/Category:Minecraft_Dungeons_Arcade_card_back_images",
+    "used_for": "Checked the printed number and printed rarity on the back of all 118 non-hero cards and sample hero cards; settled rarity conflicts"
+   },
+   {
+    "name": "Minecraft Wiki - Dungeons:Arcade",
+    "url": "https://minecraft.wiki/w/Dungeons:Arcade",
+    "used_for": "Series names and release dates, how cards are used in the game"
+   },
+   {
+    "name": "Minecraft Dungeons Arcade Cards List (questwalker, collector site)",
+    "url": "https://questwalker.github.io/minecraft-dungeons-arcade-cards/",
+    "used_for": "Independent cross-check of all 144 names, types and rarities; hero card loadouts; collector view that rarity does not change how often a card comes out"
+   },
+   {
+    "name": "CB9001/minecraft-dungeons-arcade-cards (GitHub)",
+    "url": "https://github.com/CB9001/minecraft-dungeons-arcade-cards",
+    "used_for": "Independent cross-check of all 144 numbers and names"
+   },
+   {
+    "name": "Raw Thrills - Minecraft Dungeons Arcade",
+    "url": "https://rawthrills.com/games/minecraft-dungeons-arcade/",
+    "used_for": "Official: 144 cards, one card vended per play, card types, Chicken Jockey is the first Legendary, cabinet ships with 1,400 cards"
+   },
+   {
+    "name": "Arcade Heroes - Series 2 launch",
+    "url": "https://arcadeheroes.com/2022/11/19/raw-thrills-launches-series-2-cards-new-level-for-minecraft-dungeons-arcade/",
+    "used_for": "Series 2 adds 38 cards, total 98"
+   },
+   {
+    "name": "Arcade Heroes - Series 3 Hero Cards launch",
+    "url": "https://arcadeheroes.com/2024/04/10/raw-thrills-launches-hero-cards-series-3-update-for-minecraft-dungeons-arcade/",
+    "used_for": "Hero cards: one-in-ten chance per start, holographic and gold foil, total 118"
+   },
+   {
+    "name": "Arcade Heroes - Series 4",
+    "url": "https://arcadeheroes.com/2025/05/06/minecraft-dungeons-arcade-series-4-update-cards-are-now-available/",
+    "used_for": "Series 4 adds 25 cards, total 143"
+   },
+   {
+    "name": "Arcade Heroes - Series 5 Chicken Jockey",
+    "url": "https://arcadeheroes.com/2026/01/12/chicken-jockey-minecraft-marvel/",
+    "used_for": "Series 5 is one card, the Legendary Chicken Jockey; print run and odds not disclosed"
+   },
+   {
+    "name": "Coleka checklist",
+    "url": "https://www.coleka.com/en/trading-cards/video-games-cards/minecraft-cards/minecraft-dungeons-arcade_r25007",
+    "used_for": "Confirms foil versions of Series 1 cards exist (only first page readable; rest behind a human check)"
+   }
+  ],
+  "complete": "All five series are fully listed: 144 of 144 cards, each checked against two independent collector lists and against photos of the real card backs. Not listed as separate entries: foil versions of the regular cards and reprints of older cards in later series, which carry the same number but a newer card design.",
+  "rarity_notes": "Regular cards print one rarity on the back: COMMON, RARE or UNIQUE, and the single Series 5 card says LEGENDARY. Raw Thrills publishes only one set of odds: a one-in-ten chance of a Hero card on every start (Arcade Heroes, Series 3 launch). The machine gives out one card per play. There are no published odds for Common, Rare or Unique, and one collector site says they do not seem to come out any less often. Raw Thrills calls Chicken Jockey its first Legendary card, but it has not said how many were printed or what the odds are. Numbers are shown as printed without the leading '#': Series 1 uses two digits (#04/60), later regular cards print #N/total-at-that-time, and Hero cards print '#N of total'.",
+  "not_listed": "Foil versions of the regular cards (every card has one, but no full list was found) and reprints of older cards in later series (same number, newer design) are not separate entries. A foil or a reprint counts as the same card here."
+ },
+ "rarities": [
+  {
+   "id": "common",
+   "name": "Common",
+   "rank": 1,
+   "words": "The everyday kind. You will get lots of these, and many are repeats.",
+   "short": "The everyday kind",
+   "color": "#9aa0a6"
+  },
+  {
+   "id": "rare",
+   "name": "Rare",
+   "rank": 2,
+   "words": "A step up from Common. It says Rare on the card, but nobody has published how much harder it is to get.",
+   "short": "A step up from Common",
+   "color": "#3fb950"
+  },
+  {
+   "id": "unique",
+   "name": "Unique",
+   "rank": 3,
+   "words": "The top regular card, with an orange label. Its odds are not published either. Collectors say it doesn't seem to come out much less often than the others.",
+   "short": "The top regular card",
+   "color": "#ff8a1f"
+  },
+  {
+   "id": "hero",
+   "name": "Hero",
+   "rank": 4,
+   "words": "A shiny gold card with five items on it. The maker says you get one about once every ten plays.",
+   "short": "Shiny gold, about 1 in 10 plays",
+   "color": "#e6b422"
+  },
+  {
+   "id": "legendary",
+   "name": "Legendary",
+   "rank": 5,
+   "words": "Just one card has this: the Chicken Jockey. It is the hardest one to find, and nobody knows how many were printed.",
+   "short": "Only one card is this rare",
+   "color": "#ffd23f"
+  }
+ ],
+ "series": [
+  {
+   "id": "s1",
+   "name": "Series 1",
+   "year": 2021,
+   "count": 60,
+   "complete": true,
+   "note": "Numbers printed #01/60 to #60/60. Foil versions exist (Coleka)."
+  },
+  {
+   "id": "s2",
+   "name": "Series 2 - Hidden Depths",
+   "year": 2022,
+   "count": 38,
+   "complete": true,
+   "note": "Cards #61 to #98, printed as #N/98."
+  },
+  {
+   "id": "s3",
+   "name": "Series 3 - Heroes",
+   "year": 2024,
+   "count": 20,
+   "complete": true,
+   "note": "All Hero cards, printed '#99 of 118' to '#118 of 118'. Holographic with gold foil. Each gives five items: melee, range, armor, skin and pet."
+  },
+  {
+   "id": "s4",
+   "name": "Series 4 - Pumpkin Pastures",
+   "year": 2025,
+   "count": 25,
+   "complete": true,
+   "note": "19 regular cards (#119/143 to #137/143) and 6 Hero cards ('#138 of 143' to '#143 of 143')."
+  },
+  {
+   "id": "s5",
+   "name": "Series 5 - Chicken Jockey",
+   "year": 2026,
+   "count": 1,
+   "complete": true,
+   "note": "Just one new card, the Legendary Chicken Jockey (#144/144). Machines with Series 5 also give out the earlier cards."
+  }
+ ],
+ "cards": [
+  {
+   "series": "s1",
+   "number": "01/60",
+   "name": "Sun's Grace",
+   "type": "Melee",
+   "rarity": "common",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_1_Sun%27s_Grace_front.jpg"
+  },
+  {
+   "series": "s1",
+   "number": "02/60",
+   "name": "Grave Bane",
+   "type": "Melee",
+   "rarity": "common",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_2_Grave_Bane_front.jpg"
+  },
+  {
+   "series": "s1",
+   "number": "03/60",
+   "name": "Stormlander",
+   "type": "Melee",
+   "rarity": "rare",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_3_Stormlander_front.png"
+  },
+  {
+   "series": "s1",
+   "number": "04/60",
+   "name": "Heartstealer",
+   "type": "Melee",
+   "rarity": "unique",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_4_Heartstealer_front.jpg"
+  },
+  {
+   "series": "s1",
+   "number": "05/60",
+   "name": "Nameless Blade",
+   "type": "Melee",
+   "rarity": "rare",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_5_Nameless_Blade_front.jpg"
+  },
+  {
+   "series": "s1",
+   "number": "06/60",
+   "name": "Firebrand",
+   "type": "Melee",
+   "rarity": "rare",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_6_Firebrand_front.jpg"
+  },
+  {
+   "series": "s1",
+   "number": "07/60",
+   "name": "Soul Fists",
+   "type": "Melee",
+   "rarity": "common",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_7_Soul_Fists_front.jpg"
+  },
+  {
+   "series": "s1",
+   "number": "08/60",
+   "name": "Frost Scythe",
+   "type": "Melee",
+   "rarity": "rare",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_8_Frost_Scythe_front.jpg"
+  },
+  {
+   "series": "s1",
+   "number": "09/60",
+   "name": "Master's Katana",
+   "type": "Melee",
+   "rarity": "unique",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_9_Master%27s_Katana_front.jpg"
+  },
+  {
+   "series": "s1",
+   "number": "10/60",
+   "name": "Cursed Axe",
+   "type": "Melee",
+   "rarity": "unique",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_10_Cursed_Axe_front.jpg"
+  },
+  {
+   "series": "s1",
+   "number": "11/60",
+   "name": "Flail",
+   "type": "Melee",
+   "rarity": "common",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_11_Flail_front.jpg"
+  },
+  {
+   "series": "s1",
+   "number": "12/60",
+   "name": "Broadsword",
+   "type": "Melee",
+   "rarity": "common",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_12_Broadsword_front.jpg"
+  },
+  {
+   "series": "s1",
+   "number": "13/60",
+   "name": "Nightmare's Bite",
+   "type": "Melee",
+   "rarity": "unique",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_13_Nightmare%27s_Bite_front.jpg"
+  },
+  {
+   "series": "s1",
+   "number": "14/60",
+   "name": "Moon Daggers",
+   "type": "Melee",
+   "rarity": "unique",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_14_Moon_Daggers_front.jpg"
+  },
+  {
+   "series": "s1",
+   "number": "15/60",
+   "name": "Fortune Spear",
+   "type": "Melee",
+   "rarity": "rare",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_15_Fortune_Spear_front.jpg"
+  },
+  {
+   "series": "s1",
+   "number": "16/60",
+   "name": "Twin Bow",
+   "type": "Range",
+   "rarity": "common",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_16_Twin_Bow_front.jpg"
+  },
+  {
+   "series": "s1",
+   "number": "17/60",
+   "name": "Red Snake",
+   "type": "Range",
+   "rarity": "common",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_17_Red_Snake_front.jpg"
+  },
+  {
+   "series": "s1",
+   "number": "18/60",
+   "name": "Sabrewing",
+   "type": "Range",
+   "rarity": "common",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_18_Sabrewing_front.jpg"
+  },
+  {
+   "series": "s1",
+   "number": "19/60",
+   "name": "The Pink Scoundrel",
+   "type": "Range",
+   "rarity": "unique",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_19_The_Pink_Scoundrel_front.jpg"
+  },
+  {
+   "series": "s1",
+   "number": "20/60",
+   "name": "Corrupted Beacon",
+   "type": "Range",
+   "rarity": "unique",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_20_Corrupted_Beacon_front.jpg"
+  },
+  {
+   "series": "s1",
+   "number": "21/60",
+   "name": "Auto Crossbow",
+   "type": "Range",
+   "rarity": "unique",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_21_Auto_Crossbow_front.jpg"
+  },
+  {
+   "series": "s1",
+   "number": "22/60",
+   "name": "Firebolt Thrower",
+   "type": "Range",
+   "rarity": "rare",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_22_Firebolt_Thrower_front.jpg"
+  },
+  {
+   "series": "s1",
+   "number": "23/60",
+   "name": "Guardian Bow",
+   "type": "Range",
+   "rarity": "rare",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_23_Guardian_Bow_front.jpg"
+  },
+  {
+   "series": "s1",
+   "number": "24/60",
+   "name": "Lightning Harp Crossbow",
+   "type": "Range",
+   "rarity": "rare",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_24_Lightning_Harp_Crossbow_front.jpg"
+  },
+  {
+   "series": "s1",
+   "number": "25/60",
+   "name": "The Green Menace",
+   "type": "Range",
+   "rarity": "rare",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_25_The_Green_Menace_front.jpg"
+  },
+  {
+   "series": "s1",
+   "number": "26/60",
+   "name": "Imploding Crossbow",
+   "type": "Range",
+   "rarity": "unique",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_26_Imploding_Crossbow_front.jpg"
+  },
+  {
+   "series": "s1",
+   "number": "27/60",
+   "name": "Harp Crossbow",
+   "type": "Range",
+   "rarity": "common",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_27_Harp_Crossbow_front.jpg"
+  },
+  {
+   "series": "s1",
+   "number": "28/60",
+   "name": "Souldancer Robe",
+   "type": "Armor",
+   "rarity": "common",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_28_Souldancer_Robe_front.jpg"
+  },
+  {
+   "series": "s1",
+   "number": "29/60",
+   "name": "Battle Robe",
+   "type": "Armor",
+   "rarity": "common",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_29_Battle_Robe_front.jpg"
+  },
+  {
+   "series": "s1",
+   "number": "30/60",
+   "name": "Wolf Armor",
+   "type": "Armor",
+   "rarity": "common",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_30_Wolf_Armor_front.jpg"
+  },
+  {
+   "series": "s1",
+   "number": "31/60",
+   "name": "Grim Armor",
+   "type": "Armor",
+   "rarity": "common",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_31_Grim_Armor_front.jpg"
+  },
+  {
+   "series": "s1",
+   "number": "32/60",
+   "name": "Highland Armor",
+   "type": "Armor",
+   "rarity": "common",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_32_Highland_Armor_front.jpg"
+  },
+  {
+   "series": "s1",
+   "number": "33/60",
+   "name": "Renegade Armor",
+   "type": "Armor",
+   "rarity": "rare",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_33_Renegade_Armor_front.jpg"
+  },
+  {
+   "series": "s1",
+   "number": "34/60",
+   "name": "Spider Armor",
+   "type": "Armor",
+   "rarity": "rare",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_34_Spider_Armor_front.jpg"
+  },
+  {
+   "series": "s1",
+   "number": "35/60",
+   "name": "Full Metal Armor",
+   "type": "Armor",
+   "rarity": "rare",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_35_Full_Metal_Armor_front.jpg"
+  },
+  {
+   "series": "s1",
+   "number": "36/60",
+   "name": "Ember Robe",
+   "type": "Armor",
+   "rarity": "rare",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_36_Ember_Robe_front.jpg"
+  },
+  {
+   "series": "s1",
+   "number": "37/60",
+   "name": "Ender Armor",
+   "type": "Armor",
+   "rarity": "unique",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_37_Ender_Armor_front.jpg"
+  },
+  {
+   "series": "s1",
+   "number": "38/60",
+   "name": "Titan's Shroud",
+   "type": "Armor",
+   "rarity": "unique",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_38_Titan%27s_Shroud_front.jpg"
+  },
+  {
+   "series": "s1",
+   "number": "39/60",
+   "name": "Frost Bite",
+   "type": "Armor",
+   "rarity": "unique",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_39_Frost_Bite_front.jpg"
+  },
+  {
+   "series": "s1",
+   "number": "40/60",
+   "name": "Hero's Armor",
+   "type": "Armor",
+   "rarity": "unique",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_40_Hero%27s_Armor_front.jpg"
+  },
+  {
+   "series": "s1",
+   "number": "41/60",
+   "name": "Morris",
+   "type": "Skin",
+   "rarity": "rare",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_41_Morris_front.jpg"
+  },
+  {
+   "series": "s1",
+   "number": "42/60",
+   "name": "Elaine",
+   "type": "Skin",
+   "rarity": "unique",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_42_Elaine_front.jpg"
+  },
+  {
+   "series": "s1",
+   "number": "43/60",
+   "name": "Valorie",
+   "type": "Skin",
+   "rarity": "common",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_43_Valorie_front.png"
+  },
+  {
+   "series": "s1",
+   "number": "44/60",
+   "name": "Violet",
+   "type": "Skin",
+   "rarity": "common",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_44_Violet_front.jpg"
+  },
+  {
+   "series": "s1",
+   "number": "45/60",
+   "name": "Ivy",
+   "type": "Skin",
+   "rarity": "rare",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_45_Ivy_front.jpg"
+  },
+  {
+   "series": "s1",
+   "number": "46/60",
+   "name": "Meadow",
+   "type": "Skin",
+   "rarity": "unique",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_46_Meadow_front.jpg"
+  },
+  {
+   "series": "s1",
+   "number": "47/60",
+   "name": "Sven",
+   "type": "Skin",
+   "rarity": "common",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_47_Sven_front.jpg"
+  },
+  {
+   "series": "s1",
+   "number": "48/60",
+   "name": "Sam",
+   "type": "Skin",
+   "rarity": "common",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_48_Sam_front.jpg"
+  },
+  {
+   "series": "s1",
+   "number": "49/60",
+   "name": "Elan",
+   "type": "Skin",
+   "rarity": "common",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_49_Elan_front.jpg"
+  },
+  {
+   "series": "s1",
+   "number": "50/60",
+   "name": "Ebo",
+   "type": "Skin",
+   "rarity": "rare",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_50_Ebo_front.jpg"
+  },
+  {
+   "series": "s1",
+   "number": "51/60",
+   "name": "Frisk",
+   "type": "Skin",
+   "rarity": "unique",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_51_Frisk_front.jpg"
+  },
+  {
+   "series": "s1",
+   "number": "52/60",
+   "name": "Adriene",
+   "type": "Skin",
+   "rarity": "rare",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_52_Adriene_front.jpg"
+  },
+  {
+   "series": "s1",
+   "number": "53/60",
+   "name": "Wolf",
+   "type": "Pet",
+   "rarity": "rare",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_53_Wolf_front.jpg"
+  },
+  {
+   "series": "s1",
+   "number": "54/60",
+   "name": "Polar Bear",
+   "type": "Pet",
+   "rarity": "unique",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_54_Polar_Bear_front.jpg"
+  },
+  {
+   "series": "s1",
+   "number": "55/60",
+   "name": "Pig",
+   "type": "Pet",
+   "rarity": "common",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_55_Pig_front.jpg"
+  },
+  {
+   "series": "s1",
+   "number": "56/60",
+   "name": "Llama",
+   "type": "Pet",
+   "rarity": "rare",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_56_Llama_front.png"
+  },
+  {
+   "series": "s1",
+   "number": "57/60",
+   "name": "Fox",
+   "type": "Pet",
+   "rarity": "common",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_57_Fox_front.jpg"
+  },
+  {
+   "series": "s1",
+   "number": "58/60",
+   "name": "Panda",
+   "type": "Pet",
+   "rarity": "unique",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_58_Panda_front.jpg"
+  },
+  {
+   "series": "s1",
+   "number": "59/60",
+   "name": "Ocelot",
+   "type": "Pet",
+   "rarity": "rare",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_59_Ocelot_front.jpg"
+  },
+  {
+   "series": "s1",
+   "number": "60/60",
+   "name": "Chicken",
+   "type": "Pet",
+   "rarity": "common",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_60_Chicken_front.jpg"
+  },
+  {
+   "series": "s2",
+   "number": "61/98",
+   "name": "Encrusted Anchor",
+   "type": "Melee",
+   "rarity": "unique",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_61_Encrusted_Anchor_front.jpg"
+  },
+  {
+   "series": "s2",
+   "number": "62/98",
+   "name": "Battlestaff of Terror",
+   "type": "Melee",
+   "rarity": "unique",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_62_Battlestaff_of_Terror_front.jpg"
+  },
+  {
+   "series": "s2",
+   "number": "63/98",
+   "name": "Hawkbrand",
+   "type": "Melee",
+   "rarity": "common",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_63_Hawkbrand_front.jpg"
+  },
+  {
+   "series": "s2",
+   "number": "64/98",
+   "name": "Sponge Striker",
+   "type": "Melee",
+   "rarity": "rare",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_64_Sponge_Striker_front.jpg"
+  },
+  {
+   "series": "s2",
+   "number": "65/98",
+   "name": "The Last Laugh",
+   "type": "Melee",
+   "rarity": "rare",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_65_The_Last_Laugh_front.jpg"
+  },
+  {
+   "series": "s2",
+   "number": "66/98",
+   "name": "Vine Whip",
+   "type": "Melee",
+   "rarity": "rare",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_66_Vine_Whip_front.jpg"
+  },
+  {
+   "series": "s2",
+   "number": "67/98",
+   "name": "Whirlwind",
+   "type": "Melee",
+   "rarity": "common",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_67_Whirlwind_front.jpg"
+  },
+  {
+   "series": "s2",
+   "number": "68/98",
+   "name": "Whispering Spear",
+   "type": "Melee",
+   "rarity": "common",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_68_Whispering_Spear_front.jpg"
+  },
+  {
+   "series": "s2",
+   "number": "69/98",
+   "name": "Bubble Burster",
+   "type": "Range",
+   "rarity": "unique",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_69_Bubble_Burster_front.jpg"
+  },
+  {
+   "series": "s2",
+   "number": "70/98",
+   "name": "Nautical Crossbow",
+   "type": "Range",
+   "rarity": "common",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_70_Nautical_Crossbow_front.jpg"
+  },
+  {
+   "series": "s2",
+   "number": "71/98",
+   "name": "Web Bow",
+   "type": "Range",
+   "rarity": "rare",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_71_Web_Bow_front.jpg"
+  },
+  {
+   "series": "s2",
+   "number": "72/98",
+   "name": "Bonebow",
+   "type": "Range",
+   "rarity": "common",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_72_Bonebow_front.jpg"
+  },
+  {
+   "series": "s2",
+   "number": "73/98",
+   "name": "Purple Storm",
+   "type": "Range",
+   "rarity": "rare",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_73_Purple_Storm_front.jpg"
+  },
+  {
+   "series": "s2",
+   "number": "74/98",
+   "name": "Soul Hunter Crossbow",
+   "type": "Range",
+   "rarity": "common",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_74_Soul_Hunter_Crossbow_front.jpg"
+  },
+  {
+   "series": "s2",
+   "number": "75/98",
+   "name": "Spellbound Crossbows",
+   "type": "Range",
+   "rarity": "rare",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_75_Spellbound_Crossbows_front.jpg"
+  },
+  {
+   "series": "s2",
+   "number": "76/98",
+   "name": "Eye of the Guardian",
+   "type": "Range",
+   "rarity": "unique",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_76_Eye_of_the_Guardian_front.jpg"
+  },
+  {
+   "series": "s2",
+   "number": "77/98",
+   "name": "Squid Armor",
+   "type": "Armor",
+   "rarity": "rare",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_77_Squid_Armor_front.jpg"
+  },
+  {
+   "series": "s2",
+   "number": "78/98",
+   "name": "Glow Squid Armor",
+   "type": "Armor",
+   "rarity": "unique",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_78_Glow_Squid_Armor_front.jpg"
+  },
+  {
+   "series": "s2",
+   "number": "79/98",
+   "name": "Nimble Turtle Armor",
+   "type": "Armor",
+   "rarity": "rare",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_79_Nimble_Turtle_Armor_front.jpg"
+  },
+  {
+   "series": "s2",
+   "number": "80/98",
+   "name": "Archer's Armor",
+   "type": "Armor",
+   "rarity": "common",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_80_Archer%27s_Armor_front.jpg"
+  },
+  {
+   "series": "s2",
+   "number": "81/98",
+   "name": "Ghost Kindler",
+   "type": "Armor",
+   "rarity": "unique",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_81_Ghost_Kindler_front.jpg"
+  },
+  {
+   "series": "s2",
+   "number": "82/98",
+   "name": "Phantom Armor",
+   "type": "Armor",
+   "rarity": "rare",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_82_Phantom_Armor_front.jpg"
+  },
+  {
+   "series": "s2",
+   "number": "83/98",
+   "name": "Stalwart Armor",
+   "type": "Armor",
+   "rarity": "common",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_83_Stalwart_Armor_front.jpg"
+  },
+  {
+   "series": "s2",
+   "number": "84/98",
+   "name": "Fox Armor",
+   "type": "Armor",
+   "rarity": "common",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_84_Fox_Armor_front.jpg"
+  },
+  {
+   "series": "s2",
+   "number": "85/98",
+   "name": "The Archeologist",
+   "type": "Skin",
+   "rarity": "rare",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_85_The_Archeologist_front.png"
+  },
+  {
+   "series": "s2",
+   "number": "86/98",
+   "name": "Baako",
+   "type": "Skin",
+   "rarity": "common",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_86_Baako_front.png"
+  },
+  {
+   "series": "s2",
+   "number": "87/98",
+   "name": "Dani",
+   "type": "Skin",
+   "rarity": "rare",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_87_Dani_front.png"
+  },
+  {
+   "series": "s2",
+   "number": "88/98",
+   "name": "Darian",
+   "type": "Skin",
+   "rarity": "common",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_88_Darian_front.jpg"
+  },
+  {
+   "series": "s2",
+   "number": "89/98",
+   "name": "Fuego",
+   "type": "Skin",
+   "rarity": "common",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_89_Fuego_front.png"
+  },
+  {
+   "series": "s2",
+   "number": "90/98",
+   "name": "The Kelptomaniac",
+   "type": "Skin",
+   "rarity": "unique",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_90_The_Kelptomaniac_front.png"
+  },
+  {
+   "series": "s2",
+   "number": "91/98",
+   "name": "The Monumental",
+   "type": "Skin",
+   "rarity": "unique",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_91_The_Monumental_front.png"
+  },
+  {
+   "series": "s2",
+   "number": "92/98",
+   "name": "Wargen",
+   "type": "Skin",
+   "rarity": "rare",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_92_Wargen_front.png"
+  },
+  {
+   "series": "s2",
+   "number": "93/98",
+   "name": "Sheep",
+   "type": "Pet",
+   "rarity": "common",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_93_Sheep_front.jpg"
+  },
+  {
+   "series": "s2",
+   "number": "94/98",
+   "name": "Rabbit",
+   "type": "Pet",
+   "rarity": "common",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_94_Rabbit_front.jpg"
+  },
+  {
+   "series": "s2",
+   "number": "95/98",
+   "name": "Goat",
+   "type": "Pet",
+   "rarity": "rare",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_95_Goat_front.jpg"
+  },
+  {
+   "series": "s2",
+   "number": "96/98",
+   "name": "Bee",
+   "type": "Pet",
+   "rarity": "rare",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_96_Bee_front.jpg"
+  },
+  {
+   "series": "s2",
+   "number": "97/98",
+   "name": "Baby Turtle",
+   "type": "Pet",
+   "rarity": "unique",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_97_Baby_Turtle_front.png"
+  },
+  {
+   "series": "s2",
+   "number": "98/98",
+   "name": "Iron Golem",
+   "type": "Pet",
+   "rarity": "unique",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_98_Iron_Golem_front.jpg"
+  },
+  {
+   "series": "s3",
+   "number": "99 of 118",
+   "name": "The Kelptomaniac",
+   "type": "Hero",
+   "rarity": "hero",
+   "special": "holographic, gold foil",
+   "image": "https://minecraft.wiki/images/MCDA_Card_99_The_Kelptomaniac_front.png"
+  },
+  {
+   "series": "s3",
+   "number": "100 of 118",
+   "name": "Explorer",
+   "type": "Hero",
+   "rarity": "hero",
+   "special": "holographic, gold foil",
+   "image": "https://minecraft.wiki/images/MCDA_Card_100_Explorer_front.png"
+  },
+  {
+   "series": "s3",
+   "number": "101 of 118",
+   "name": "Valorie",
+   "type": "Hero",
+   "rarity": "hero",
+   "special": "holographic, gold foil",
+   "image": "https://minecraft.wiki/images/MCDA_Card_101_Valorie_front.png"
+  },
+  {
+   "series": "s3",
+   "number": "102 of 118",
+   "name": "Strider Warrior",
+   "type": "Hero",
+   "rarity": "hero",
+   "special": "holographic, gold foil",
+   "image": "https://minecraft.wiki/images/MCDA_Card_102_Strider_Warrior_front.png"
+  },
+  {
+   "series": "s3",
+   "number": "103 of 118",
+   "name": "Darian",
+   "type": "Hero",
+   "rarity": "hero",
+   "special": "holographic, gold foil",
+   "image": "https://minecraft.wiki/images/MCDA_Card_103_Darian_front.png"
+  },
+  {
+   "series": "s3",
+   "number": "104 of 118",
+   "name": "Loge",
+   "type": "Hero",
+   "rarity": "hero",
+   "special": "holographic, gold foil",
+   "image": "https://minecraft.wiki/images/MCDA_Card_104_Loge_front.png"
+  },
+  {
+   "series": "s3",
+   "number": "105 of 118",
+   "name": "Skelly",
+   "type": "Hero",
+   "rarity": "hero",
+   "special": "holographic, gold foil",
+   "image": "https://minecraft.wiki/images/MCDA_Card_105_Skelly_front.png"
+  },
+  {
+   "series": "s3",
+   "number": "106 of 118",
+   "name": "Wargen",
+   "type": "Hero",
+   "rarity": "hero",
+   "special": "holographic, gold foil",
+   "image": "https://minecraft.wiki/images/MCDA_Card_106_Wargen_front.png"
+  },
+  {
+   "series": "s3",
+   "number": "107 of 118",
+   "name": "Annika",
+   "type": "Hero",
+   "rarity": "hero",
+   "special": "holographic, gold foil",
+   "image": "https://minecraft.wiki/images/MCDA_Card_107_Annika_front.png"
+  },
+  {
+   "series": "s3",
+   "number": "108 of 118",
+   "name": "Dani",
+   "type": "Hero",
+   "rarity": "hero",
+   "special": "holographic, gold foil",
+   "image": "https://minecraft.wiki/images/MCDA_Card_108_Dani_front.png"
+  },
+  {
+   "series": "s3",
+   "number": "109 of 118",
+   "name": "Frosty",
+   "type": "Hero",
+   "rarity": "hero",
+   "special": "holographic, gold foil",
+   "image": "https://minecraft.wiki/images/MCDA_Card_109_Frosty_front.png"
+  },
+  {
+   "series": "s3",
+   "number": "110 of 118",
+   "name": "Sven",
+   "type": "Hero",
+   "rarity": "hero",
+   "special": "holographic, gold foil",
+   "image": "https://minecraft.wiki/images/MCDA_Card_110_Sven_front.png"
+  },
+  {
+   "series": "s3",
+   "number": "111 of 118",
+   "name": "Nuru",
+   "type": "Hero",
+   "rarity": "hero",
+   "special": "holographic, gold foil",
+   "image": "https://minecraft.wiki/images/MCDA_Card_111_Nuru_front.png"
+  },
+  {
+   "series": "s3",
+   "number": "112 of 118",
+   "name": "Ivy",
+   "type": "Hero",
+   "rarity": "hero",
+   "special": "holographic, gold foil",
+   "image": "https://minecraft.wiki/images/MCDA_Card_112_Ivy_front.png"
+  },
+  {
+   "series": "s3",
+   "number": "113 of 118",
+   "name": "Corrupted Defender",
+   "type": "Hero",
+   "rarity": "hero",
+   "special": "holographic, gold foil",
+   "image": "https://minecraft.wiki/images/MCDA_Card_113_Corrupted_Defender_front.png"
+  },
+  {
+   "series": "s3",
+   "number": "114 of 118",
+   "name": "Void Voyager",
+   "type": "Hero",
+   "rarity": "hero",
+   "special": "holographic, gold foil",
+   "image": "https://minecraft.wiki/images/MCDA_Card_114_Void_Voyager_front.png"
+  },
+  {
+   "series": "s3",
+   "number": "115 of 118",
+   "name": "Qamar",
+   "type": "Hero",
+   "rarity": "hero",
+   "special": "holographic, gold foil",
+   "image": "https://minecraft.wiki/images/MCDA_Card_115_Qamar_front.png"
+  },
+  {
+   "series": "s3",
+   "number": "116 of 118",
+   "name": "Sam",
+   "type": "Hero",
+   "rarity": "hero",
+   "special": "holographic, gold foil",
+   "image": "https://minecraft.wiki/images/MCDA_Card_116_Sam_front.png"
+  },
+  {
+   "series": "s3",
+   "number": "117 of 118",
+   "name": "The Monumental",
+   "type": "Hero",
+   "rarity": "hero",
+   "special": "holographic, gold foil",
+   "image": "https://minecraft.wiki/images/MCDA_Card_117_The_Monumental_front.png"
+  },
+  {
+   "series": "s3",
+   "number": "118 of 118",
+   "name": "Eshe",
+   "type": "Hero",
+   "rarity": "hero",
+   "special": "holographic, gold foil",
+   "image": "https://minecraft.wiki/images/MCDA_Card_118_Eshe_front.png"
+  },
+  {
+   "series": "s4",
+   "number": "119/143",
+   "name": "Eternal Knife",
+   "type": "Melee",
+   "rarity": "common",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_119_Eternal_Knife_front.png"
+  },
+  {
+   "series": "s4",
+   "number": "120/143",
+   "name": "Bee Stinger",
+   "type": "Melee",
+   "rarity": "common",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_120_Bee_Stinger_front.png"
+  },
+  {
+   "series": "s4",
+   "number": "121/143",
+   "name": "Highland Axe",
+   "type": "Melee",
+   "rarity": "rare",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_121_Highland_Axe_front.png"
+  },
+  {
+   "series": "s4",
+   "number": "122/143",
+   "name": "Diamond Pickaxe",
+   "type": "Melee",
+   "rarity": "unique",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_122_Diamond_Pickaxe_front.png"
+  },
+  {
+   "series": "s4",
+   "number": "123/143",
+   "name": "Sugar Rush",
+   "type": "Range",
+   "rarity": "unique",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_123_Sugar_Rush_front.png"
+  },
+  {
+   "series": "s4",
+   "number": "124/143",
+   "name": "Slayer Crossbow",
+   "type": "Range",
+   "rarity": "common",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_124_Slayer_Crossbow_front.png"
+  },
+  {
+   "series": "s4",
+   "number": "125/143",
+   "name": "Elite Power Bow",
+   "type": "Range",
+   "rarity": "common",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_125_Elite_Power_Bow_front.png"
+  },
+  {
+   "series": "s4",
+   "number": "126/143",
+   "name": "Phantom Bow",
+   "type": "Range",
+   "rarity": "rare",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_126_Phantom_Bow_front.png"
+  },
+  {
+   "series": "s4",
+   "number": "127/143",
+   "name": "Hungry Horror",
+   "type": "Armor",
+   "rarity": "unique",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_127_Hungry_Horror_front.png"
+  },
+  {
+   "series": "s4",
+   "number": "128/143",
+   "name": "Wither Armor",
+   "type": "Armor",
+   "rarity": "rare",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_128_Wither_Armor_front.png"
+  },
+  {
+   "series": "s4",
+   "number": "129/143",
+   "name": "Black Wolf Armor",
+   "type": "Armor",
+   "rarity": "unique",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_129_Black_Wolf_Armor_front.png"
+  },
+  {
+   "series": "s4",
+   "number": "130/143",
+   "name": "Evocation Robe",
+   "type": "Armor",
+   "rarity": "common",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_130_Evocation_Robe_front.png"
+  },
+  {
+   "series": "s4",
+   "number": "131/143",
+   "name": "Loge",
+   "type": "Skin",
+   "rarity": "rare",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_131_Loge_front.png"
+  },
+  {
+   "series": "s4",
+   "number": "132/143",
+   "name": "Annika",
+   "type": "Skin",
+   "rarity": "rare",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_132_Annika_front.png"
+  },
+  {
+   "series": "s4",
+   "number": "133/143",
+   "name": "Igor",
+   "type": "Skin",
+   "rarity": "common",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_133_Igor_front.png"
+  },
+  {
+   "series": "s4",
+   "number": "134/143",
+   "name": "Tim",
+   "type": "Skin",
+   "rarity": "unique",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_134_Tim_front.png"
+  },
+  {
+   "series": "s4",
+   "number": "135/143",
+   "name": "Blue Sheep",
+   "type": "Pet",
+   "rarity": "rare",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_135_Blue_Sheep_front.png"
+  },
+  {
+   "series": "s4",
+   "number": "136/143",
+   "name": "Cow",
+   "type": "Pet",
+   "rarity": "common",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_136_Cow_front.png"
+  },
+  {
+   "series": "s4",
+   "number": "137/143",
+   "name": "Cat",
+   "type": "Pet",
+   "rarity": "common",
+   "special": "",
+   "image": "https://minecraft.wiki/images/MCDA_Card_137_Cat_front.png"
+  },
+  {
+   "series": "s4",
+   "number": "138 of 143",
+   "name": "Llama",
+   "type": "Hero",
+   "rarity": "hero",
+   "special": "holographic, gold foil",
+   "image": "https://minecraft.wiki/images/MCDA_Card_138_Llama_Hero_front.png"
+  },
+  {
+   "series": "s4",
+   "number": "139 of 143",
+   "name": "Mayeso",
+   "type": "Hero",
+   "rarity": "hero",
+   "special": "holographic, gold foil",
+   "image": "https://minecraft.wiki/images/MCDA_Card_139_Mayeso_Hero_front.png"
+  },
+  {
+   "series": "s4",
+   "number": "140 of 143",
+   "name": "Pake",
+   "type": "Hero",
+   "rarity": "hero",
+   "special": "holographic, gold foil",
+   "image": "https://minecraft.wiki/images/MCDA_Card_140_Pake_Hero_front.png"
+  },
+  {
+   "series": "s4",
+   "number": "141 of 143",
+   "name": "Annika",
+   "type": "Hero",
+   "rarity": "hero",
+   "special": "holographic, gold foil",
+   "image": "https://minecraft.wiki/images/MCDA_Card_141_Annika_Hero_front.png"
+  },
+  {
+   "series": "s4",
+   "number": "142 of 143",
+   "name": "The Archeologist",
+   "type": "Hero",
+   "rarity": "hero",
+   "special": "holographic, gold foil",
+   "image": "https://minecraft.wiki/images/MCDA_Card_142_The_Archeologist_Hero_front.png"
+  },
+  {
+   "series": "s4",
+   "number": "143 of 143",
+   "name": "Fuego",
+   "type": "Hero",
+   "rarity": "hero",
+   "special": "holographic, gold foil",
+   "image": "https://minecraft.wiki/images/MCDA_Card_143_Fuego_Hero_front.png"
+  },
+  {
+   "series": "s5",
+   "number": "144/144",
+   "name": "Chicken Jockey",
+   "type": "Pet",
+   "rarity": "legendary",
+   "special": "chase card",
+   "image": "https://minecraft.wiki/images/MCDA_Card_144_Chicken_Jockey_front.png"
+  }
+ ]
+}
