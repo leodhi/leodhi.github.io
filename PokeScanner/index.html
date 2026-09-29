@@ -4104,11 +4104,13 @@ async function pushToPerson(name, title, text) {
 // 2026-09-28 it ran out at 6:59 PM and every request after that was refused
 // without anyone seeing it (Lew: "It doesn't look like I'm getting those alerts").
 let lastPushProblem = "";
-async function ntfyPublish(topic, title, message, actions, leaving) {
+async function ntfyPublish(topic, title, message, actions, leaving, delaySec) {
   try {
     // keepalive: a push started as the app is being closed still goes out.
+    // delaySec: ntfy holds it and delivers it that many seconds later (10 at least).
     const r = await fetch("https://ntfy.sh/", { method: "POST", keepalive: !!leaving, headers: { "content-type": "application/json" },
-      body: JSON.stringify({ topic, title, message, priority: 4, tags: ["cards"], ...(actions && actions.length ? { actions: actions.slice(0, 3) } : {}) }) });
+      body: JSON.stringify({ topic, title, message, priority: 4, tags: ["cards"], ...(actions && actions.length ? { actions: actions.slice(0, 3) } : {}),
+        ...(delaySec >= 10 ? { delay: Math.ceil(delaySec) + "s" } : {}) }) });
     lastPushProblem = r.ok ? "" : r.status === 429 ? "busy" : "refused";
     return r.ok;
   } catch (e) { lastPushProblem = "offline"; return false; }
@@ -4309,13 +4311,23 @@ function retryUnpushedSoon() {
 // never get an alert". Nothing did that -- only requests pushed. Now every
 // change a family member makes (cards added, removed, sold, counts, trades,
 // claims) goes into one push to the owner's phone, gathered for 45 seconds
-// so a burst of ten cards is one notification, not ten. Sent early when the
-// app is put away. The owner's own changes never push. Off switch in
+// so a burst of ten cards is one notification, not ten, and at most one every
+// 15 minutes (below). Sent when the app is put away. The owner's own changes never push. Off switch in
 // Options (owner only), on unless he turns it off.
 // Quiet: tidying, the owner's own decisions, and the trade check (a
 // side-by-side sum, nobody's cards move).
 const QUIET_CHANGES = /^(Reordered|Cleared .*recent list|Approved|Declined|Marked done|Removed the .* key|Trade check cleared|Price typed for|Typed price taken off)|(put in|taken out of) the trade check$/;
 const ACTIVITY_WAIT_MS = 45000;
+// At most one change push every 15 minutes from this phone (2026-09-29): one busy
+// evening of adding cards sent 32, and every push from the home Wi-Fi counts
+// against the house's 250 a day at ntfy, the same allowance the Mac's alerts use.
+// Changes made inside the 15 minutes wait for the next push; if the app is put
+// away first, the push is sent now but ntfy holds it until the 15 minutes are up,
+// so nothing is lost and the gap still holds. (Requests still go at once.)
+const ACTIVITY_GAP_MS = 15 * 60000;
+function activityLastAt() { try { return Number(localStorage.getItem("pokescan-activity-last")) || 0; } catch (e) { return 0; } }
+function setActivityLastAt(t) { try { localStorage.setItem("pokescan-activity-last", String(t)); } catch (e) {} }
+function activityWaitMs() { const last = activityLastAt(); return last > Date.now() + ACTIVITY_GAP_MS ? 0 : last + ACTIVITY_GAP_MS - Date.now(); }
 let activity = [], activityTimer = null;
 // Off unless he switches it on himself (his words 2026-09-28: "I also don't want a notification every
 // time someone trades, adds, or removes a card. That's not the kind of thing I want to be notified about.")
@@ -4324,16 +4336,20 @@ function noteActivity(label) {
   if (!label || !who || isOwner() || !activityPushOn() || !ntfyTopic() || QUIET_CHANGES.test(label)) return;
   activity.push(label);
   clearTimeout(activityTimer);
-  activityTimer = setTimeout(() => sendActivity(false), ACTIVITY_WAIT_MS);
+  activityTimer = setTimeout(() => sendActivity(false), Math.max(ACTIVITY_WAIT_MS, activityWaitMs()));
 }
 function sendActivity(leaving) {
   clearTimeout(activityTimer); activityTimer = null;
   if (!activity.length || !ntfyTopic()) { activity = []; return; }
+  const wait = activityWaitMs();
+  if (!leaving && wait > 1000) { activityTimer = setTimeout(() => sendActivity(false), wait); return; }
+  const delaySec = leaving && wait >= 10000 ? wait / 1000 : 0;
+  setActivityLastAt(Date.now() + delaySec * 1000);
   const list = activity.splice(0);
   const lines = list.slice(0, 8).map(s => "• " + s);
   if (list.length > 8) lines.push("…and " + (list.length - 8) + " more");
   ntfyPublish(ntfyTopic(), "Poké Scan: " + who + " made " + (list.length === 1 ? "a change" : list.length + " changes"), lines.join("\n"),
-    [{ action: "view", label: "Open Poké Scan", url: location.origin + location.pathname }], leaving);
+    [{ action: "view", label: "Open Poké Scan", url: location.origin + location.pathname }], leaving, delaySec);
 }
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") sendActivity(true); });
 window.addEventListener("pagehide", () => sendActivity(true));
