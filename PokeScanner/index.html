@@ -555,6 +555,12 @@
   /* Sheets that open on top of the card sheet, wherever they sit in the page. */
   #confirm-sheet, #who-sheet, #time-sheet, #trade-add-sheet, #money-sheet { z-index: 27; }
   #ask-sheet { z-index: 28; }
+  .lang-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
+  .lang-grid .lang-pick { border: 2px solid var(--line); border-radius: 12px; background: var(--panel-2); color: var(--ink); padding: 10px; text-align: left; font: inherit; cursor: pointer; min-width: 0; }
+  .lang-grid .lang-pick.on { border-color: var(--accent); }
+  .lang-grid .lp-name { display: block; font-size: calc(22px * var(--scale, 1)); font-weight: 800; line-height: 1.2; overflow-wrap: anywhere; }
+  .lang-grid .lp-word { display: block; margin-top: 4px; font-size: calc(13px * var(--scale, 1)); color: var(--ink-muted); }
+  .lang-grid .lp-lang { display: block; margin-top: 2px; font-size: calc(11px * var(--scale, 1)); color: var(--ink-faint); }
   .fake-badge { display: inline-block; background: var(--delete); color: #fff; font-weight: 800; font-size: calc(11px * var(--scale, 1)); letter-spacing: 0.04em; padding: 2px 7px; border-radius: 999px; }
   .tile .fake-badge { position: absolute; top: 40px; left: 8px; z-index: 2; }
   .fake-warn { background: color-mix(in srgb, var(--delete) 12%, transparent); border: 1px solid var(--delete); color: var(--ink); border-radius: 12px; padding: 10px 12px; margin-top: 10px; font-size: calc(13.5px * var(--scale, 1)); line-height: 1.4; }
@@ -989,6 +995,24 @@
     <div class="sheet-actions">
       <button type="button" class="btn-save" id="ask-yes">OK</button>
       <button type="button" class="btn-plain" id="ask-no">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Other languages: match the writing on the card (Moshe, 2026-09-28). -->
+<div class="sheet-back" id="lang-sheet">
+  <div class="sheet">
+    <div class="grabber"></div>
+    <h3>Which writing is on your card?</h3>
+    <p class="sheet-sub" id="lang-sub"></p>
+    <div class="lang-grid" id="lang-grid"></div>
+    <label class="field-note" for="lang-typed" style="display:block;margin-top:12px">Or type the letters you see on the card (the name, or the little word at the top left):</label>
+    <input type="text" id="lang-typed" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="ピカチュウ, 피카츄, 皮卡丘, Basis…" style="width:100%;margin-top:6px;background:var(--panel-2);border:1px solid var(--line);border-radius:10px;padding:12px;color:var(--ink);font-family:inherit;font-size: max(16px, calc(16px * var(--scale, 1)))">
+    <div class="field-note" id="lang-typed-says" style="margin-top:6px"></div>
+    <div class="field-note" style="margin-top:10px">Then add the number from the bottom of the card after the name, like <b>25</b>, to find the exact one.</div>
+    <div class="sheet-actions">
+      <button type="button" class="btn-save hide" id="lang-go">Search</button>
+      <button type="button" class="btn-plain" id="lang-cancel">Cancel</button>
     </div>
   </div>
 </div>
@@ -2146,7 +2170,7 @@ async function searchCards(name) {
     const r = await fetch(DEX + "/" + lang + "/cards?name=" + encodeURIComponent(local));
     const brief = r.ok ? await r.json() : [];
     const full = await Promise.all(brief.slice(0, 60).map(x => fetch(DEX + "/" + lang + "/cards/" + encodeURIComponent(x.id)).then(rr => rr.ok ? rr.json() : null).catch(() => null)));
-    list = full.filter(c => c && !isPocket(c)).map(c => { c.lang = lang; c.englishName = name.trim(); return c; });
+    list = full.filter(c => c && !isPocket(c)).map(c => { c.lang = lang; if (!scriptLang(name)) c.englishName = name.trim(); return c; });
   }
   list.forEach(decorate);
   searchCache.set(key, list);
@@ -2910,6 +2934,7 @@ async function runSearch(q, hint, fromScan) {
     return;
   }
   if (!parsed.name) { results = []; renderResults(); return; }
+  if (lang === "en" && game === "pokemon" && scriptLang(parsed.name) && parsed.name !== englishPickedFor) { lang = scriptLang(parsed.name); renderLangs(); searchCache.clear(); showToast("That's " + langName(lang) + " writing — showing " + langName(lang) + " cards"); }
   setStatus("find-status", "Looking up " + parsed.name + "…");
   try {
     let list = await searchCards(parsed.name);
@@ -3133,28 +3158,118 @@ async function searchByType(type) {
 // Which language's printing. English is the database's main language; the
 // others are the same database in that language, searched by the Pokémon's
 // name in that language (looked up once from PokéAPI, cached).
-// English, or Other -- which is Japanese, the only other printing that
-// matters here; the rest of the languages the database has are not
-// offered, at his request ("I don't know how to recognize the characters").
+// Moshe, 2026-09-28: "Make it that languages are just English and 'other'.
+// Other should be all other languages and it should ask you to match up the
+// characters." So there are two chips. Other opens "Which writing is on your
+// card?": the Pokémon's name as each language prints it, with the little word
+// at the top left of a Basic card, and a box to type what's printed (the
+// writing is recognised by itself). Nobody has to know which language it is.
 const LANGS = [["en", "English"], ["ja", "Japanese"], ["fr", "French"], ["de", "German"], ["es", "Spanish"], ["it", "Italian"], ["ko", "Korean"], ["zh-tw", "Chinese"]];
+// The word printed at the top left of a Basic Pokémon card, per language.
+const BASIC_WORD = { ja: "たね", ko: "기본", "zh-tw": "基礎", fr: "De base", de: "Basis", es: "Básico", it: "Base" };
+const POKEAPI_LANG = { ja: "ja-hrkt", ko: "ko", "zh-tw": "zh-hant", fr: "fr", de: "de", es: "es", it: "it" };
 let lang = "en";
+const langName = code => (LANGS.find(l => l[0] === code) || [])[1] || code;
 function renderLangs() {
-  $("langs").innerHTML = LANGS.map(([k, n]) => `<button type="button" class="chip${lang === k ? " on" : ""}" data-lang="${k}">${n}</button>`).join("");
+  const other = lang !== "en";
+  $("langs").innerHTML = `<button type="button" class="chip${other ? "" : " on"}" data-lang="en">English</button>`
+    + `<button type="button" class="chip${other ? " on" : ""}" data-lang="other">${other ? "Other · " + escapeHtml(BASIC_WORD[lang] || "") + " (" + escapeHtml(langName(lang)) + ")" : "Other language"}</button>`;
 }
-$("langs").addEventListener("click", e => {
-  const b = e.target.closest("[data-lang]");
-  if (!b || b.dataset.lang === lang) return;
-  lang = b.dataset.lang;
+// Tapping English on purpose sticks, even with Japanese letters still in the
+// box -- otherwise the box would flip it straight back.
+let englishPickedFor = "";
+function setLang(code) {
+  if (code === "en") englishPickedFor = parseQuery($("q").value.trim() || shownQuery || "").name;
+  if (code === lang) return;
+  lang = code;
   renderLangs();
   searchCache.clear();
   const again = $("q").value.trim() || (results.length ? shownQuery : "");
   results = []; bestId = null; renderResults();
   if (again) runSearch(again, null, false);
+}
+$("langs").addEventListener("click", e => {
+  const b = e.target.closest("[data-lang]");
+  if (!b) return;
+  if (b.dataset.lang === "en") setLang("en");
+  else openLangMatch();
 });
 renderLangs();
+// What writing is this? Kana = Japanese, Hangul = Korean, Chinese
+// characters with no kana = Chinese. Latin letters can't tell French from
+// German by themselves, so they are matched against the words on the sheet.
+function scriptLang(text) {
+  const t = String(text || "");
+  if (/[\u3040-\u30ff]/.test(t)) return "ja";
+  if (/[\uac00-\ud7af\u1100-\u11ff]/.test(t)) return "ko";
+  if (/[\u4e00-\u9fff]/.test(t)) return "zh-tw";
+  return "";
+}
+const plainLetters = t => String(t || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+let langNames = null, langPick = "";
+async function namesEverywhere(name) {
+  const out = {};
+  try {
+    const r = await fetch("https://pokeapi.co/api/v2/pokemon-species/" + encodeURIComponent(name.toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/-+$/, "")));
+    if (r.ok) {
+      const d = await r.json();
+      for (const [code, api] of Object.entries(POKEAPI_LANG)) { const hit = (d.names || []).find(n => n.language && n.language.name === api); if (hit) out[code] = hit.name; }
+    }
+  } catch (e) {}
+  return out;
+}
+function typedLang(text) {
+  const byScript = scriptLang(text);
+  if (byScript) return byScript;
+  const t = plainLetters(text);
+  if (!t) return "";
+  // The little word first (it differs), then the name (it often doesn't).
+  const words = Object.entries(BASIC_WORD).filter(([, w]) => plainLetters(w) === t).map(([k]) => k);
+  if (words.length === 1) return words[0];
+  const names = Object.entries(langNames || {}).filter(([k, n]) => k !== "en" && plainLetters(n) === t).map(([k]) => k);
+  return names.length === 1 ? names[0] : "";
+}
+function renderLangGrid() {
+  $("lang-grid").innerHTML = LANGS.filter(([k]) => k !== "en").map(([k, n]) => `<button type="button" class="lang-pick${langPick === k ? " on" : ""}" data-lang-pick="${k}">
+    <span class="lp-name" lang="${k}">${escapeHtml((langNames && langNames[k]) || "")}</span><span class="lp-word" lang="${k}">top left: <b>${escapeHtml(BASIC_WORD[k])}</b></span><span class="lp-lang">${escapeHtml(n)}</span></button>`).join("");
+  $("lang-go").classList.toggle("hide", !langPick);
+  $("lang-go").textContent = langPick ? "Search " + langName(langPick) + " cards" : "Search";
+}
+async function openLangMatch() {
+  const typed = parseQuery($("q").value.trim() || shownQuery || "").name;
+  const english = typed && !scriptLang(typed) ? typed.replace(/\b[a-z]/g, ch => ch.toUpperCase()) : "";
+  langNames = null; langPick = lang !== "en" ? lang : "";
+  $("lang-typed").value = ""; $("lang-typed-says").textContent = "";
+  $("lang-sub").textContent = english ? "Here is " + english + " as each language writes it. Tap the one that looks like the name on your card. Many use the same letters, so check the little word at the top left too." : "Tap the little word that's printed at the top left of your card (a Basic Pokémon has one), or type what you see below. Type the Pokémon's name in the search box first to see it in every writing.";
+  renderLangGrid();
+  openSheet("lang-sheet");
+  if (english) { langNames = await namesEverywhere(english); if ($("lang-sheet").classList.contains("show")) renderLangGrid(); }
+}
+$("lang-grid").addEventListener("click", e => {
+  const b = e.target.closest("[data-lang-pick]");
+  if (!b) return;
+  langPick = b.dataset.langPick;
+  renderLangGrid();
+});
+$("lang-typed").addEventListener("input", () => {
+  const v = $("lang-typed").value.trim();
+  const k = typedLang(v);
+  if (k) { langPick = k; renderLangGrid(); }
+  $("lang-typed-says").textContent = !v ? "" : k ? "That's " + langName(k) + " writing." : "Can't tell from that. Try the little word at the top left, or tap the one that looks the same above.";
+});
+$("lang-go").addEventListener("click", () => {
+  if (!langPick) return;
+  const typed = $("lang-typed").value.trim();
+  closeSheet("lang-sheet");
+  // Typed in that writing (not just the little word): search for exactly that.
+  if (typed && scriptLang(typed) && !Object.values(BASIC_WORD).includes(typed)) { $("q").value = typed; $("q-clear").classList.remove("hide"); }
+  lang = "";   // so setLang always searches again
+  setLang(langPick);
+});
+$("lang-cancel").addEventListener("click", () => closeSheet("lang-sheet"));
 const nameCache = new Map();
 async function nameInLanguage(name, code) {
-  if (code === "en") return name;
+  if (code === "en" || scriptLang(name)) return name;
   const key = name.toLowerCase() + "|" + code;
   if (nameCache.has(key)) return nameCache.get(key);
   let out = name;
@@ -6683,7 +6798,7 @@ function closeSheet(id) {
   if (id === "cam-sheet") stopCamera();
   if (id === "ask-sheet" && askResolve) { const r = askResolve; askResolve = null; r(null); }
 }
-["card-sheet", "who-sheet", "options-sheet", "cam-sheet", "money-sheet", "trade-add-sheet", "time-sheet", "confirm-sheet", "ask-sheet"].forEach(id => {
+["card-sheet", "who-sheet", "options-sheet", "cam-sheet", "money-sheet", "trade-add-sheet", "time-sheet", "confirm-sheet", "ask-sheet", "lang-sheet"].forEach(id => {
   $(id).addEventListener("click", e => { if (e.target === $(id)) closeSheet(id); });
   attachSheetSwipe(id);
 });
@@ -6897,7 +7012,8 @@ function takeKeysFromLink() {
 // not seen yet, once. (Asked for: "when I go back on, it will say this was
 // updated, and who asked to update it.")
 const CHANGES = [
-  { id: 44, date: "2026-09-29", by: "Moshe", what: "Battle Academy cards: when you add a card that also came in a Battle Academy box (like Shauna from Fusion Strike), it asks what's stamped in the bottom corner — nothing, or which Pokémon and number (Pikachu #24, Cinderace #50…). My cards shows the stamp, and you can change it on the card's page." },
+  { id: 48, date: "2026-09-29", by: "Moshe", what: "Battle Academy cards: when you add a card that also came in a Battle Academy box (like Shauna from Fusion Strike), it asks what's stamped in the bottom corner — nothing, or which Pokémon and number (Pikachu #24, Cinderace #50…). My cards shows the stamp, and you can change it on the card's page." },
+  { id: 47, date: "2026-09-28", by: "Moshe", what: "Languages are now just English and Other. Other asks \"Which writing is on your card?\": it shows the Pokémon's name as each language writes it, with the little word printed at the top left, so you tap the one that looks like your card. You can also type the letters you see (like ピカチュウ) and it works out the language. Typing Japanese, Korean or Chinese letters in the search box switches by itself." },
   { id: 46, date: "2026-09-28", by: "Moshe", what: "Taking a card out of your collection asks how it left: sold, traded, gave away, lost, damaged or something else, with a note if you want. The answer shows in Recently deleted. A card added in the last minute comes straight out with no question, and Undo still puts it back." },
   { id: 45, date: "2026-09-28", by: "Moshe", what: "Mark a card Fake on its page (Is this card real? Real / Fake). A fake card shows FAKE, counts as $0.00 in every total and on the trade gauge, and anyone about to ask for it in a trade is warned first." },
   { id: 43, date: "2026-09-28", by: "Lew", what: "When a request doesn't reach Dad's phone, the person who asked now sees it in red under their request with a Try again button (it also tries by itself every 10 minutes while the app is open), and Dad's list says \"never reached your phone\". The free notification service allows only so many messages a day from one home Wi-Fi, and the house Mac uses the same one, so it ran out tonight at 6:59 PM. Anything still waiting is also sent from elsewhere once a day, at 10 AM." },
@@ -6958,7 +7074,7 @@ renderWhatsNew();
 // anywhere: every sheet closed, the search cleared. (Asked for: "Home should
 // take me to the Poké Scan main page, not my Home app.")
 function goHome() {
-  ["card-sheet", "who-sheet", "options-sheet", "cam-sheet", "money-sheet", "trade-add-sheet", "time-sheet", "confirm-sheet", "ask-sheet"].forEach(id => { if ($(id).classList.contains("show")) closeSheet(id); });
+  ["card-sheet", "who-sheet", "options-sheet", "cam-sheet", "money-sheet", "trade-add-sheet", "time-sheet", "confirm-sheet", "ask-sheet", "lang-sheet"].forEach(id => { if ($(id).classList.contains("show")) closeSheet(id); });
   $("q").value = ""; $("q-clear").classList.add("hide");
   results = []; bestId = null; $("scanned").classList.add("hide"); setStatus("find-status", "");
   renderResults();
