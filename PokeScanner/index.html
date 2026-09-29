@@ -370,6 +370,15 @@
   }
   .pick:active { transform: scale(0.96); }
   .pick:disabled { opacity: 0.35; cursor: default; }
+  .pick.on { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent) inset, var(--shadow); }
+  .pick .code-ico { font-size: calc(30px * var(--scale, 1)); line-height: 44px; font-weight: 900; color: var(--accent); }
+  .code-lbl { display: block; margin: 14px 0 6px; font-weight: 800; font-size: calc(14px * var(--scale, 1)); }
+  .code-lbl small { font-weight: 500; color: var(--ink-muted); }
+  .code-in { width: 100%; background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px; padding: 12px; color: var(--ink); font-family: inherit; font-size: max(16px, calc(18px * var(--scale, 1))); letter-spacing: 0.04em; }
+  .code-note { font-size: calc(13px * var(--scale, 1)); color: var(--ink-muted); margin: 0 0 10px; overflow-wrap: anywhere; }
+  .code-note.ok { color: var(--ok); font-weight: 700; }
+  .exact-left { font-size: calc(12.5px * var(--scale, 1)); font-weight: 700; color: var(--accent); margin: -4px 0 10px !important; }
+  .offer-box { background: linear-gradient(135deg, rgba(124,77,255,0.16), rgba(255,64,129,0.10)); border-color: rgba(124,77,255,0.4); }
   .pick .pick-name { font-size: calc(16px * var(--scale, 1)); font-weight: 800; }
   .pick .pick-sub { font-size: calc(12px * var(--scale, 1)); color: var(--ink-muted); line-height: 1.3; }
   .pick .pick-n { font-size: calc(12px * var(--scale, 1)); font-weight: 700; color: var(--accent); }
@@ -382,6 +391,9 @@
   .subkinds { display: flex; gap: 8px; overflow-x: auto; padding: 2px 0 6px; scrollbar-width: none; }
   .subkinds::-webkit-scrollbar { display: none; }
   .subkinds .chip { flex: none; }
+  .pack-chip { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; border-radius: 14px; padding: 10px 12px; }
+  .pack-chip span { display: flex; flex-direction: column; min-width: 0; }
+  .pack-chip small { opacity: 0.75; overflow-wrap: anywhere; }
   .langs { display: flex; gap: 8px; overflow-x: auto; padding: 10px 0 0; scrollbar-width: none; }
   .langs::-webkit-scrollbar { display: none; }
   .langs .chip { flex: none; font-size: calc(12.5px * var(--scale, 1)); padding: 7px 12px; }
@@ -866,6 +878,7 @@
     </div>
 
     <div id="whats-new" class="whats-new hide"></div>
+    <div id="offer-box" class="whats-new offer-box hide" role="region" aria-label="Something new to try"></div>
     <div class="seg" role="tablist">
       <button type="button" role="tab" id="tab-find" aria-selected="true">Find</button>
       <button type="button" role="tab" id="tab-mine" aria-selected="false">My cards<span class="count" id="mine-count"></span></button>
@@ -975,8 +988,8 @@
   <div class="sheet">
     <div class="grabber"></div>
     <h3>Is this the one in your hand?</h3>
-    <p class="sheet-sub">Look at the bottom of your card. The set's letters and the number there should match these.</p>
-    <div class="fact-grid"><div class="fact"><div class="k">Set letters</div><div class="v" id="confirm-abbr">—</div></div><div class="fact"><div class="k">Number</div><div class="v" id="confirm-num">—</div></div><div class="fact wide"><div class="k">Set</div><div class="v" id="confirm-set">—</div></div></div>
+    <p class="sheet-sub">Look at the bottom of your card. The symbol, the number and the letter in the little box should match these.</p>
+    <div class="fact-grid"><div class="fact"><div class="k">Symbol</div><div class="v" id="confirm-abbr">—</div></div><div class="fact"><div class="k">Number</div><div class="v" id="confirm-num">—</div></div><div class="fact"><div class="k">Letter in the box</div><div class="v" id="confirm-reg">—</div></div><div class="fact wide"><div class="k">Set</div><div class="v" id="confirm-set">—</div></div></div>
     <div id="confirm-stamp" class="hide" style="margin-top:14px">
       <h4 style="margin:0 0 4px">Anything stamped in the bottom corner?</h4>
       <p class="sheet-sub" style="margin:0 0 8px">This card also came in Battle Academy boxes, with a small Pokémon and a number printed in the bottom corner. Tap what yours has.</p>
@@ -1102,6 +1115,7 @@
         <div id="entry-link-open" class="field-note" style="margin:0"></div>
         <div class="opt-row" style="margin:0"><div class="opt-text">Is this card real?<small id="entry-fake-line">A fake counts as $0.00, and anyone asking for it in a trade is told first.</small></div>
           <div class="chips" id="entry-fake-chips" style="flex:none"><button type="button" class="chip" data-fake="0">Real</button><button type="button" class="chip" data-fake="1">Fake</button></div></div>
+        <button type="button" class="btn-plain" id="entry-pack">Wrong pack? Change it</button>
       </div>
       <button type="button" class="btn-save" id="btn-add">Add to my cards</button>
       <button type="button" class="btn-plain fav-btn" id="btn-fav">☆ Favorite</button>
@@ -1180,6 +1194,16 @@
       <div id="opt-family-list"></div>
     </div>
 
+    <div class="opt-section" data-words="exact card only mine questions versions pictures search find narrow symbol number">
+      <h4>Finding a card</h4>
+      <div class="opt-row">
+        <div class="opt-text">Only show my exact card<small id="opt-exact-line">Your own setting. When a card comes in many versions, keep asking questions (the rarity mark, who drew it, the year, the number…) without showing pictures, until only your exact card is left. Off: answer a few questions, then pick from the pictures.</small></div>
+        <span class="switch">
+          <input type="checkbox" id="opt-exact" role="switch">
+          <span class="track"></span><span class="knob"></span>
+        </span>
+      </div>
+    </div>
     <div class="opt-section" data-words="size columns across big small look grid tiles text appearance light dark theme">
       <h4>Look</h4>
       <div class="opt-row">
@@ -1586,7 +1610,7 @@ getRedirectResult(authClient)
 // `snap` is what the card looked like when it was added, so the collection
 // draws instantly and offline without asking the card database again.
 const docRef = doc(db, "homeApps", "pokescan");
-let state = { cards: {}, settings: {}, people: {}, recent: {}, money: {}, products: null, trades: {}, checks: {}, requests: {}, claims: {}, avatars: {}, ownerUid: "", ownerEmail: "", sharedWith: [] };
+let state = { cards: {}, settings: {}, people: {}, recent: {}, money: {}, products: null, trades: {}, checks: {}, requests: {}, claims: {}, avatars: {}, prefs: {}, ownerUid: "", ownerEmail: "", sharedWith: [] };
 let unsubscribe = null;
 let signedIn = false;
 let currentUser = null;
@@ -1667,6 +1691,7 @@ onAuthStateChanged(authClient, async user => {
     state.requests = d.requests && typeof d.requests === "object" ? d.requests : {};
     state.claims = d.claims && typeof d.claims === "object" ? d.claims : {};
     state.avatars = d.avatars && typeof d.avatars === "object" ? d.avatars : {};
+    state.prefs = d.prefs && typeof d.prefs === "object" ? d.prefs : {};
     state.ownerUid = d.ownerUid || ""; state.ownerEmail = d.ownerEmail || "";
     state.sharedWith = Array.isArray(d.sharedWith) ? d.sharedWith : [];
     // The screen comes up whatever happens below. A drawing error on one
@@ -2169,11 +2194,11 @@ async function searchCards(name) {
   } else if (lang === "en" && typeWord(name)) {
     list = await searchByType(typeWord(name));
   } else if (lang === "en" && /^energy$/i.test(name.trim())) {
-    const data = await gql(`{ cards(filters:{category:"Energy"}, pagination:{page:1,itemsPerPage:120}) { id localId name rarity image category stage suffix regulationMark types trainerType set { id name releaseDate symbol logo cardCount { official total } } } }`);
+    const data = await gql(`{ cards(filters:{category:"Energy"}, pagination:{page:1,itemsPerPage:1000}) { id localId name rarity image category stage suffix regulationMark types trainerType illustrator hp set { id name releaseDate symbol logo cardCount { official total } } } }`);
     list = (data.cards || []).filter(c => c && !isPocket(c));
   } else if (lang === "en") {
     const safe = name.trim().toLowerCase().replace(/\\/g, "\\\\").replace(/"/g, '\\"');
-    const data = await gql(`{ cards(filters:{name:"${safe}"}) { id localId name rarity image category stage suffix regulationMark types trainerType set { id name releaseDate symbol logo cardCount { official total } } } }`);
+    const data = await gql(`{ cards(filters:{name:"${safe}"}) { id localId name rarity image category stage suffix regulationMark types trainerType illustrator hp set { id name releaseDate symbol logo cardCount { official total } } } }`);
     list = (data.cards || []).filter(c => c && !isPocket(c));
     // "mew" must not bring Mewtwo: keep the cards whose name has the word
     // itself (Mew, Mew ex, Mew V), and only fall back to "contains" when
@@ -2838,6 +2863,7 @@ $("scan-order-chips").addEventListener("click", e => {
   save({ settings: { scanFirst: b.dataset.scanFirst } });
   renderGeminiLine();
 });
+$("opt-exact").addEventListener("change", () => { if (!who) return; setPref("exactCard", $("opt-exact").checked); });
 function precheckOn() { return state.settings.precheck !== false; }
 $("opt-precheck").addEventListener("change", () => { if (!isOwner()) { $("opt-precheck").checked = precheckOn(); return; } state.settings = { ...state.settings, precheck: $("opt-precheck").checked }; save({ settings: { precheck: $("opt-precheck").checked } }); });
 $("opt-groq-key").addEventListener("input", () => { if (!mayEditKey()) return; const k = $("opt-groq-key").value.trim(); if (k) { saveSettings({ groqKey: k }); renderGeminiLine(); } });
@@ -3007,6 +3033,7 @@ async function runSearch(q, hint, fromScan) {
     // shows every printing straight away with a way back to the question.
     pickStep = (fromScan || game === "ygo" || game === "mcd") ? "cards" : "type";
     subFilter = "all"; pendingFinish = ""; pickFinish = ""; etypeFilter = ""; yearFilter = "";
+    clearFrom("code"); stepTrail = []; typedPrinting = !!(merged.number || merged.set);
     shownQuery = q;
     if (bestId) fullCard(bestId).then(full => noteRecent(full, "scan")).catch(() => {});
     kindFilter = "all";
@@ -3022,6 +3049,174 @@ let subFilter = "all", etypeFilter = "", yearFilter = "";
 function energyTypeOf(c) { return (c.types || [])[0] || (String(c.name || "").match(/\b(Grass|Fire|Water|Lightning|Psychic|Fighting|Darkness|Metal|Fairy|Dragon|Colorless)\b/i) || [])[1] || "Other"; }
 function etypeMatch(c) { return !etypeFilter || energyTypeOf(c) === etypeFilter; }
 function yearMatch(c) { return !yearFilter || (c.year || "Unknown") === yearFilter; }
+
+// ---------- The set letters, the number, the pack (asked for 2026-09-29) ----------
+// Moshe: an energy from 2025, set letters MEE, number 16 -- "ask for BOTH the
+// set symbol and the card number, each optional, don't ask only the year".
+// And another: "it shows the right card, but it's not the right pack" -- the same
+// card printed in several sets was picked for him. So after the type
+// questions, when the cards left are more than one printing, the app asks
+// what's printed at the bottom (letters or symbol, number, both or neither);
+// if more than one pack is still left, it asks which pack, by symbol, letters,
+// name and year -- never by guessing.
+let codeMode = "", codeSets = null, codeNum = "", codeNote = "", codePickedSet = "";
+let packSet = "";
+let exactAns = {}, exactOrder = [];
+let stepTrail = [];
+let typedPrinting = false;   // the search itself had a number (charizard 125/197): that is the answer already
+const numKey = x => String(x == null ? "" : x).split("/")[0].trim().replace(/^0+(?=.)/, "").toLowerCase();
+const setIdOf = c => (c.set && c.set.id) || "";
+function baseList() {
+  return (kindFilter === "all" ? results : results.filter(c => c.kind === kindFilter)).filter(subkindMatch).filter(c => kindFilter !== "energy" || (etypeMatch(c) && yearMatch(c)));
+}
+function codeMatch(c) { return (!codeSets || codeSets.includes(setIdOf(c))) && (!codeNum || numKey(c.localId) === numKey(codeNum)); }
+function exactMatch(c) { return EXACT_QS.every(q => !(q.key in exactAns) || exactAns[q.key] === "?" || q.val(c) === exactAns[q.key]); }
+function narrowed() { return baseList().filter(codeMatch).filter(c => !packSet || setIdOf(c) === packSet).filter(exactMatch); }
+function printingsIn(list) { return new Set(list.map(c => setIdOf(c) + "/" + numKey(c.localId))).size; }
+function setsIn(list) { return [...new Set(list.map(setIdOf))]; }
+// Each set's letters (MEE) and symbol, asked once per set and kept a month.
+const SETINFO_KEY = "pokescan-setinfo-v1";
+try { const saved = JSON.parse(localStorage.getItem(SETINFO_KEY) || "{}"); if (saved && saved.at && Date.now() - saved.at < 30 * 86400000) Object.entries(saved.map || {}).forEach(([k, v]) => setInfoCache.set(k, v)); } catch (e) {}
+let setInfoSaveT = null;
+async function ensureSetInfos(ids) {
+  const missing = ids.filter(id => id && !setInfoCache.has(id) && !/^(ptcg|ygo|mcd):/.test(id));
+  if (!missing.length) return false;
+  for (let i = 0; i < missing.length; i += 8) await Promise.all(missing.slice(i, i + 8).map(id => setInfo(id)));
+  clearTimeout(setInfoSaveT);
+  setInfoSaveT = setTimeout(() => { try { localStorage.setItem(SETINFO_KEY, JSON.stringify({ at: Date.now(), map: Object.fromEntries(setInfoCache) })); } catch (e) {} }, 500);
+  return true;
+}
+// Moshe: "I want what it actually says, not what it should say." A pack is
+// shown the way the card prints it: the symbol picture, the letters only
+// where the card really prints letters (Scarlet & Violet on, and the Mega
+// Evolution energy set, MEE), the little letter in the box, and the number
+// exactly as printed. The database's own set code is never shown.
+function printedLetters(id) { const i = setInfoCache.get(id) || {}; return i.abbr && /^(sv|me)/i.test(String(id)) ? i.abbr : ""; }
+function symbolImg(id, size) {
+  const info = setInfoCache.get(id) || {};
+  size = size || 40;
+  // The English picture first; some sets (Pitch Black) only have the shared one.
+  const alt = info.symbol ? info.symbol.replace("/en/", "/univ/") : "";
+  return info.symbol ? `<img src="${escapeAttr(info.symbol)}" data-alt="${escapeAttr(alt)}" alt="" style="width:${size}px;height:${size}px;object-fit:contain" onerror="if(this.dataset.alt&&this.src!==this.dataset.alt){this.src=this.dataset.alt}else{this.style.visibility='hidden'}">` : `<span style="display:inline-block;width:${size}px;height:${size}px;border-radius:50%;background:var(--panel-2)"></span>`;
+}
+function setTileHtml(id, list, attr, on) {
+  const inSet = list.filter(x => setIdOf(x) === id);
+  const c = inSet[0] || {};
+  const letters = printedLetters(id);
+  const regs = [...new Set(inSet.map(x => x.regulationMark).filter(Boolean))];
+  const nums = [...new Set(inSet.map(x => numberLabel(x)).filter(Boolean))];
+  const bits = [letters ? "Says " + letters : "", regs.length ? "Letter " + regs.join(" or ") + " in the box" : "", nums.length && nums.length <= 3 ? "No. " + nums.join(", ") : ""].filter(Boolean).join(" · ");
+  return `<button type="button" class="pick${on ? " on" : ""}" ${attr}="${escapeAttr(id)}" aria-pressed="${on ? "true" : "false"}">${symbolImg(id, 44)}<span class="pick-name">${escapeHtml((c.set && c.set.name) || "This set")}</span><span class="pick-sub">${escapeHtml([bits, c.year].filter(Boolean).join(" · "))}</span><span class="pick-n">${inSet.length} card${inSet.length === 1 ? "" : "s"}</span></button>`;
+}
+function setsByDate(ids, list) {
+  const date = id => { const c = list.find(x => setIdOf(x) === id); return (c && c.set && c.set.releaseDate) || (setDates && setDates[id]) || ""; };
+  return ids.slice().sort((a, b) => date(b).localeCompare(date(a)));
+}
+async function applyCode() {
+  const base = baseList();
+  const letters = ($("code-set") ? $("code-set").value : "").trim().toLowerCase().replace(/[^a-z0-9.]/g, "");
+  const num = ($("code-num") ? $("code-num").value : "").trim();
+  const wantSet = codeMode === "set" || codeMode === "both";
+  const wantNum = codeMode === "num" || codeMode === "both";
+  let sets = null;
+  if (wantSet && codePickedSet) sets = [codePickedSet];
+  else if (wantSet && letters) {
+    await ensureSetInfos(setsIn(base));
+    sets = setsIn(base).filter(id => { const i = setInfoCache.get(id) || {}; const c = base.find(x => setIdOf(x) === id) || {}; return String(i.abbr || "").toLowerCase() === letters || id.toLowerCase() === letters || normName((c.set && c.set.name) || "") === normName(letters); });
+  }
+  const n = wantNum && num ? numKey(num) : "";
+  const inSets = c => !sets || sets.includes(setIdOf(c));
+  const inNum = c => !n || numKey(c.localId) === n;
+  const setWords = codePickedSet ? (printedLetters(codePickedSet) || (((base.find(x => setIdOf(x) === codePickedSet) || {}).set || {}).name) || "that set") : letters.toUpperCase();
+  codeNote = "";
+  if (base.some(c => inSets(c) && inNum(c)) && (sets === null || sets.length)) { codeSets = sets; codeNum = n; }
+  else if (sets && sets.length && base.some(inSets)) { codeSets = sets; codeNum = ""; codeNote = "No " + setWords + " card numbered " + num + " is in the card list — showing the " + setWords + " ones."; }
+  else if (n && base.some(inNum)) { codeSets = null; codeNum = n; codeNote = (setWords ? "No set with the letters " + setWords + " has this card — " : "") + "showing number " + num + "."; }
+  else { codeSets = null; codeNum = ""; codeNote = "Nothing matched " + [setWords, num].filter(Boolean).join(" ") + " — showing every one."; }
+  goNext("code");
+}
+
+// ---------- Only show my exact card (Moshe, 2026-09-29; a setting per person) ----------
+// "Keep asking distinguishing questions WITHOUT showing card pictures until
+// exactly one card is left." The questions come from what really differs
+// among the cards still left: a question is asked only when the answers
+// would split them. "I can't tell" skips one.
+const RARITY_MARK = {
+  "common": "A black circle", "uncommon": "A black diamond", "rare": "One black star", "double rare": "Two black stars",
+  "ultra rare": "Two silver stars", "illustration rare": "One gold star", "special illustration rare": "Two gold stars",
+  "hyper rare": "Three gold stars", "promo": "The word PROMO, or a star with PROMO", "shiny rare": "One star with a sparkle", "shiny ultra rare": "Two stars with a sparkle", "ace spec rare": "The words ACE SPEC"
+};
+const EXACT_QS = [
+  { key: "name", title: "What's the exact name at the top?", help: "Read it letter for letter, with anything after the name (ex, V…).", val: c => String(c.name || "") },
+  { key: "rarity", title: "What's the rarity mark?", help: "Bottom of the card, next to the number: a circle, a diamond, or stars — and what color.", val: c => { const r = String(c.rarity || "").toLowerCase(); return r === "none" ? "" : r; }, label: (v, c) => (c && c.rarity) || v, sub: v => RARITY_MARK[v] || "" },
+  { key: "border", title: "What color is the edge of the card?", help: "The thin border all the way round the front.", val: c => { const d = (c.set && c.set.releaseDate) || (setDates && setDates[setIdOf(c)]) || ""; return !d || (c.lang && c.lang !== "en") ? "" : d >= "2023-03-31" ? "Silver" : "Yellow"; } },
+  { key: "illustrator", title: "Who drew it?", help: "Tiny words at the bottom left, after “Illus.”", val: c => String(c.illustrator || "").trim().toLowerCase(), label: (v, c) => (c && c.illustrator) || v },
+  { key: "year", title: "What year is in the copyright line?", help: "The very bottom of the card: ©2025 Pokémon…", val: c => String(c.year || "") },
+  { key: "hp", title: "How much HP?", help: "Top right, next to the name.", val: c => c.hp ? String(c.hp) : "", label: v => v + " HP" },
+  { key: "reg", title: "What letter is in the little box?", help: "Bottom left of the card: one letter in a tiny box, like E, G or I.", val: c => String(c.regulationMark || "") },
+  { key: "set", title: "Which symbol is at the bottom of your card?", help: "A little picture near the bottom (newer cards also print letters beside it).", val: c => setIdOf(c), isSet: true },
+  { key: "number", title: "What's the number?", help: "Bottom of the card, like 016/094.", val: c => numKey(c.localId), label: (v, c) => (c && numberLabel(c)) || v }
+];
+function nextExactQ(list) {
+  for (const q of EXACT_QS) {
+    if (q.key in exactAns) continue;
+    // Already asked on the letters-and-number screen.
+    if ((q.key === "set" && (codeMode === "set" || codeMode === "both" || codeMode === "none")) || (q.key === "number" && (codeMode === "num" || codeMode === "both" || codeMode === "none"))) continue;
+    const vals = new Set(list.map(q.val));
+    if (vals.size > 1 && !(vals.size === 2 && vals.has("") && list.filter(c => q.val(c) === "").length > list.length / 2)) return q;
+  }
+  return null;
+}
+const OFFERS = [
+  { key: "exactCard", by: "Moshe", date: "2026-09-29", title: "Only show my exact card",
+    what: "When a card comes in many versions, the app keeps asking questions (the rarity mark, who drew it, the year, the number…) without showing pictures, until only your exact card is left." }
+];
+const sameName = (a, b) => String(a || "").trim().split(/\s+/)[0].toLowerCase() === String(b || "").trim().split(/\s+/)[0].toLowerCase();
+function prefOn(key, name) {
+  name = name === undefined ? who : name;
+  const p = (state.prefs || {})[name] || {};
+  if (typeof p[key] === "boolean") return p[key];
+  const o = OFFERS.find(x => x.key === key);
+  return !!(o && name && sameName(o.by, name));
+}
+function exactOn() { return game === "pokemon" && prefOn("exactCard"); }
+function setPref(key, on) {
+  if (!who) return;
+  const before = (state.prefs || {})[who] || null;
+  const after = { ...(before || {}), [key]: !!on };
+  const o = OFFERS.find(x => x.key === key);
+  pushAction({ label: (o ? o.title : key) + (on ? " on" : " off") + " for " + who, undo: [{ field: "prefs", id: who, value: before }], redo: [{ field: "prefs", id: who, value: after }] });
+  state.prefs = { ...(state.prefs || {}), [who]: after };
+  saveEntry("prefs", who, after);
+  renderOffer(); renderResults();
+  const t = $("opt-exact"); if (t) t.checked = prefOn("exactCard");
+}
+// "Moshe asked for X — do you want it too?", once per person, on their own
+// sign-in (the owner switched onto someone else's name isn't asked for them).
+function myOwnName() {
+  const n = nameForEmail(currentUser && currentUser.email);
+  if (n) return n;
+  // The owner's own name often has no email written under it: then the name
+  // he is on counts as his, unless that name belongs to someone else's email.
+  if (isOwner() && who) { const p = (state.people || {})[who]; if (!p || !p.email || lowerEmail(p.email) === lowerEmail(currentUser && currentUser.email)) return who; }
+  return "";
+}
+function renderOffer() {
+  const box = $("offer-box");
+  if (!box) return;
+  const me = myOwnName();
+  const o = me && me === who ? OFFERS.find(x => !sameName(x.by, me) && typeof (((state.prefs || {})[me] || {})[x.key]) !== "boolean") : null;
+  if (!o) { box.classList.add("hide"); box.innerHTML = ""; return; }
+  box.innerHTML = `<div class="wn-title">${escapeHtml(o.by)} asked for something new</div><p style="margin:0 0 4px;font-weight:800">${escapeHtml(o.title)}</p><p style="margin:0 0 10px;font-size:calc(13.5px * var(--scale, 1));line-height:1.45">${escapeHtml(o.what)}</p><p style="margin:0 0 10px;font-weight:700">Do you want it too?</p><div style="display:flex;gap:8px"><button type="button" class="pill-btn" data-offer-yes="${escapeAttr(o.key)}">Yes</button><button type="button" class="pill-btn" data-offer-no="${escapeAttr(o.key)}">No</button></div><small style="display:block;margin-top:8px;color:var(--ink-muted)">You can change it any time in Options.</small>`;
+  box.classList.remove("hide");
+}
+document.addEventListener("click", e => {
+  const y = e.target.closest("[data-offer-yes]"), n = e.target.closest("[data-offer-no]");
+  if (!y && !n) return;
+  const key = (y || n).dataset[y ? "offerYes" : "offerNo"];
+  setPref(key, !!y);
+  showToast(y ? "Turned on for you" : "Left off for you");
+});
 // Where the type question stands: asking the type, asking the kind inside
 // it, or showing the cards. Typing a name asks; a scan goes straight to
 // the cards (it already knows which one) with a way back to the question.
@@ -3038,6 +3233,49 @@ const REGULAR_FINISHES = [
   { key: "Holo", label: "Holo", sub: "The picture is shiny" },
   { key: "Reverse holo", label: "Reverse holo", sub: "The frame is shiny, the picture is not" }
 ];
+function goNext(from) {
+  const order = ["type", "sub", "etype", "code", "pack", "exact", "cards"];
+  stepTrail.push(from);
+  let next = "cards";
+  for (let i = order.indexOf(from) + 1; i < order.length; i++) if (stepWanted(order[i])) { next = order[i]; break; }
+  pickStep = next;
+  renderResults();
+}
+function stepWanted(s) {
+  const list = narrowed();
+  if (s === "sub") return kindFilter === "regular" || !!SUBKINDS[kindFilter];
+  if (s === "etype") return kindFilter === "energy" && new Set(list.map(energyTypeOf)).size > 1;
+  // English printings only: another language's sets have no symbol on file here.
+  const english = !list.some(c => c.lang && c.lang !== "en");
+  if (s === "code") return game === "pokemon" && english && !typedPrinting && printingsIn(list) > 1;
+  if (s === "pack") return game === "pokemon" && english && !typedPrinting && !exactOn() && setsIn(list).length > 1;
+  if (s === "exact") return exactOn() && list.length > 1 && !!nextExactQ(list);
+  return true;
+}
+// Going back undoes what that step picked, and everything after it.
+function clearFrom(step) {
+  const order = ["type", "sub", "etype", "code", "pack", "exact", "cards"];
+  const at = order.indexOf(step);
+  if (at <= order.indexOf("type")) { kindFilter = "all"; subFilter = "all"; pickFinish = ""; }
+  if (at <= order.indexOf("sub")) { subFilter = "all"; pickFinish = ""; }
+  if (at <= order.indexOf("etype")) { etypeFilter = ""; yearFilter = ""; }
+  if (at <= order.indexOf("code")) { codeMode = ""; codeSets = null; codeNum = ""; codeNote = ""; codePickedSet = ""; }
+  if (at <= order.indexOf("pack")) packSet = "";
+  if (at <= order.indexOf("exact")) { exactAns = {}; exactOrder = []; }
+}
+function goBackTo(step) {
+  const i = stepTrail.lastIndexOf(step);
+  stepTrail = i >= 0 ? stepTrail.slice(0, i) : [];
+  clearFrom(step);
+  pickStep = step;
+  renderResults();
+}
+function stepBack() {
+  if (pickStep === "exact" && exactOrder.length) { const k = exactOrder.pop(); delete exactAns[k]; renderResults(); return; }
+  if (pickStep === "code" && codeMode) { codeMode = ""; codePickedSet = ""; renderResults(); return; }
+  goBackTo(stepTrail.length ? stepTrail[stepTrail.length - 1] : "type");
+}
+const backBtn = words => `<div class="crumb"><button type="button" class="pill-btn" data-step-back="1">‹ ${escapeHtml(words || "Back")}</button></div>`;
 function renderPicker() {
   const pk = $("picker"), crumb = $("crumb");
   if (!results.length || pickStep === "cards") { pk.classList.add("hide"); pk.innerHTML = ""; }
@@ -3046,26 +3284,74 @@ function renderPicker() {
   if (!results.length) return;
   const counts = {};
   results.forEach(c => { counts[c.kind] = (counts[c.kind] || 0) + 1; });
+  const exact = exactOn();
+  const leftLine = list => exact ? `<p class="exact-left">Only show my exact card is on · ${list.length} card${list.length === 1 ? "" : "s"} could still be yours</p>` : "";
   if (pickStep === "type") {
-    pk.innerHTML = `<h3>What type do you have?</h3><p>Look at the card in your hand: the mark after the name, or the finish.</p><div class="pick-grid">`
-      + `<button type="button" class="pick" data-pick-all="1"><span style="font-size: calc(40px * var(--scale, 1));line-height:44px">✱</span><span class="pick-name">All</span><span class="pick-sub">Every printing, no questions</span><span class="pick-n">${results.length} card${results.length === 1 ? "" : "s"}</span></button>`
+    pk.innerHTML = `<h3>What type do you have?</h3><p>Look at the card in your hand: the mark after the name, or the finish.</p>${leftLine(results)}<div class="pick-grid">`
+      + (exact ? "" : `<button type="button" class="pick" data-pick-all="1"><span style="font-size: calc(40px * var(--scale, 1));line-height:44px">✱</span><span class="pick-name">All</span><span class="pick-sub">Every printing, no questions</span><span class="pick-n">${results.length} card${results.length === 1 ? "" : "s"}</span></button>`)
       + KIND_ORDER.map(k => `<button type="button" class="pick" data-pick-kind="${k}" ${counts[k] ? "" : "disabled"}>${kindArt(k, 64)}<span class="pick-name">${escapeHtml(KINDS[k].label)}</span>${KINDS[k].sub ? `<span class="pick-sub">${escapeHtml(KINDS[k].sub)}</span>` : ""}<span class="pick-n">${counts[k] ? counts[k] + (counts[k] === 1 ? " card" : " cards") : "none of this card"}</span></button>`).join("")
       + `</div>`;
     pk.classList.remove("hide");
     return;
   }
-  if (pickStep === "etype" || pickStep === "year") {
-    // Energy asks two more questions (Moshe): which energy, then which year.
-    const inGroup = results.filter(c => c.kind === kindFilter && subkindMatch(c));
-    if (pickStep === "etype") {
-      const ts = {}; inGroup.forEach(c => { const t = (c.types || [])[0] || (String(c.name || "").match(/\b(Grass|Fire|Water|Lightning|Psychic|Fighting|Darkness|Metal|Fairy|Dragon|Colorless)\b/i) || [])[1] || "Other"; ts[t] = (ts[t] || 0) + 1; });
-      pk.innerHTML = `<h3>Which energy?</h3><p>The symbol in the middle of the card.</p><div class="pick-grid">${Object.keys(ts).sort().map(t => `<button type="button" class="pick" data-pick-etype="${escapeAttr(t)}"><span style="display:block;width:44px;height:44px;border-radius:50%;background:${TYPE_COLORS[t] || "#9e9e9e"}"></span><span class="pick-name">${escapeHtml(t)}</span><span class="pick-n">${ts[t]} card${ts[t] === 1 ? "" : "s"}</span></button>`).join("")}</div>
-        <div class="crumb"><button type="button" class="pill-btn" data-pick-back="sub">‹ Back</button></div>`;
+  if (pickStep === "etype") {
+    const inGroup = baseList();
+    const ts = {}; inGroup.forEach(c => { const t = energyTypeOf(c); ts[t] = (ts[t] || 0) + 1; });
+    pk.innerHTML = `<h3>Which energy?</h3><p>The symbol in the middle of the card.</p>${leftLine(inGroup)}<div class="pick-grid">${Object.keys(ts).sort().map(t => `<button type="button" class="pick" data-pick-etype="${escapeAttr(t)}"><span style="display:block;width:44px;height:44px;border-radius:50%;background:${TYPE_COLORS[t] || "#9e9e9e"}"></span><span class="pick-name">${escapeHtml(t)}</span><span class="pick-n">${ts[t]} card${ts[t] === 1 ? "" : "s"}</span></button>`).join("")}</div>${backBtn()}`;
+    pk.classList.remove("hide");
+    return;
+  }
+  if (pickStep === "code") {
+    const list = narrowed();
+    const ids = setsByDate(setsIn(list), list);
+    if (ids.some(id => !setInfoCache.has(id))) ensureSetInfos(ids).then(ch => { if (ch && pickStep === "code") renderPicker(); });
+    const lettersAnywhere = ids.some(id => printedLetters(id));
+    const typedNum = $("code-num") ? $("code-num").value : codeNum, typedSet = $("code-set") ? $("code-set").value : "";
+    const focused = document.activeElement && document.activeElement.id;
+    setTimeout(() => { if ((focused === "code-num" || focused === "code-set") && $(focused)) $(focused).focus(); }, 0);
+    let body;
+    if (!codeMode) {
+      body = `<div class="pick-grid">`
+        + `<button type="button" class="pick" data-code-mode="set"><span class="code-ico">◈</span><span class="pick-name">I see the symbol</span><span class="pick-sub">The little picture near the bottom${lettersAnywhere ? " (newer cards print letters beside it)" : ""}</span></button>`
+        + `<button type="button" class="pick" data-code-mode="num"><span class="code-ico">#</span><span class="pick-name">I see the number</span><span class="pick-sub">Like 045/203, at the bottom</span></button>`
+        + `<button type="button" class="pick" data-code-mode="both"><span class="code-ico">◈#</span><span class="pick-name">I see both</span><span class="pick-sub">The symbol and the number</span></button>`
+        + `<button type="button" class="pick" data-code-mode="none"><span class="code-ico">?</span><span class="pick-name">Neither</span><span class="pick-sub">${exact ? "Ask me other things" : "Ask me which pack instead"}</span></button>`
+        + `</div>` + (exact ? "" : `<button type="button" class="btn-plain" data-code-all="1" style="margin-top:12px;width:100%">Just show me all ${list.length}</button>`);
     } else {
-      const ys = {}; inGroup.filter(c => etypeMatch(c)).forEach(c => { const y = c.year || "Unknown"; ys[y] = (ys[y] || 0) + 1; });
-      pk.innerHTML = `<h3>Which year?</h3><p>The copyright line along the bottom edge says it.</p><div class="pick-grid">${Object.keys(ys).sort().reverse().map(y => `<button type="button" class="pick" data-pick-year="${escapeAttr(y)}"><span class="pick-name">${escapeHtml(y)}</span><span class="pick-n">${ys[y]} card${ys[y] === 1 ? "" : "s"}</span></button>`).join("")}</div>
-        <div class="crumb"><button type="button" class="pill-btn" data-pick-back="etype">‹ Back</button></div>`;
+      const wantSet = codeMode === "set" || codeMode === "both", wantNum = codeMode === "num" || codeMode === "both";
+      body = (wantNum ? `<label class="code-lbl" for="code-num">The number at the bottom <small>(just the first part is enough, like 16)</small></label><input id="code-num" class="code-in" inputmode="text" autocomplete="off" autocapitalize="characters" placeholder="016/094" value="${escapeAttr(typedNum)}">` : "")
+        + (wantSet ? `<div class="code-lbl">Which symbol is at the bottom of your card? <small>Tap it.</small></div><div class="pick-grid">${ids.map(id => setTileHtml(id, list, "data-code-set", codePickedSet === id)).join("")}</div>`
+          + (lettersAnywhere ? `<label class="code-lbl" for="code-set">Or type the letters printed beside it <small>(only newer cards have them, like MEE)</small></label><input id="code-set" class="code-in" autocomplete="off" autocapitalize="characters" placeholder="MEE" maxlength="8" value="${escapeAttr(typedSet)}">` : "") : "")
+        + `<button type="button" class="btn-save" data-code-go="1" style="margin-top:12px;width:100%">${exact ? "Next" : "Show my card"}</button>`;
     }
+    pk.innerHTML = `<h3>What's at the bottom of your card?</h3><p>The same card can come in several packs. The symbol and the number at the bottom say which one is yours. Either one helps.</p>${leftLine(list)}${body}${backBtn()}`;
+    pk.classList.remove("hide");
+    return;
+  }
+  if (pickStep === "pack") {
+    const list = narrowed();
+    const ids = setsByDate(setsIn(list), list);
+    if (ids.some(id => !setInfoCache.has(id))) ensureSetInfos(ids).then(ch => { if (ch && pickStep === "pack") renderPicker(); });
+    pk.innerHTML = `<h3>Which pack is yours?</h3><p>This card came out in ${ids.length} packs. Find the little symbol at the bottom of your card and tap the one that matches.</p>${codeNote ? `<p class="code-note">${escapeHtml(codeNote)}</p>` : ""}<div class="pick-grid">${ids.map(id => setTileHtml(id, list, "data-pack-set", false)).join("")}</div>
+      <button type="button" class="btn-plain" data-pack-all="1" style="margin-top:12px;width:100%">I can't tell — show all ${list.length}</button>${backBtn()}`;
+    pk.classList.remove("hide");
+    return;
+  }
+  if (pickStep === "exact") {
+    const list = narrowed();
+    const q = nextExactQ(list);
+    if (!q) { pickStep = "cards"; renderResults(); return; }
+    const vals = [...new Set(list.map(q.val))].filter(v => v !== "");
+    if (q.isSet && vals.some(id => !setInfoCache.has(id))) ensureSetInfos(vals).then(ch => { if (ch && pickStep === "exact") renderPicker(); });
+    const opts = q.isSet ? setsByDate(vals, list).map(id => setTileHtml(id, list, "data-exact-val", false))
+      : vals.sort((x, y) => String(x).localeCompare(String(y), undefined, { numeric: true })).map(v => {
+        const one = list.find(c => q.val(c) === v);
+        const n = list.filter(c => q.val(c) === v).length;
+        const sub = q.sub ? q.sub(v) : "";
+        return `<button type="button" class="pick" data-exact-val="${escapeAttr(v)}"><span class="pick-name">${escapeHtml(q.label ? q.label(v, one) : v)}</span>${sub ? `<span class="pick-sub">${escapeHtml(sub)}</span>` : ""}<span class="pick-n">${n} card${n === 1 ? "" : "s"}</span></button>`;
+      });
+    pk.innerHTML = `<h3>${escapeHtml(q.title)}</h3><p>${escapeHtml(q.help)}</p>${codeNote ? `<p class="code-note">${escapeHtml(codeNote)}</p>` : ""}${leftLine(list)}<div class="pick-grid" data-exact-q="${escapeAttr(q.key)}">${opts.join("")}</div>
+      <button type="button" class="btn-plain" data-exact-val="?" style="margin-top:12px;width:100%">I can't tell</button>${backBtn()}`;
     pk.classList.remove("hide");
     return;
   }
@@ -3085,33 +3371,70 @@ function renderPicker() {
   }
   // cards: the breadcrumb says what was chosen, and lets you change it.
   const subLabel = (kindFilter === "regular" ? (pickFinish || "") : subFilter !== "all" ? ((SUBKINDS[kindFilter] || []).find(x => x.key === subFilter) || {}).label || "" : "") + (kindFilter === "energy" ? [etypeFilter, yearFilter].filter(Boolean).map(x => " · " + x).join("") : "");
-  crumb.innerHTML = kindFilter === "all"
+  const shown = narrowed();
+  const packWords = (() => { const ids = setsIn(shown); if (!(codeSets || packSet || codeNum || exactOrder.length) || !ids.length) return ""; if (ids.length === 1) { const c = shown[0]; return " · " + ((c.set && c.set.name) || "") + (codeNum ? " · No. " + numberLabel(c) : ""); } return codeNum ? " · No. " + codeNum : ""; })();
+  const exactWords = exact && kindFilter !== "all" ? (shown.length === 1 ? "That's your exact card." : shown.length > 1 ? "These " + shown.length + " can't be told apart by anything I can ask about — pick yours." : "") : "";
+  crumb.innerHTML = (kindFilter === "all"
     ? `<button type="button" class="pill-btn" data-pick-back="type">${kindArt("regular", 20)} Choose a type</button><span class="undo-what" style="flex-basis:auto">Showing every printing</span>`
-    : `<button type="button" class="pill-btn" data-pick-back="type">${kindArt(kindFilter, 22)} ${escapeHtml(KINDS[kindFilter].label)}${subLabel ? " · " + escapeHtml(subLabel) : ""} ‹ change</button>`;
+    : `<button type="button" class="pill-btn" data-pick-back="type">${kindArt(kindFilter, 22)} ${escapeHtml(KINDS[kindFilter].label)}${subLabel ? " · " + escapeHtml(subLabel) : ""}${escapeHtml(packWords)} ‹ change</button>${stepTrail.length > 1 ? `<button type="button" class="pill-btn" data-step-back="1">‹ Back one</button>` : ""}`)
+    + (codeNote ? `<div class="code-note" style="flex-basis:100%">${escapeHtml(codeNote)}</div>` : "")
+    + (exactWords ? `<div class="code-note ok" style="flex-basis:100%">${escapeHtml(exactWords)}</div>` : "");
 }
 function renderKinds() { renderPicker(); }
 $("picker").addEventListener("click", e => {
-  if (e.target.closest("[data-pick-all]")) { kindFilter = "all"; subFilter = "all"; pickFinish = ""; etypeFilter = ""; yearFilter = ""; pickStep = "cards"; renderResults(); return; }
+  if (e.target.closest("[data-pick-all]")) { kindFilter = "all"; subFilter = "all"; pickFinish = ""; etypeFilter = ""; yearFilter = ""; clearFrom("code"); stepTrail = ["type"]; pickStep = "cards"; renderResults(); return; }
   const k = e.target.closest("[data-pick-kind]");
   if (k) {
-    kindFilter = k.dataset.pickKind; subFilter = "all"; etypeFilter = ""; yearFilter = ""; pickFinish = "";
-    pickStep = (kindFilter === "regular" || SUBKINDS[kindFilter]) ? "sub" : "cards";
-    renderResults(); return;
+    clearFrom("type");
+    kindFilter = k.dataset.pickKind;
+    goNext("type"); return;
   }
   const f = e.target.closest("[data-pick-finish]");
-  if (f) { pickFinish = f.dataset.pickFinish === "Regular" ? "" : f.dataset.pickFinish; pickStep = "cards"; renderResults(); return; }
+  if (f) { pickFinish = f.dataset.pickFinish === "Regular" ? "" : f.dataset.pickFinish; goNext("sub"); return; }
   const sub = e.target.closest("[data-pick-sub]");
-  if (sub) { subFilter = sub.dataset.pickSub; pickStep = kindFilter === "energy" ? "etype" : "cards"; renderResults(); return; }
+  if (sub) { subFilter = sub.dataset.pickSub; goNext("sub"); return; }
   const et = e.target.closest("[data-pick-etype]");
-  if (et) { etypeFilter = et.dataset.pickEtype; pickStep = "year"; renderResults(); return; }
-  const yr = e.target.closest("[data-pick-year]");
-  if (yr) { yearFilter = yr.dataset.pickYear; pickStep = "cards"; renderResults(); return; }
+  if (et) { etypeFilter = et.dataset.pickEtype; goNext("etype"); return; }
+  const cm = e.target.closest("[data-code-mode]");
+  if (cm) {
+    codeMode = cm.dataset.codeMode; codePickedSet = "";
+    if (codeMode === "none") { codeSets = null; codeNum = ""; codeNote = ""; goNext("code"); return; }
+    renderPicker();
+    const first = $(codeMode === "set" ? "code-set" : "code-num");
+    if (first && codeMode !== "set") first.focus();
+    return;
+  }
+  const cs = e.target.closest("[data-code-set]");
+  if (cs) {
+    codePickedSet = codePickedSet === cs.dataset.codeSet ? "" : cs.dataset.codeSet;
+    if (codeMode === "set" && codePickedSet) { applyCode(); return; }
+    $("picker").querySelectorAll("[data-code-set]").forEach(b => { const on = b.dataset.codeSet === codePickedSet; b.classList.toggle("on", on); b.setAttribute("aria-pressed", on ? "true" : "false"); });
+    return;
+  }
+  if (e.target.closest("[data-code-go]")) { applyCode(); return; }
+  if (e.target.closest("[data-code-all]")) { stepTrail.push("code"); pickStep = "cards"; renderResults(); return; }
+  const ps = e.target.closest("[data-pack-set]");
+  if (ps) { packSet = ps.dataset.packSet; goNext("pack"); return; }
+  if (e.target.closest("[data-pack-all]")) { packSet = ""; goNext("pack"); return; }
+  const ev = e.target.closest("[data-exact-val]");
+  if (ev) {
+    const q = nextExactQ(narrowed());
+    if (!q) { goNext("exact"); return; }
+    exactAns[q.key] = ev.dataset.exactVal; exactOrder.push(q.key);
+    const list = narrowed();
+    if (list.length <= 1 || !nextExactQ(list)) goNext("exact"); else renderResults();
+    window.scrollTo({ top: Math.max(0, $("picker").getBoundingClientRect().top + window.scrollY - 80), behavior: "smooth" });
+    return;
+  }
+  if (e.target.closest("[data-step-back]")) { stepBack(); return; }
   const back = e.target.closest("[data-pick-back]");
-  if (back) { pickStep = back.dataset.pickBack; renderResults(); }
+  if (back) goBackTo(back.dataset.pickBack);
 });
+$("picker").addEventListener("keydown", e => { if (e.key === "Enter" && e.target.classList.contains("code-in")) { e.preventDefault(); applyCode(); } });
 $("crumb").addEventListener("click", e => {
+  if (e.target.closest("[data-step-back]")) { stepBack(); window.scrollTo({ top: 0, behavior: "smooth" }); return; }
   const back = e.target.closest("[data-pick-back]");
-  if (back) { pickStep = back.dataset.pickBack; renderResults(); window.scrollTo({ top: 0, behavior: "smooth" }); }
+  if (back) { goBackTo(back.dataset.pickBack); window.scrollTo({ top: 0, behavior: "smooth" }); }
 });
 // Which card game. Pokémon is the main one; Yu-Gi-Oh! comes from its own
 // free database (YGOPRODeck), which carries eBay, TCGplayer, Cardmarket,
@@ -3390,7 +3713,7 @@ function renderResults() {
   renderKinds();
   renderRecent();
   const root = $("results");
-  const list = (kindFilter === "all" ? results : results.filter(c => c.kind === kindFilter)).filter(subkindMatch).filter(c => kindFilter !== "energy" || (etypeMatch(c) && yearMatch(c)));
+  const list = narrowed();
   if (!results.length || pickStep !== "cards") { root.innerHTML = ""; return; }
   root.innerHTML = `<div class="grid">${list.map(c => tileHtml(c, { priceSlot: true })).join("")}</div>`;
   if (game === "ygo" && list.length) ypFillSearch(list);
@@ -6470,10 +6793,13 @@ async function confirmThenAdd(c) {
   $("confirm-stamp-note").textContent = stamps.length ? "Prices on the stamped ones are TCGplayer's from " + BA_PRICED + "." : "";
   $("confirm-abbr").textContent = "…";
   $("confirm-num").textContent = numberLabel(c) || "—";
+  $("confirm-reg").textContent = c.regulationMark || "none";
   $("confirm-set").textContent = (c.set && c.set.name) || "—";
   openSheet("confirm-sheet");
-  const a = await setAbbr(c.set && c.set.id, c.lang);
-  if (confirmFor === c) $("confirm-abbr").textContent = a || (c.lang && c.lang !== "en" ? "—" : "(none printed)");
+  if (c.lang && c.lang !== "en") { $("confirm-abbr").textContent = "—"; return; }
+  await ensureSetInfos([setIdOf(c)]);
+  const L = printedLetters(setIdOf(c)), info = setInfoCache.get(setIdOf(c)) || {};
+  if (confirmFor === c) $("confirm-abbr").innerHTML = info.symbol || L ? `<span style="display:inline-flex;align-items:center;gap:6px">${info.symbol ? symbolImg(setIdOf(c), 28) : ""}${L ? escapeHtml(L) : ""}</span>` : "(no symbol on file)";
 }
 $("confirm-stamp-chips").addEventListener("click", e => {
   const b = e.target.closest("[data-stamp]");
@@ -6655,6 +6981,57 @@ $("entry-fake-chips").addEventListener("click", e => {
   renderAll();
   renderCardSheet(openCardData || snapAsCard(openCardId), false);
 });
+// A family member, 2026-09-29: "it shows the right card, but it's not the right
+// pack". A card already in someone's cards can be moved to the pack it
+// really came from: every other printing with the same name, each shown by
+// its symbol, the letters only where the card prints them, the little letter
+// in the box and the number as printed. The price follows the new printing;
+// Undo puts it back.
+async function changePack() {
+  const c = openCardData || (openCardId && snapAsCard(openCardId));
+  const e = c && who ? entryFor(c.id, who) : null;
+  if (!e) return;
+  if (!isOwner() && myOwnName() !== who) return;
+  if ((c.lang && c.lang !== "en") || c.game === "ygo" || MCD.isMcd(c) || String(c.id).startsWith("ptcg:")) { showToast("Changing the pack works for English Pokémon cards"); return; }
+  const btn = $("entry-pack"); btn.disabled = true; btn.textContent = "Looking for the other packs…";
+  let others = [];
+  try {
+    const keep = lang; lang = "en";
+    try { others = await searchCards(c.name); } finally { lang = keep; }
+    others = others.filter(x => x.id !== c.id && lookNorm(x.name) === lookNorm(c.name));
+    await ensureSetInfos(setsIn(others));
+  } catch (err) { showToast("Couldn't reach the card database"); }
+  btn.disabled = false; btn.textContent = "Wrong pack? Change it";
+  if (!others.length) { showToast("This card isn't in any other pack"); return; }
+  others.sort((a, b) => String((b.set && b.set.releaseDate) || (setDates && setDates[setIdOf(b)]) || "").localeCompare(String((a.set && a.set.releaseDate) || (setDates && setDates[setIdOf(a)]) || "")));
+  const pick = askSheet({ title: "Which pack is yours?", sub: "Look at the bottom of your card: the little symbol, the number, and the letter in the little box. Tap the one that matches.", choices: [], yes: "Change it", no: "Keep it as it is" });
+  $("ask-chips").innerHTML = others.map((x, i) => {
+    const L = printedLetters(setIdOf(x));
+    const bits = [L ? "Says " + L : "", "No. " + (numberLabel(x) || "?"), x.regulationMark ? "Letter " + x.regulationMark + " in the box" : "", /^none$/i.test(x.rarity || "") ? "" : x.rarity || "", x.year || ""].filter(Boolean).join(" · ");
+    return `<button type="button" class="chip pack-chip" data-ask="${escapeAttr(x.id)}">${symbolImg(setIdOf(x), 28)}<span><b>${escapeHtml((x.set && x.set.name) || "")}</b><small>${escapeHtml(bits)}</small></span></button>`;
+  }).join("");
+  $("ask-chips").classList.remove("hide");
+  const ans = await pick;
+  if (!ans) return;
+  if (!others.some(x => x.id === ans.how)) { showToast("Nothing changed — tap a pack first, then Change it"); return; }
+  const now = entryFor(c.id, who);
+  if (!now) return;
+  let full;
+  try { full = await fullCard(ans.how, others.find(x => x.id === ans.how)); } catch (err) { showToast("Couldn't load that pack's card"); return; }
+  const before = state.cards[now.id];
+  const snap = snapshotOf(full);
+  const row = tcgplayerRows(full).find(r => sameFinish(r.finish, before.finish || ""));
+  if (row && (row.marketPrice || row.midPrice)) snap.price = row.marketPrice || row.midPrice;
+  const after = { ...before, cardId: full.id, snap };
+  if (after.stamp && !baStamps(full).some(st => baId(st) === after.stamp)) delete after.stamp;
+  pushAction({ label: c.name + " moved to " + ((full.set && full.set.name) || "another pack"), undo: [{ field: "cards", id: now.id, value: before }], redo: [{ field: "cards", id: now.id, value: after }] });
+  state.cards[now.id] = after;
+  saveEntry("cards", now.id, after);
+  showToast(c.name + " is now from " + ((full.set && full.set.name) || "that pack"));
+  renderAll();
+  openCard(full.id);
+}
+$("entry-pack").addEventListener("click", changePack);
 $("btn-fav").addEventListener("click", () => { const e = who && openCardId ? entryFor(openCardId, who) : null; if (e) toggleFav(e.id); });
 $("btn-remove").addEventListener("click", () => { const e = who && openCardId ? entryFor(openCardId, who) : null; if (e) { closeSheet("card-sheet"); takeOut(e.id); } });
 $("btn-card-close").addEventListener("click", () => closeSheet("card-sheet"));
@@ -6894,6 +7271,7 @@ function openOptions() {
   $("opt-pack-price").value = packPrice().toFixed(2);
   $("opt-pack-price").disabled = !isOwner();
   $("opt-precheck").checked = precheckOn();
+  $("opt-exact").checked = prefOn("exactCard"); $("opt-exact").disabled = !who;
   $("opt-timer").checked = isOwner() ? timerOwnerToo : timerOn;
   $("opt-precheck").disabled = !isOwner();
   $("opt-gemini-key").value = ""; $("opt-groq-key").value = ""; $("opt-chatgpt-key").value = "";
@@ -7081,10 +7459,7 @@ function attachSheetSwipe(id) {
 // language rows) and text boxes keep the gesture for themselves.
 function goBackOneStep() {
   if (tab === "find") {
-    if (results.length && pickStep === "cards") { pickStep = kindFilter === "energy" ? "year" : (SUBKINDS[kindFilter] || kindFilter === "regular") ? "sub" : "type"; renderResults(); return true; }
-    if (results.length && pickStep === "year") { pickStep = "etype"; renderResults(); return true; }
-    if (results.length && pickStep === "etype") { pickStep = "sub"; renderResults(); return true; }
-    if (results.length && pickStep === "sub") { pickStep = "type"; renderResults(); return true; }
+    if (results.length && pickStep !== "type" && !(pickStep === "cards" && !stepTrail.length)) { stepBack(); return true; }
     if (results.length || $("q").value.trim()) { $("q").value = ""; $("q-clear").classList.add("hide"); results = []; bestId = null; $("scanned").classList.add("hide"); setStatus("find-status", ""); renderResults(); return true; }
     if (checkAdding) { checkAdding = null; setTab("trade"); return true; }   // back out of adding to the trade check
     return false;
@@ -7138,6 +7513,7 @@ function renderAll() {
   if (tab === "sets") safely("sets", renderSets);
   safely("find", () => { if (results.length) renderResults(); else renderRecent(); });
   safely("readers", renderReaderRows);
+  safely("offer", renderOffer);
 }
 
 // Keys handed over by the Keys iPhone app, on this page's own address:
@@ -7181,6 +7557,9 @@ function takeKeysFromLink() {
 // not seen yet, once. (Asked for: "when I go back on, it will say this was
 // updated, and who asked to update it.")
 const CHANGES = [
+  { id: 53, date: "2026-09-29", by: "a family member", what: "Right card, wrong pack: when the same card came out in more than one pack, the app asks what's at the bottom of your card (the symbol, the number, both or neither) and then which pack, by its symbol, instead of picking one. A card already in your cards has \"Wrong pack? Change it\" on its page; the price follows, and Undo puts it back." },
+  { id: 52, date: "2026-09-29", by: "Moshe", what: "Packs are shown the way your card prints them: the little symbol picture, the number as printed, and the letter in the little box — letters like MEE only where the card really has them." },
+  { id: 51, date: "2026-09-29", by: "Moshe", what: "Energy cards: every energy is in the search now, the new ones too (like the 2025 Lightning Energy with MEE at the bottom). After you pick the energy, it asks for the symbol and the number instead of only the year. New setting, each person's own: \"Only show my exact card\" keeps asking questions with no pictures until only your card is left." },
   { id: 50, date: "2026-09-28", by: "Moshe", what: "Minecraft Dungeons Arcade cards: pick Minecraft Dungeons above the search, then type a card's name or the number on its back, or tap a series to see all of it. All 144 cards from the five series are in. There are no prices for these: each card says how rare it is (Common, Rare, Unique, Hero or Legendary) in plain words, My cards shows how close you are to each full series and which cards are missing, and they trade like any other card. In a trade they count as $0, and the gauge says so." },
   { id: 49, date: "2026-09-28", by: "Moshe", what: "On an iPad or a computer, tapping a card opens its page on the right side, like Google, and the list stays right where it was. Tap another card to swap it, or ✕ Close to close it. On a phone it slides up as before. And a View choice on the search results and on My cards: Grid, List (one row per card with its picture, set, number, price and how many) or Big (large pictures). Each person's choice is remembered on that device." },
   { id: 48, date: "2026-09-29", by: "Moshe", what: "Battle Academy cards: when you add a card that also came in a Battle Academy box (like Shauna from Fusion Strike), it asks what's stamped in the bottom corner — nothing, or which Pokémon and number (Pikachu #24, Cinderace #50…). My cards shows the stamp, and you can change it on the card's page." },
