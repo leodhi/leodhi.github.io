@@ -378,6 +378,19 @@
   .code-note { font-size: calc(13px * var(--scale, 1)); color: var(--ink-muted); margin: 0 0 10px; overflow-wrap: anywhere; }
   .code-note.ok { color: var(--ok); font-weight: 700; }
   .exact-left { font-size: calc(12.5px * var(--scale, 1)); font-weight: 700; color: var(--accent); margin: -4px 0 10px !important; }
+  /* A question the owner put to one person: big and bold on purpose ("Ask him in big letters so he doesn't miss it"). */
+  .question-box { background: linear-gradient(135deg, #7c4dff, #ff4081); color: #fff; border-radius: 20px; padding: 18px 16px 16px; margin: 12px 0 0; box-shadow: 0 10px 28px rgba(124,77,255,0.45); }
+  .question-box .q-from { font-size: calc(13px * var(--scale, 1)); font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; opacity: 0.92; margin-bottom: 6px; }
+  .question-box .q-big { font-size: calc(26px * var(--scale, 1)); line-height: 1.15; font-weight: 900; margin: 0 0 8px; }
+  .question-box .q-sub { font-size: calc(16px * var(--scale, 1)); line-height: 1.4; margin: 0 0 12px; font-weight: 600; }
+  .question-box .q-label { font-size: calc(15px * var(--scale, 1)); font-weight: 800; margin: 12px 0 6px; }
+  .question-box .q-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .question-box .q-chip { flex: 0 1 auto; max-width: 100%; white-space: normal; line-height: 1.25; background: rgba(255,255,255,0.18); color: #fff; border: 2px solid rgba(255,255,255,0.7); border-radius: 999px; padding: 10px 14px; font-size: calc(16px * var(--scale, 1)); font-weight: 800; text-align: left; min-height: 44px; }
+  .question-box .q-chip[aria-pressed="true"] { background: #fff; color: #5b2bd6; border-color: #fff; }
+  .question-box textarea { width: 100%; box-sizing: border-box; min-height: 74px; border-radius: 12px; border: 0; padding: 10px 12px; font: inherit; font-size: max(16px, calc(16px * var(--scale, 1))); color: #222; background: #fff; }
+  .question-box .q-send { display: block; width: 100%; margin-top: 14px; min-height: 52px; border: 0; border-radius: 14px; background: #fff; color: #5b2bd6; font-size: calc(19px * var(--scale, 1)); font-weight: 900; }
+  .question-box .q-send:disabled { opacity: 0.55; }
+  .question-box .q-note { font-size: calc(13px * var(--scale, 1)); margin-top: 8px; opacity: 0.95; }
   .offer-box { background: linear-gradient(135deg, rgba(124,77,255,0.16), rgba(255,64,129,0.10)); border-color: rgba(124,77,255,0.4); }
   .pick .pick-name { font-size: calc(16px * var(--scale, 1)); font-weight: 800; }
   .pick .pick-sub { font-size: calc(12px * var(--scale, 1)); color: var(--ink-muted); line-height: 1.3; }
@@ -877,6 +890,7 @@
       </div>
     </div>
 
+    <div id="question-box" class="question-box hide" role="region" aria-label="A question from the owner"></div>
     <div id="whats-new" class="whats-new hide"></div>
     <div id="offer-box" class="whats-new offer-box hide" role="region" aria-label="Something new to try"></div>
     <div class="seg" role="tablist">
@@ -1600,7 +1614,8 @@ getRedirectResult(authClient)
 //   products      = { at, list: [...] }         -- the Shop, when the owner has had Gemini refresh it
 //   claims.{cardId} = { opens, name, image, by: { [name]: variant } }   -- the hidden copy: how often it has been opened, who claimed which look
 //   avatars.{name}  = { cardId, variant }
-//   requests.{id} = { by, text, at, status: new | approved | declined | done }   -- a family member asking the owner for a change
+//   requests.{id} = { by, text, at, status: new | approved | declined | done, kind?: "answer" }   -- a family member asking the owner for a change (kind "answer" = their reply to a question the owner put to them, see QUESTIONS)
+//   answers.{questionId}-{name} = { q, by, picks: [..], text, when, at }   -- that person's reply to one of the owner's questions; its being there is what takes the big question off their screen
 //   trades.{id}   = { a, b, sideA: { cards: [entryIds], money }, sideB: {...}, turn, status, log: [...], at, updatedAt }
 //                    a started it; sideA is what a gives, sideB what b gives; turn = whose move; status = open | accepted | declined
 //   checks.{name} = { other, a: [items], b: [items], at }   -- that person's trade check (is this swap fair?); see TRADE CHECK
@@ -1610,7 +1625,7 @@ getRedirectResult(authClient)
 // `snap` is what the card looked like when it was added, so the collection
 // draws instantly and offline without asking the card database again.
 const docRef = doc(db, "homeApps", "pokescan");
-let state = { cards: {}, settings: {}, people: {}, recent: {}, money: {}, products: null, trades: {}, checks: {}, requests: {}, claims: {}, avatars: {}, prefs: {}, ownerUid: "", ownerEmail: "", sharedWith: [] };
+let state = { cards: {}, settings: {}, people: {}, recent: {}, money: {}, products: null, trades: {}, checks: {}, requests: {}, claims: {}, avatars: {}, prefs: {}, answers: {}, ownerUid: "", ownerEmail: "", sharedWith: [] };
 let unsubscribe = null;
 let signedIn = false;
 let currentUser = null;
@@ -1692,6 +1707,7 @@ onAuthStateChanged(authClient, async user => {
     state.claims = d.claims && typeof d.claims === "object" ? d.claims : {};
     state.avatars = d.avatars && typeof d.avatars === "object" ? d.avatars : {};
     state.prefs = d.prefs && typeof d.prefs === "object" ? d.prefs : {};
+    state.answers = d.answers && typeof d.answers === "object" ? d.answers : {};
     state.ownerUid = d.ownerUid || ""; state.ownerEmail = d.ownerEmail || "";
     state.sharedWith = Array.isArray(d.sharedWith) ? d.sharedWith : [];
     // The screen comes up whatever happens below. A drawing error on one
@@ -3167,6 +3183,108 @@ function nextExactQ(list) {
   }
   return null;
 }
+// =========================================================================
+// QUESTIONS THE OWNER PUT TO ONE PERSON (2026-09-29)
+// =========================================================================
+// Lew: "Ask him in big letters so he doesn't miss it." A big banner at the top of
+// Poké Scan, shown ONLY to the person it is for (matched by first name on the
+// name their own sign-in email is on -- the owner never sees it, even when
+// switched onto that name), with answer buttons and a text box. Sending it:
+//   1. saves the reply in the document: answers.{id}-{name}. Its being there is
+//      what takes the banner away, on every device that person uses;
+//   2. records it as a request of kind "answer" and pushes it to the owner's
+//      phone the same way the request bar does (ntfy, then the "Send to Claude"
+//      button drops it into the chat on the Mac); a push that fails is tried
+//      again by the same retry the requests already have.
+// Adding another question = one more entry here.
+const QUESTIONS = [
+  { id: "shmuel-missing-card", to: "Shmuel", date: "2026-09-29",
+    title: "Which card isn't showing?",
+    sub: "You said one of your cards isn't showing. Tell {owner} which card it is, and about when you scanned or added it. Then he can find it.",
+    textLabel: "Which card? Type its name or number.", textPlaceholder: "Like: Charizard ex, or 016/094",
+    textRequired: true,
+    whenLabel: "About when did you scan or add it?", when: ["Today", "Yesterday", "A few days ago", "Last week or older", "Not sure"] },
+  { id: "moshe-collectr-parts", to: "Moshe", date: "2026-09-29",
+    title: "Which parts of Collectr do you want most?",
+    sub: "You asked us to copy Collectr. That's a lot, so we'll start with what you want most. Tap all the ones you want.",
+    picksLabel: "Tap all you want:", picks: ["How much my whole collection is worth, over time", "How complete each set is", "Prices for graded cards", "Each card's price history"],
+    textLabel: "Something else? Type it here.", textPlaceholder: "Anything else from Collectr you want" }
+];
+const qKey = (q, name) => q.id + "-" + String(name || "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "_");
+// The question to show right now, or null: only to its own person, signed in as themselves, not yet answered.
+function currentQuestion() {
+  if (!currentUser || isOwner()) return null;
+  const me = nameForEmail(currentUser.email);
+  if (!me || me !== who) return null;
+  return QUESTIONS.find(q => sameName(q.to, me) && !(state.answers || {})[qKey(q, me)]) || null;
+}
+let qDraft = { id: "", picks: [], text: "", when: "" }, qShown = "", qSending = false;
+function qReady(q) {
+  const text = qDraft.text.trim();
+  if (q.textRequired) return !!text;
+  return !!text || qDraft.picks.length > 0;
+}
+function renderQuestion() {
+  const box = $("question-box");
+  if (!box) return;
+  const q = currentQuestion();
+  if (!q) { qShown = ""; if (!box.classList.contains("hide")) { box.classList.add("hide"); box.innerHTML = ""; } return; }
+  // Drawn once per question: the document arrives again after every save, and drawing again would wipe what is being typed.
+  if (qShown === q.id && !box.classList.contains("hide")) { const b = $("q-send"); if (b) b.disabled = qSending || !qReady(q); return; }
+  if (qDraft.id !== q.id) qDraft = { id: q.id, picks: [], text: "", when: "" };
+  qShown = q.id;
+  const boss = ownerName();
+  const chips = (list, attr, on) => `<div class="q-chips">${list.map((c, i) => `<button type="button" class="q-chip" ${attr}="${i}" aria-pressed="${on(c) ? "true" : "false"}">${escapeHtml(c)}</button>`).join("")}</div>`;
+  box.innerHTML = `<div class="q-from">A question from ${escapeHtml(boss)}</div>
+    <p class="q-big">${escapeHtml(q.to)}, ${escapeHtml(q.title.charAt(0).toLowerCase() + q.title.slice(1))}</p>
+    <p class="q-sub">${escapeHtml(q.sub.replace("{owner}", boss))}</p>
+    ${q.picks ? `<div class="q-label">${escapeHtml(q.picksLabel)}</div>${chips(q.picks, "data-q-pick", c => qDraft.picks.includes(c))}` : ""}
+    <div class="q-label">${escapeHtml(q.textLabel)}</div>
+    <textarea id="q-text" rows="3" placeholder="${escapeAttr(q.textPlaceholder || "")}" aria-label="${escapeAttr(q.textLabel)}">${escapeHtml(qDraft.text)}</textarea>
+    ${q.when ? `<div class="q-label">${escapeHtml(q.whenLabel)}</div>${chips(q.when, "data-q-when", c => qDraft.when === c)}` : ""}
+    <button type="button" class="q-send" id="q-send" ${qReady(q) ? "" : "disabled"}>Send to ${escapeHtml(boss)}</button>
+    <div class="q-note" id="q-note">It goes straight to ${escapeHtml(boss)}'s phone. This box goes away once you send it.</div>`;
+  box.classList.remove("hide");
+}
+document.addEventListener("input", e => {
+  if (e.target && e.target.id === "q-text") { qDraft.text = e.target.value; const q = currentQuestion(), b = $("q-send"); if (q && b) b.disabled = qSending || !qReady(q); }
+});
+document.addEventListener("click", e => {
+  const pk = e.target.closest("[data-q-pick]"), wn = e.target.closest("[data-q-when]");
+  const q = (pk || wn || e.target.closest("#q-send")) ? currentQuestion() : null;
+  if (!q) return;
+  if (pk) { const c = q.picks[Number(pk.dataset.qPick)]; qDraft.picks = qDraft.picks.includes(c) ? qDraft.picks.filter(x => x !== c) : qDraft.picks.concat(c); pk.setAttribute("aria-pressed", qDraft.picks.includes(c) ? "true" : "false"); }
+  else if (wn) { const c = q.when[Number(wn.dataset.qWhen)]; qDraft.when = qDraft.when === c ? "" : c; wn.parentElement.querySelectorAll("[data-q-when]").forEach(b => b.setAttribute("aria-pressed", q.when[Number(b.dataset.qWhen)] === qDraft.when ? "true" : "false")); }
+  else if (e.target.closest("#q-send")) { sendQuestionAnswer(q); return; }
+  const b = $("q-send"); if (b) b.disabled = qSending || !qReady(q);
+});
+// The words the owner reads (and Claude gets): the question, then exactly what was answered.
+function answerWords(q, a) {
+  const parts = [];
+  if (a.picks.length) parts.push("wants most: " + a.picks.join("; "));
+  if (a.text) parts.push((q.picks ? "something else: " : "the card: ") + a.text);
+  if (a.when) parts.push("scanned or added: " + a.when);
+  return "Answer to your question \"" + q.title + "\" -- " + parts.join(" | ");
+}
+async function sendQuestionAnswer(q) {
+  if (qSending || !qReady(q) || !who) return;
+  qSending = true;
+  const b = $("q-send"); if (b) { b.disabled = true; b.textContent = "Sending…"; }
+  const at = Date.now();
+  const a = { q: q.id, by: who, picks: qDraft.picks.slice(), text: qDraft.text.trim(), when: qDraft.when || "", at };
+  const key = qKey(q, who), reqId = newId();
+  const req = { by: who, text: answerWords(q, a), at, status: "new", pushed: false, kind: "answer", qid: q.id };
+  state.answers = { ...(state.answers || {}), [key]: a };
+  state.requests = { ...(state.requests || {}), [reqId]: req };
+  saveEntry("answers", key, a);
+  saveEntry("requests", reqId, req);
+  qShown = ""; qSending = false;
+  renderQuestion();
+  const pushed = await pushToOwner("Poké Scan answer from " + who, req.text, reqId, "answer");
+  if (pushed) markRequestPushed(reqId);
+  else if (ntfyTopic()) retryUnpushedSoon();
+  showToast(pushed ? "Sent to " + ownerName() + ". Thank you!" : "Saved. It will reach " + ownerName() + "'s phone as soon as it can.");
+}
 const OFFERS = [
   { key: "exactCard", by: "Moshe", date: "2026-09-29", title: "Only show my exact card",
     what: "When a card comes in many versions, the app keeps asking questions (the rarity mark, who drew it, the year, the number…) without showing pictures, until only your exact card is left." }
@@ -4563,7 +4681,7 @@ function ownerName() {
     || (noEmail.length === 1 ? noEmail[0] : "");
   return own || (state.ownerEmail ? state.ownerEmail.split("@")[0] : "the owner");
 }
-async function pushToOwner(title, text, requestId) {
+async function pushToOwner(title, text, requestId, kind) {
   const topic = ntfyTopic();
   if (!topic) return false;
   const here = location.origin + location.pathname;
@@ -4573,9 +4691,9 @@ async function pushToOwner(title, text, requestId) {
     // through the same relay Claude Talk uses (the phone talks to the Mac
     // over Tailscale; nothing to sign in to). Second: approve in the app.
     const relay = claudeRelay();
-    const line = claudeLineFor({ by: who, text, at: Date.now() });
+    const line = claudeLineFor({ by: who, text, at: Date.now(), kind });
     if (relay.host) actions.push({ action: "http", label: "Send to Claude", url: "http://" + relay.host + "/claude/ask", method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text: "Poké Scan request approved by Dad from his phone. " + line, mode: "session", ...(relay.session ? { session: relay.session } : {}) }), clear: true });
+      body: JSON.stringify({ text: (kind === "answer" ? "Poké Scan answer sent by Dad from his phone. " : "Poké Scan request approved by Dad from his phone. ") + line, mode: "session", ...(relay.session ? { session: relay.session } : {}) }), clear: true });
     actions.push({ action: "view", label: "Approve in app", url: here + "?approve=" + encodeURIComponent(requestId) });
     if (actions.length < 3) actions.push({ action: "view", label: "Open Poké Scan", url: here });
   }
@@ -4648,7 +4766,7 @@ function showApproveBanner(r, copied) {
   $("approve-copy").addEventListener("click", async () => { const ok = await copyText(claudeLineFor(r)); showToast(ok ? "Copied" : "Couldn't copy here"); });
   $("approve-done").addEventListener("click", () => { box.classList.add("hide"); renderWhatsNew(); });
 }
-function myRequests() { return Object.entries(state.requests || {}).map(([id, r]) => ({ id, ...r })).filter(r => r && r.by === who).sort((a, b) => (b.at || 0) - (a.at || 0)); }
+function myRequests(withAnswers) { return Object.entries(state.requests || {}).map(([id, r]) => ({ id, ...r })).filter(r => r && r.by === who && (withAnswers || r.kind !== "answer")).sort((a, b) => (b.at || 0) - (a.at || 0)); }
 function allRequests() { return Object.entries(state.requests || {}).map(([id, r]) => ({ id, ...r })).filter(Boolean).sort((a, b) => (b.at || 0) - (a.at || 0)); }
 const REQ_STATE = { new: "Sent — waiting", approved: "Approved — being done", declined: "Not this time", done: "Done" };
 function renderRequests() {
@@ -4664,7 +4782,7 @@ function renderRequests() {
   $("opt-req-line").innerHTML = (all.length ? (open ? open + " waiting for you. " : "") + "Approve copies the request, ready to paste into Claude." : "Nothing asked for yet.")
     + (open > 1 ? ` <button type="button" class="chip" id="req-approve-all" style="margin-left:6px">Approve all ${open}</button>` : "");
   $("opt-req-list").innerHTML = all.slice(0, 20).map(r => `<li><b>${escapeHtml(r.by)}</b>: ${escapeHtml(r.text)}<small><span class="req-state ${escapeAttr(r.status)}">${escapeHtml(REQ_STATE[r.status] || r.status)}</span>${r.status === "new" && r.pushed === false ? " · never reached your phone" : ""} · ${escapeHtml(new Date(r.at).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }))}</small>
-    <div class="chips">${r.status === "new" ? `<button type="button" class="chip" data-req-approve="${escapeAttr(r.id)}">Approve &amp; copy for Claude</button><button type="button" class="chip" data-req-decline="${escapeAttr(r.id)}">Decline</button>` : r.status === "approved" ? `<button type="button" class="chip" data-req-copy="${escapeAttr(r.id)}">Copy for Claude again</button><button type="button" class="chip" data-req-done="${escapeAttr(r.id)}">Mark done</button>` : ""}</div></li>`).join("");
+    <div class="chips">${r.kind === "answer" ? (r.status === "new" ? `<button type="button" class="chip" data-req-copy="${escapeAttr(r.id)}">Copy for Claude</button><button type="button" class="chip" data-req-done="${escapeAttr(r.id)}">Got it</button>` : "") : r.status === "new" ? `<button type="button" class="chip" data-req-approve="${escapeAttr(r.id)}">Approve &amp; copy for Claude</button><button type="button" class="chip" data-req-decline="${escapeAttr(r.id)}">Decline</button>` : r.status === "approved" ? `<button type="button" class="chip" data-req-copy="${escapeAttr(r.id)}">Copy for Claude again</button><button type="button" class="chip" data-req-done="${escapeAttr(r.id)}">Mark done</button>` : ""}</div></li>`).join("");
 }
 function setRequestStatus(id, status) {
   const before = state.requests[id];
@@ -4676,7 +4794,8 @@ function setRequestStatus(id, status) {
   saveEntry("requests", id, after);
   renderRequests();
 }
-function claudeLineFor(r) { return "Poké Scan change requested by " + r.by + " on " + new Date(r.at).toLocaleDateString() + ": " + r.text + " — please build it in docs/pokescan/ and add a What's new line with by: \"" + r.by + "\"."; }
+function claudeLineFor(r) { if (r.kind === "answer") return "Poké Scan family answer from " + r.by + " on " + new Date(r.at).toLocaleDateString() + " (they were asked in Poké Scan; nothing to build unless the answer says so): " + r.text;
+  return "Poké Scan change requested by " + r.by + " on " + new Date(r.at).toLocaleDateString() + ": " + r.text + " — please build it in docs/pokescan/ and add a What's new line with by: \"" + r.by + "\"."; }
 async function copyText(text) {
   try { await navigator.clipboard.writeText(text); return true; } catch (e) {}
   try { const ta = document.createElement("textarea"); ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); ta.remove(); return true; } catch (e) { return false; }
@@ -4707,7 +4826,7 @@ $("req-mine").addEventListener("click", async e => {
   const r = (state.requests || {})[b.dataset.reqRetry];
   if (!r || r.by !== who) return;
   b.disabled = true; b.textContent = "Sending…";
-  const ok = await pushToOwner("Poké Scan request from " + r.by, r.text, b.dataset.reqRetry);
+  const ok = await pushToOwner(r.kind === "answer" ? "Poké Scan answer from " + r.by : "Poké Scan request from " + r.by, r.text, b.dataset.reqRetry, r.kind);
   if (ok) markRequestPushed(b.dataset.reqRetry);
   setStatus("req-status", ok ? "Sent — it's on " + ownerName() + "'s phone now." : "Still didn't reach " + ownerName() + "'s phone. " + pushProblemWords(), !ok);
   renderRequests();
@@ -4730,9 +4849,9 @@ async function resendUnpushedRequests() {
   resentThisOpen = true;
   const weekAgo = Date.now() - 7 * 86400000;
   let left = 0;
-  for (const r of myRequests()) {
+  for (const r of myRequests(true)) {
     if (r.pushed !== false || r.status !== "new" || !(r.at > weekAgo)) continue;
-    if (await pushToOwner("Poké Scan request from " + r.by, r.text, r.id)) markRequestPushed(r.id);
+    if (await pushToOwner(r.kind === "answer" ? "Poké Scan answer from " + r.by : "Poké Scan request from " + r.by, r.text, r.id, r.kind)) markRequestPushed(r.id);
     else left++;
   }
   renderRequests();
@@ -7521,6 +7640,7 @@ function renderAll() {
   safely("find", () => { if (results.length) renderResults(); else renderRecent(); });
   safely("readers", renderReaderRows);
   safely("offer", renderOffer);
+  safely("question", renderQuestion);
 }
 
 // Keys handed over by the Keys iPhone app, on this page's own address:
