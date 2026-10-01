@@ -798,6 +798,47 @@
   .card input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
   .note { background: rgba(255,90,78,0.12); border: 1px solid rgba(255,90,78,0.25); border-radius: 12px; padding: 12px 14px; font-size: calc(13px * var(--scale, 1)); color: var(--ink-muted); line-height: 1.5; margin-bottom: 16px; }
   .note strong { color: var(--ink); }
+
+  /* ---------- Moshe 2026-09-30 (pokescan-collectr.js) ---------- */
+  :root { --cl-up: #22c55e; --cl-down: #ff4d5e; }
+  /* The collection's worth, over time (top of My cards). */
+  .cl-worth { background: var(--panel); border: 1px solid var(--panel-2); border-radius: 18px; padding: 14px 14px 10px; margin: 0 0 10px; }
+  .cl-worth .cl-label { font-size: calc(12.5px * var(--scale, 1)); color: var(--ink-muted); font-weight: 700; }
+  .cl-worth .cl-value { font-size: calc(30px * var(--scale, 1)); font-weight: 900; letter-spacing: -0.02em; line-height: 1.15; margin-top: 2px; }
+  .cl-change { font-size: calc(13.5px * var(--scale, 1)); font-weight: 800; }
+  .cl-change span { color: var(--ink-muted); font-weight: 600; }
+  .cl-change.up { color: var(--cl-up); } .cl-change.down { color: var(--cl-down); }
+  .cl-chart { width: 100%; height: 130px; display: block; margin-top: 10px; overflow: visible; }
+  .cl-history .cl-chart { height: 100px; }
+  .cl-axis { display: flex; justify-content: space-between; font-size: calc(11px * var(--scale, 1)); color: var(--ink-faint); margin-top: 2px; }
+  .cl-empty { margin: 12px 0 4px; font-size: calc(13px * var(--scale, 1)); color: var(--ink-muted); }
+  .cl-ranges { display: flex; gap: 6px; margin-top: 8px; }
+  .cl-range { flex: 1; font: inherit; font-size: calc(12.5px * var(--scale, 1)); font-weight: 800; min-height: 34px; border-radius: 999px; border: 1px solid var(--line); background: transparent; color: var(--ink-muted); cursor: pointer; }
+  .cl-range.on { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+  .cl-note { margin-top: 8px; font-size: calc(11.5px * var(--scale, 1)); color: var(--ink-faint); line-height: 1.35; }
+  /* The Collectr look (Moshe's own setting): Collectr's dark navy-black and violet when the phone is
+     dark, its white-and-violet when the phone is light; the worth up top, prices big under each card,
+     and the tabs along the bottom. */
+  html[data-look="collectr"] { --accent: #7b61ff; --ok: #22c55e; --gold: #ffd23f; }
+  @media (prefers-color-scheme: dark) {
+    html[data-look="collectr"]:not([data-theme="light"]) { --bg: #07080c; --panel: #11141c; --panel-2: #1a1f2b; --line: #262c3a; --ink: #f5f7fb; --ink-muted: #8a93a8; --ink-faint: #5b6378; --skeleton: #11141c; }
+  }
+  html[data-look="collectr"][data-theme="dark"] { --bg: #07080c; --panel: #11141c; --panel-2: #1a1f2b; --line: #262c3a; --ink: #f5f7fb; --ink-muted: #8a93a8; --ink-faint: #5b6378; --skeleton: #11141c; }
+  html[data-look="collectr"] .cl-worth { background: linear-gradient(160deg, rgba(123,97,255,0.22), rgba(123,97,255,0.04) 55%), var(--panel); border-color: rgba(123,97,255,0.35); padding: 18px 16px 12px; }
+  html[data-look="collectr"] .cl-worth .cl-value { font-size: calc(38px * var(--scale, 1)); }
+  html[data-look="collectr"] .cl-range.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+  html[data-look="collectr"] .tile { border-radius: 14px; }
+  html[data-look="collectr"] .tile .t-price { font-size: calc(15.5px * var(--scale, 1)); color: var(--ink); }
+  html[data-look="collectr"] #mine-pane .tile .t-row:first-of-type .t-price { color: var(--ok); }
+  html[data-look="collectr"] .seg { position: fixed; z-index: 20; left: 0; right: 0; bottom: 0; margin: 0; border-radius: 0; border: none; border-top: 1px solid var(--line);
+    background: color-mix(in srgb, var(--bg) 88%, transparent); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); padding: 6px 8px calc(6px + env(safe-area-inset-bottom)); }
+  html[data-look="collectr"] .seg button { min-height: 46px; }
+  html[data-look="collectr"] .seg button[aria-selected="true"] { background: transparent; color: var(--accent); }
+  html[data-look="collectr"] .wrap { padding-bottom: calc(110px + env(safe-area-inset-bottom)); }
+  html[data-look="collectr"] #find-pane { margin-top: 12px; }
+  html[data-look="collectr"] #mine-pane:not(.hide) { display: flex; flex-direction: column; }
+  html[data-look="collectr"] #cl-worth-slot { order: -1; }
+  html[data-look="collectr"] .toast { bottom: calc(84px + env(safe-area-inset-bottom) + var(--vv-bottom-offset, 0px)); }
 </style>
 </head>
 <body>
@@ -953,6 +994,7 @@
         </select>
         <select id="mine-who" aria-label="Whose cards"></select>
       </div>
+      <div id="cl-worth-slot"></div>
       <div class="summary" id="mine-summary"></div>
       <div class="reorder-hint" id="reorder-hint">Press and hold a card, then drag it to where you want it.</div>
       <div id="mine-root"></div>
@@ -1218,8 +1260,15 @@
         </span>
       </div>
     </div>
-    <div class="opt-section" data-words="size columns across big small look grid tiles text appearance light dark theme">
+    <div class="opt-section" data-words="size columns across big small look grid tiles text appearance light dark theme collectr colors layout">
       <h4>Look</h4>
+      <div class="opt-row">
+        <div class="opt-text">The Collectr look<small>Your own setting (Moshe asked for it). Colors and layout like the Collectr app: your collection's worth up top with a chart, prices big under each card, the tabs along the bottom.</small></div>
+        <span class="switch">
+          <input type="checkbox" id="opt-collectr" role="switch">
+          <span class="track"></span><span class="knob"></span>
+        </span>
+      </div>
       <div class="opt-row">
         <div class="opt-text">Cards across<small>How many cards fit side by side.</small></div>
         <div class="chips" id="cols-chips"></div>
@@ -1289,6 +1338,7 @@
       <div class="opt-row" id="opt-scan-order-row">
         <div class="opt-text">Read scans with<small>The first one is tried first; the others step in when it can't.</small></div>
         <div class="chips" id="scan-order-chips"></div>
+        <p class="field-note" id="scan-order-note" aria-live="polite"></p>
       </div>
     </div>
 
@@ -1404,6 +1454,14 @@ import { sendAsk, watchAnswer, loadPending, forgetPending } from "https://leodhi
 import { setupViews } from "./pokescan-views.js";
 // Moshe 2026-09-28: Minecraft Dungeons Arcade cards -- rarity, full sets and trades, never prices (pokescan-mcd.js, mcd-cards.json).
 import * as MCD from "./pokescan-mcd.js";
+// Moshe 2026-09-30: price history, the collection's worth over time, and the Collectr look
+// (pokescan-collectr.js; saved history in homeApps/pokescanHistory).
+import { setupCollectr } from "./pokescan-collectr.js";
+const CL = setupCollectr({
+  state: () => state, signedIn: () => signedIn, live: e => live(e), cardWorth: e => cardWorth(e),
+  money: (n, u) => money(n, u), usd: v => usd(v), escapeHtml: x => escapeHtml(x), escapeAttr: x => escapeAttr(x),
+  redrawHistory: () => { safely("history", redrawHistory); }
+});
 const AI_APP = "Poké Scan (web)";
 async function aiCost(provider, model, body) {
   try { return await noteAnswer({ app: AI_APP, provider, model, body }); } catch (e) { return null; }
@@ -1628,6 +1686,7 @@ const docRef = doc(db, "homeApps", "pokescan");
 let state = { cards: {}, settings: {}, people: {}, recent: {}, money: {}, products: null, trades: {}, checks: {}, requests: {}, claims: {}, avatars: {}, prefs: {}, answers: {}, ownerUid: "", ownerEmail: "", sharedWith: [] };
 let unsubscribe = null;
 let signedIn = false;
+let historyStarted = false;
 let currentUser = null;
 
 function newId() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
@@ -1673,6 +1732,7 @@ onAuthStateChanged(authClient, async user => {
   signedIn = !!user;
   currentUser = user || null;
   if (!user) {
+    historyStarted = false; safely("history", () => CL.onSignedIn(db, null, null));
     askedHowLong = false;
     clearTimeout(timeTick);
     setStage("signin");
@@ -1688,6 +1748,7 @@ onAuthStateChanged(authClient, async user => {
   setStatus("signin-status", "");
   setStage("list");
   let ownershipSettled = false;
+  historyStarted = false;
   unsubscribe = onSnapshot(docRef, snap => {
     const d = (snap.exists() ? snap.data() : null) || {};
     if (!ownershipSettled) {
@@ -1716,6 +1777,8 @@ onAuthStateChanged(authClient, async user => {
     // the error is written where it can be read and reported.
     safely("who", resolveWho);
     renderAll();
+    if (!historyStarted) { historyStarted = true; safely("history", () => CL.onSignedIn(db, { doc, onSnapshot, setDoc, updateDoc }, user)); }
+    safely("history", CL.onState);
     setStage("ready");
     showScreen("app");
     safely("keys", takeKeysFromLink);
@@ -1826,7 +1889,7 @@ try { ownerPick = localStorage.getItem(WHO_KEY) || ""; } catch (e) {}
 function isOwner() {
   if (!currentUser) return false;
   if (!(state.ownerUid || state.ownerEmail)) return true;
-  return (state.ownerUid && state.ownerUid === currentUser.uid) || (!!state.ownerEmail && state.ownerEmail === currentUser.email);
+  return (state.ownerUid && state.ownerUid === currentUser.uid) || (!!state.ownerEmail && lowerEmail(state.ownerEmail) === lowerEmail(currentUser.email));
 }
 const lowerEmail = e => String(e || "").trim().toLowerCase();
 function nameForEmail(email) {
@@ -2870,16 +2933,21 @@ function renderGeminiLine() {
   }
   // Order
   const order = scanOrder();
-  $("scan-order-chips").innerHTML = SCAN_ORDER_DEFAULT.map(id => `<button type="button" class="chip${order[0] === id ? " on" : ""}" data-scan-first="${id}"${mayEditKey() ? "" : " disabled"}>${READER_NAMES[id]}</button>`).join("");
+  $("scan-order-chips").innerHTML = SCAN_ORDER_DEFAULT.map(id => `<button type="button" class="chip${order[0] === id ? " on" : ""}" data-scan-first="${id}">${READER_NAMES[id]}</button>`).join("");
 }
 $("scan-order-chips").addEventListener("click", e => {
   const b = e.target.closest("[data-scan-first]");
-  if (!b || !isOwner()) return;
-  state.settings = { ...state.settings, scanFirst: b.dataset.scanFirst };
-  save({ settings: { scanFirst: b.dataset.scanFirst } });
+  if (!b) return;
+  const note = $("scan-order-note");
+  if (!isOwner()) { note.textContent = "Only " + ownerWord() + " can change which one reads first."; return; }
+  const id = b.dataset.scanFirst;
+  state.settings = { ...state.settings, scanFirst: id };
+  save({ settings: { scanFirst: id } });
   renderGeminiLine();
+  $("scan-order-note").textContent = READER_NAMES[id] + " reads first now." + (readerAvailable(id) ? "" : " It has no key yet, so the next one steps in until you add one above.");
 });
 $("opt-exact").addEventListener("change", () => { if (!who) return; setPref("exactCard", $("opt-exact").checked); });
+$("opt-collectr").addEventListener("change", () => { if (!who) { $("opt-collectr").checked = prefOn("collectrLook"); return; } setPref("collectrLook", $("opt-collectr").checked); });
 function precheckOn() { return state.settings.precheck !== false; }
 $("opt-precheck").addEventListener("change", () => { if (!isOwner()) { $("opt-precheck").checked = precheckOn(); return; } state.settings = { ...state.settings, precheck: $("opt-precheck").checked }; save({ settings: { precheck: $("opt-precheck").checked } }); });
 $("opt-groq-key").addEventListener("input", () => { if (!mayEditKey()) return; const k = $("opt-groq-key").value.trim(); if (k) { saveSettings({ groqKey: k }); renderGeminiLine(); } });
@@ -3287,7 +3355,9 @@ async function sendQuestionAnswer(q) {
 }
 const OFFERS = [
   { key: "exactCard", by: "Moshe", date: "2026-09-29", title: "Only show my exact card",
-    what: "When a card comes in many versions, the app keeps asking questions (the rarity mark, who drew it, the year, the number…) without showing pictures, until only your exact card is left." }
+    what: "When a card comes in many versions, the app keeps asking questions (the rarity mark, who drew it, the year, the number…) without showing pictures, until only your exact card is left." },
+  { key: "collectrLook", by: "Moshe", date: "2026-09-30", title: "The Collectr look",
+    what: "Colors and layout like the Collectr app: your collection's worth up top with a chart, each card's price big under its picture, and the tabs along the bottom." }
 ];
 const sameName = (a, b) => String(a || "").trim().split(/\s+/)[0].toLowerCase() === String(b || "").trim().split(/\s+/)[0].toLowerCase();
 function prefOn(key, name) {
@@ -3308,6 +3378,8 @@ function setPref(key, on) {
   saveEntry("prefs", who, after);
   renderOffer(); renderResults();
   const t = $("opt-exact"); if (t) t.checked = prefOn("exactCard");
+  const t2 = $("opt-collectr"); if (t2) t2.checked = prefOn("collectrLook");
+  CL.applyLook(prefOn("collectrLook"));
 }
 // "Moshe asked for X — do you want it too?", once per person, on their own
 // sign-in (the owner switched onto someone else's name isn't asked for them).
@@ -6031,6 +6103,7 @@ function renderCardSheet(c, loading) {
 
     <h4>What it's worth</h4>
     ${priceHtml}
+    <div id="cl-history-slot">${loading ? "" : CL.cardHistoryHtml(c, shownFinish, headline)}</div>
     <div class="price-box" id="market-box" style="margin-top:10px">
       <div class="box-title">eBay &amp; Google <small>Gemini searches the web for you</small></div>
       <div id="market-body">${market ? marketHtml(market) : `<button type="button" class="btn secondary" id="btn-market" style="margin-top:6px">Check eBay &amp; Google prices</button>`}</div>
@@ -6065,6 +6138,8 @@ function renderCardSheet(c, loading) {
     $("entry-link").value = entry.link || "";
     $("entry-link-open").innerHTML = entry.link ? `<a href="${escapeAttr(entry.link)}" target="_blank" rel="noopener">Open the link</a>` : "";
   }
+  if (!loading && !MCD.isMcd(c)) safely("price history", () => CL.noteCardPrice(c, shownFinish, headline));
+  historyCard = MCD.isMcd(c) || loading ? null : { c, finish: shownFinish, headline };
   const mb = $("btn-market");
   if (mb) mb.addEventListener("click", () => checkMarket(c));
   const cp = $("check-put");
@@ -7240,6 +7315,22 @@ async function repriceStale() {
   catch (err) { for (const k of Object.keys(patch)) await saveEntry("cards", k.slice(6), patch[k]); }
   renderMine();
 }
+// The collection's worth over time, above the list (Moshe 2026-09-30). Drawn again only when it changed.
+let worthArgs = null;
+function drawWorth(person, value) {
+  worthArgs = person ? [person, value] : null;
+  const slot = $("cl-worth-slot");
+  const html = person ? CL.worthHtml(person, value) : "";
+  if (slot.dataset.drawn === html) return;
+  slot.innerHTML = html; slot.dataset.drawn = html;
+  CL.wireWorth(slot, () => drawWorth(...(worthArgs || [null, 0])));
+}
+let historyCard = null;   // the card page on screen, for when the saved history arrives
+function redrawHistory() {
+  if (worthArgs) drawWorth(...worthArgs);
+  const slot = $("cl-history-slot");
+  if (slot && historyCard && openCardData && openCardData.id === historyCard.c.id) slot.innerHTML = CL.cardHistoryHtml(historyCard.c, historyCard.finish, historyCard.headline);
+}
 function renderMine() {
   const root = $("mine-root");
   const { list, person } = mineEntries();
@@ -7255,6 +7346,7 @@ function renderMine() {
   $("mine-summary").innerHTML = all.length || soldTotal
     ? `<span><b>${count}</b> card${count === 1 ? "" : "s"}${person === "*" ? " between everyone" : ""}</span><span>worth <b>${money(value)}</b> <small>today's market prices</small>${soldTotal ? ` · sold <b>${money(soldTotal)}</b> so far` : ""}</span>`
     : "";
+  safely("worth over time", () => drawWorth(all.length ? person : null, value));
   $("reorder-hint").classList.toggle("hide", !(list.length > 1 && $("mine-sort").value === "order" && person !== "*"));
   if (!all.length) {
     delete root.dataset.drawn;
@@ -7403,6 +7495,7 @@ function openOptions() {
   $("opt-pack-price").disabled = !isOwner();
   $("opt-precheck").checked = precheckOn();
   $("opt-exact").checked = prefOn("exactCard"); $("opt-exact").disabled = !who;
+  $("opt-collectr").checked = prefOn("collectrLook"); $("opt-collectr").disabled = !who;
   $("opt-timer").checked = isOwner() ? timerOwnerToo : timerOn;
   $("opt-precheck").disabled = !isOwner();
   $("opt-gemini-key").value = ""; $("opt-groq-key").value = ""; $("opt-chatgpt-key").value = "";
@@ -7633,6 +7726,7 @@ function reportDrawError(where, e) {
 }
 function safely(where, fn) { try { fn(); } catch (e) { reportDrawError(where, e); } }
 function renderAll() {
+  safely("look", () => CL.applyLook(prefOn("collectrLook")));
   safely("name", renderWho);
   safely("money", renderMoney);
   safely("my cards", renderMine);
@@ -7689,6 +7783,8 @@ function takeKeysFromLink() {
 // not seen yet, once. (Asked for: "when I go back on, it will say this was
 // updated, and who asked to update it.")
 const CHANGES = [
+  { id: 61, date: "2026-09-30", by: "Moshe", what: "The Collectr look, the way you described it (the colors and where things go): Collectr's dark colors, your collection's worth big at the top of My cards, prices big under each card, and the tabs along the bottom. It's on for you; everyone else is asked once. Switch it in Options, under Look." },
+  { id: 60, date: "2026-09-30", by: "Moshe", what: "Price history, the two Collectr parts you picked: My cards starts with what your whole collection is worth and a chart of it over time (1W, 1M, 3M, 1Y, All), and every card's page has its price history: the store's averages for the last 30 days, 7 days and yesterday, plus a line Poké Scan saves once a day from today on." },
   { id: 53, date: "2026-09-29", by: "a family member", what: "Right card, wrong pack: when the same card came out in more than one pack, the app asks what's at the bottom of your card (the symbol, the number, both or neither) and then which pack, by its symbol, instead of picking one. A card already in your cards has \"Wrong pack? Change it\" on its page; the price follows, and Undo puts it back." },
   { id: 52, date: "2026-09-29", by: "Moshe", what: "Packs are shown the way your card prints them: the little symbol picture, the number as printed, and the letter in the little box — letters like MEE only where the card really has them." },
   { id: 51, date: "2026-09-29", by: "Moshe", what: "Energy cards: every energy is in the search now, the new ones too (like the 2025 Lightning Energy with MEE at the bottom). After you pick the energy, it asks for the symbol and the number instead of only the year. New setting, each person's own: \"Only show my exact card\" keeps asking questions with no pictures until only your card is left." },
@@ -7746,7 +7842,8 @@ function renderWhatsNew() {
   box.innerHTML = `<div class="wn-title">Updated since you were last here</div><ul>${fresh.map(c => `<li>${escapeHtml(c.what)} <small>— asked for by ${escapeHtml(c.by)}, ${escapeHtml(c.date)}</small></li>`).join("")}</ul><button type="button" class="link" id="whats-new-ok">Got it</button>`;
   box.classList.remove("hide");
   $("whats-new-ok").addEventListener("click", () => {
-    try { localStorage.setItem(SEEN_KEY, String(CHANGES[0].id)); } catch (e) {}
+    // The highest number, wherever it sits in the list (two chats can add entries the same day).
+    try { localStorage.setItem(SEEN_KEY, String(Math.max(...CHANGES.map(c => c.id)))); } catch (e) {}
     box.classList.add("hide");
   });
 }
@@ -7780,6 +7877,6 @@ safely("minecraft", () => MCD.setup({ who: () => who, state: () => state, live, 
 </script>
 
 <script defer src="https://leodhi.github.io/claude/app-open.js" data-app="pokescan"></script>
-<script defer src="https://leodhi.github.io/claude/ladybug.js?v=2026-09-30.2"></script>
+<script defer src="https://leodhi.github.io/claude/ladybug.js?v=2026-09-30.3"></script>
 </body>
 </html>
