@@ -667,6 +667,7 @@
   .reader.off .reader-pick { opacity: 0.75; }
   .reader-why { grid-column: 1 / -1; font-size: calc(12.5px * var(--scale, 1)); line-height: 1.4; background: var(--panel-2); border-radius: 12px; padding: 8px 10px; margin-top: 2px; }
   .reader-why .pill-btn { margin-top: 6px; }
+  .claude-tap { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin-top: 10px; }
   .reader-ask { font-size: calc(12px * var(--scale, 1)); min-height: 32px; padding: 4px 8px; }
   .chip.on { background: var(--accent); border-color: var(--accent); color: #fff; }
   .sheet-actions { display: flex; flex-direction: column; gap: 9px; margin-top: 18px; }
@@ -1334,11 +1335,15 @@
       </div>
     </div>
 
-    <div class="opt-section" data-words="price prices pack packs cost dollars ebay google gemini groq chatgpt openai permission key ai worth scan backup reader free">
+    <div class="opt-section" data-words="price prices pack packs cost dollars ebay google gemini groq chatgpt openai claude mac permission key ai worth scan backup reader free">
       <h4>Prices and packs</h4>
       <div class="opt-row">
         <div class="opt-text">Price of one booster pack<small>Used for "how much would it cost in packs". Today's shelf price for a new pack is about $4.49.</small></div>
         <input type="number" class="opt-mini" id="opt-pack-price" min="0.5" max="100" step="0.01" inputmode="decimal">
+      </div>
+      <div class="opt-row">
+        <div class="opt-text">Claude — reads cards free, on Dad's Mac at home<small id="opt-claude-line"></small></div>
+        <a class="pill-btn hide" id="opt-claude-who" href="#" target="_blank" rel="noopener">Who can use it</a>
       </div>
       <div class="opt-row">
         <div class="opt-text">Gemini key for scanning and eBay &amp; Google prices<small id="opt-gemini-line"></small></div>
@@ -1501,10 +1506,21 @@ import * as MCD from "./pokescan-mcd.js";
 // Moshe 2026-09-30: price history, the collection's worth over time, and the Collectr look
 // (pokescan-collectr.js; saved history in homeApps/pokescanHistory).
 import { setupCollectr } from "./pokescan-collectr.js";
+// Dad, 2026-10-01: "No, update Poké Scan. It was Gemini only because I didn't want to pay extra." Claude reads
+// cards free on his plan, on his Mac at home, for him and anyone he says yes to (pokescan-claude.js; the Mac
+// checks everything itself). Gemini takes over whenever the Mac says no or can't be reached.
+import { setupClaude, MAC_PRIVATE } from "./pokescan-claude.js";
 const CL = setupCollectr({
   state: () => state, signedIn: () => signedIn, live: e => live(e), cardWorth: e => cardWorth(e),
   money: (n, u) => money(n, u), usd: v => usd(v), escapeHtml: x => escapeHtml(x), escapeAttr: x => escapeAttr(x),
   redrawHistory: () => { safely("history", redrawHistory); }
+});
+const CLD = setupClaude({
+  isOwner: () => isOwner(), who: () => who, settings: () => state.settings || {}, user: () => currentUser,
+  ownerName: () => ownerName(), sendAsk, watchAnswer, loadPending, forgetPending, askApp: "pokescan",
+  save: patch => saveSettings(patch), toast: t => showToast(t),
+  redraw: () => { safely("readers", () => { renderReaderRows(); renderClaudeLine(); }); },
+  searchFor: read => showClaudeRead(read)
 });
 const AI_APP = "Poké Scan (web)";
 async function aiCost(provider, model, body) {
@@ -1843,6 +1859,7 @@ onAuthStateChanged(authClient, async user => {
     safely("approve", takeApproveFromLink);
     safely("resend", () => { resendUnpushedRequests(); });
     safely("asks", resumeAsks);
+    safely("claude", () => CLD.afterLoad());
     if (!askedHowLong) { askedHowLong = true; safely("timer", askHowLong); }
   }, err => {
     if (/permission|insufficient/i.test(err && err.message ? err.message : "")) {
@@ -2102,8 +2119,15 @@ function renderFamilyList() {
     const gpt = owner && !isTheOwner
       ? `<button type="button" class="link" data-chatgpt-person="${escapeAttr(n)}" style="padding:4px 6px;min-height:0;color:${allowed ? "var(--ok)" : (asked ? "var(--accent)" : "var(--ink-faint)")}">${allowed ? chatgptAllowedText(n) : (asked ? "Asked for ChatGPT — allow…" : "ChatGPT off")}</button>`
       : "";
+    // Claude on his Mac: who has his yes (the Mac's own list decides; this is its copy). Changing it is on the
+    // Mac's page, which only his own devices can open.
+    const cv = ((state.settings || {}).claudeAllowed || {})[n];
+    const cOn = cv === true || (typeof cv === "number" && cv > Date.now()), cAsked = !!((state.settings || {}).claudeAsked || {})[n];
+    const cla = owner && !isTheOwner && p.email
+      ? `<a class="link" href="${escapeAttr(MAC_PRIVATE + "/pokescan/claude")}" target="_blank" rel="noopener" style="padding:4px 6px;min-height:0;color:${cOn ? "var(--ok)" : (cAsked ? "var(--accent)" : "var(--ink-faint)")}">${cOn ? "Claude ✓" : cAsked ? "Asked for Claude" : "Claude off"}</a>`
+      : "";
     const spans = owner && !isTheOwner && chatgptSpanOpen === n ? `<div class="chips" style="padding:4px 0 8px">${CHATGPT_SPANS.map(([k, label]) => `<button type="button" class="chip" data-chatgpt-span="${k}" data-person="${escapeAttr(n)}">${label}</button>`).join("")}</div>` : "";
-    return `<div class="family-row"><span class="fam-name">${escapeHtml(n)}</span><span class="fam-email">${escapeHtml(p.email || "no email — this phone only")}</span>${isTheOwner ? `<span class="fam-tag">owner</span>` : ""}${gpt}${owner ? `<button type="button" class="link" data-remove-person="${escapeAttr(n)}" style="padding:4px 6px;min-height:0">Remove</button>` : ""}</div>${spans}`;
+    return `<div class="family-row"><span class="fam-name">${escapeHtml(n)}</span><span class="fam-email">${escapeHtml(p.email || "no email — this phone only")}</span>${isTheOwner ? `<span class="fam-tag">owner</span>` : ""}${cla}${gpt}${owner ? `<button type="button" class="link" data-remove-person="${escapeAttr(n)}" style="padding:4px 6px;min-height:0">Remove</button>` : ""}</div>${spans}`;
   }).join("");
 }
 $("opt-family-list").addEventListener("click", e => {
@@ -2888,15 +2912,19 @@ async function askForChatgpt() {
   return pushed;
 }
 function ownerWord() { return state.ownerEmail || "the owner"; }
-const SCAN_ORDER_DEFAULT = ["gemini", "groq", "chatgpt"];
-const READER_NAMES = { gemini: "Gemini", groq: "Groq", chatgpt: "ChatGPT" };
+const SCAN_ORDER_DEFAULT = ["claude", "gemini", "groq", "chatgpt"];
+const READER_NAMES = { claude: "Claude", gemini: "Gemini", groq: "Groq", chatgpt: "ChatGPT" };
 function scanOrder() {
   // Groq goes first by itself once its key is there (Moshe: "move to groq
   // auto") -- it is free and fast; Gemini stays for the web searches.
   // The one tapped on this phone (under "Which AI reads and answers") wins.
+  // Claude on Dad's Mac comes first by itself whenever it can be used (Dad, 2026-10-01), then the
+  // old order; otherwise Claude waits at the back, so a Mac that's out of reach costs nothing.
   const mine = pickedReader();
-  const first = mine && readerAvailable(mine) ? mine : SCAN_ORDER_DEFAULT.includes(state.settings.scanFirst) ? state.settings.scanFirst : (groqKey() ? "groq" : "gemini");
-  return [first, ...SCAN_ORDER_DEFAULT.filter(x => x !== first)];
+  const old = SCAN_ORDER_DEFAULT.includes(state.settings.scanFirst) && state.settings.scanFirst !== "claude" ? state.settings.scanFirst : (groqKey() ? "groq" : "gemini");
+  const first = mine && readerAvailable(mine) ? mine : CLD.first() ? "claude" : old;
+  const rest = SCAN_ORDER_DEFAULT.filter(x => x !== first && x !== "claude");
+  return first === "claude" ? ["claude", ...rest] : [first, ...rest, "claude"];
 }
 // ---------- All three readers, always in sight ----------
 // Lew, 2026-09-28: "for some reason, Grok is not working. Gemini is not
@@ -2930,12 +2958,13 @@ function noteReaderOk(id) {
   try { localStorage.setItem(READER_FAIL_KEY, JSON.stringify(all)); } catch (x) {}
   renderReaderRows();
 }
-function hasReaderKey(id) { return id === "gemini" ? !!geminiKey().key : id === "groq" ? !!groqKey() : !!chatgptKey().key; }
+function hasReaderKey(id) { return id === "claude" ? true : id === "gemini" ? !!geminiKey().key : id === "groq" ? !!groqKey() : !!chatgptKey().key; }
 // { id, name, usable, state, ask } -- state in plain words.
 function readerStates() {
   const fails = readerFails();
   return SCAN_ORDER_DEFAULT.map(id => {
     const name = READER_NAMES[id];
+    if (id === "claude") { const c = CLD.readerState(); const f = fails.claude; return f && c.usable && !CLD.awayRecently() ? { ...c, state: "didn't answer: " + f.msg } : c; }
     if (!hasReaderKey(id)) return { id, name, usable: false, state: !isOwner() && who && ((state.settings.readerAsked || {})[who] || {})[id] ? "you asked " + ownerName() + " to turn it on — waiting" : "no key yet — " + (isOwner() ? "paste one in Options" : ownerWord() + " adds it in Options") };
     if (id === "chatgpt" && !isOwner() && !chatgptAllowedFor(who)) {
       if (!who) return { id, name, usable: false, state: "pick your name first" };
@@ -2951,7 +2980,7 @@ function readerRowHtml() {
   return `<div class="reader-title">Which AI reads and answers</div><div class="reader-list">${readerStates().map(r =>
     `<div class="reader${r.usable ? "" : " off"}${r.id === first && r.usable ? " on" : ""}" data-reader="${r.id}">`
     + `<button type="button" class="reader-pick" data-reader-pick="${r.id}" ${r.usable ? "" : `aria-disabled="true"`} aria-pressed="${r.id === first && r.usable}"><b>${escapeHtml(r.name)}</b><small>${escapeHtml(r.state)}</small></button>`
-    + (r.ask ? `<button type="button" class="pill-btn reader-ask" data-reader-ask="chatgpt">Ask to use ChatGPT</button>` : "")
+    + (r.ask ? (r.id === "claude" ? `<button type="button" class="pill-btn reader-ask" data-reader-ask="claude">Ask ${escapeHtml(ownerName())} to use Claude</button>` : `<button type="button" class="pill-btn reader-ask" data-reader-ask="chatgpt">Ask to use ChatGPT</button>`) : "")
     + `</div>`).join("")}</div>`;
 }
 function renderReaderRows() {
@@ -2976,6 +3005,12 @@ document.addEventListener("click", async e => {
     return;
   }
   const ask = e.target.closest("[data-reader-ask]");
+  if (ask && ask.dataset.readerAsk === "claude") {
+    ask.disabled = true;
+    await CLD.ask();
+    renderReaderRows();
+    return;
+  }
   if (ask) {
     ask.disabled = true;
     const pushed = await askForChatgpt();
@@ -3018,6 +3053,7 @@ async function askReaderOn(id) {
     who + " tapped " + name + " under \"Which AI reads and answers\", but it has no key in Poké Scan yet. " + (id === "chatgpt" ? "Open Poké Scan, Options, and tap \"Share it with the family\" next to ChatGPT (it costs a little each time, and each person still needs your OK)." : id === "groq" ? "Groq is free: make a key at console.groq.com, then paste it in Poké Scan, Options, Groq." : "Paste a key in Poké Scan, Options."));
 }
 function readerAvailable(id) {
+  if (id === "claude") return CLD.readerState().usable;
   if (id === "gemini") return !!geminiKey().key;
   if (id === "groq") return !!groqKey();
   if (id === "chatgpt") return !!chatgptKey().key && (isOwner() || chatgptAllowedFor(who));
@@ -3025,6 +3061,7 @@ function readerAvailable(id) {
 }
 function mayEditKey() { return isOwner(); }
 function renderGeminiLine() {
+  safely("claude-line", renderClaudeLine);
   const g = geminiKey();
   let line;
   if (g.from === "here") line = "A key is saved" + (mayEditKey() ? " (ends in …" + g.key.slice(-4) + ")." : ". Only " + (state.ownerEmail || "the owner") + " can see or change it; everyone can use it.");
@@ -4407,6 +4444,7 @@ async function readWithAnyone(shot, say) {
     say(READER_NAMES[id] + " is looking at the name and the number." + (tried.length > 1 ? " (" + READER_NAMES[tried[tried.length - 2]] + " couldn't.)" : ""));
     try {
       let read = null;
+      if (id === "claude") read = await readWithClaude(shot, say);
       if (id === "gemini") read = await readWithGemini(shot);
       if (id === "groq") read = await readWithGroq(shot);
       if (id === "chatgpt") read = await readWithChatgpt(shot);
@@ -4414,12 +4452,12 @@ async function readWithAnyone(shot, say) {
       return { read, by: id };
     } catch (e) {
       lastErr = e;
-      const readerTrouble = e && (e.quota || /allowance|refused|isn't valid|not valid|reach Google|isn't answering|free Google plan|kept failing|no model|offered no model|decommission|does not exist|not found|model_not_found|Groq:|ChatGPT/i.test(e.message));
+      const readerTrouble = e && (e.claudeTrouble || e.quota || /allowance|refused|isn't valid|not valid|reach Google|isn't answering|free Google plan|kept failing|no model|offered no model|decommission|does not exist|not found|model_not_found|Groq:|ChatGPT/i.test(e.message));
       if (readerTrouble) reasons.push(READER_NAMES[id] + ": " + e.message);
-      if (!/doesn't look like/i.test((e && e.message) || "")) noteReaderFail(id, e);
+      if (!/doesn't look like/i.test((e && e.message) || "") && !(e && e.skipped)) noteReaderFail(id, e);
       // Anything wrong with the reader itself -- allowance, key, reach --
       // hands over to the next one; only "I looked and can't tell" stops.
-      if (!(e && (e.quota || /allowance|refused|isn't valid|not valid|reach Google|isn't answering|free Google plan|kept failing|no model|offered no model|decommission|does not exist|not found|model_not_found/i.test(e.message)))) { if (e && typeof e === "object") e.readerTried = true; throw e; }
+      if (!(e && (e.claudeTrouble || e.quota || /allowance|refused|isn't valid|not valid|reach Google|isn't answering|free Google plan|kept failing|no model|offered no model|decommission|does not exist|not found|model_not_found/i.test(e.message)))) { if (e && typeof e === "object") e.readerTried = true; throw e; }
     }
   }
   if (!tried.length) return null;                      // nobody to ask: the on-device read
@@ -4429,6 +4467,52 @@ async function readWithAnyone(shot, say) {
   err.gptWaiting = gptWaiting;
   err.readerTried = true;
   throw err;
+}
+// Claude on Dad's Mac (pokescan-claude.js). A phone opens the Mac's page only from a tap, so when the
+// page can't open it by itself, one button asks for that tap; "Use Gemini instead" skips it.
+async function readWithClaude(shot, say) {
+  const where = isOwner() ? "your Mac at home" : escapeHtml(ownerName()) + "'s Mac at home";
+  const read = await CLD.read(shot, msg => say(msg), openIt => new Promise(resolve => {
+    showScanned(`<b>Read it with Claude?</b><br><span>Free, on ${where}. A page opens for a moment and closes by itself.</span>`
+      + `<div class="claude-tap"><button type="button" class="pill-btn" data-claude-go>Read it with Claude</button>`
+      + `<button type="button" class="link" data-claude-skip>Use Gemini instead</button></div>`, shot.dataUrl, false);
+    const box = $("scanned");
+    box.querySelector("[data-claude-go]").addEventListener("click", () => {
+      const w = openIt();                      // right here, inside the tap
+      showScanned("<b>Reading the card…</b><br><span>Claude is reading it on " + where + ".</span>", shot.dataUrl, true);
+      resolve(w);
+    }, { once: true });
+    box.querySelector("[data-claude-skip]").addEventListener("click", () => {
+      showScanned("<b>Reading the card…</b><br><span>Gemini is looking at the name and the number.</span>", shot.dataUrl, true);
+      resolve("gemini");
+    }, { once: true });
+  }));
+  if (!read || typeof read !== "object") throw Object.assign(new Error("Claude sent nothing back."), { claudeTrouble: true });
+  if (read.is_card === false) throw new Error(read.notes || "That doesn't look like a Pokémon card.");
+  return { name: String(read.name || "").trim(), suffix: String(read.suffix || "").trim(), number: String(read.number || "").trim(), total: String(read.total || "").trim(), set: String(read.set || "").trim() };
+}
+// A card Claude read that came back through the Mac page's "Back to Poké Scan" button.
+async function showClaudeRead(r) {
+  const read = { name: String(r.name || "").trim(), suffix: String(r.suffix || "").trim(), number: String(r.number || "").trim(), total: String(r.total || "").trim(), set: String(r.set || "").trim() };
+  if (!read.name || r.is_card === false) { showToast(r.notes || "That doesn't look like a Pokémon card."); return; }
+  setTab("find");
+  const label = `${escapeHtml(read.name)}${read.suffix ? " " + escapeHtml(read.suffix) : ""}${read.number ? " · #" + escapeHtml(read.number) + (read.total ? "/" + escapeHtml(read.total) : "") : ""}${read.set ? " · " + escapeHtml(read.set) : ""}`;
+  showScanned(`<b>Looks like ${label}</b><br><span>Read by Claude. ${read.number ? "The best match is marked. " : ""}Not it? Type the name instead.</span>`, "", false);
+  $("q").value = read.name + (read.number ? " " + read.number + (read.total ? "/" + read.total : "") : "");
+  $("q-clear").classList.remove("hide");
+  const fam = read.suffix ? familyOf({ suffix: read.suffix, name: "" }) : "";
+  await runSearch(read.name, { number: read.number, total: read.total, set: read.set, family: fam }, true);
+}
+function renderClaudeLine() {
+  const el = $("opt-claude-line");
+  if (!el) return;
+  const c = CLD.readerState();
+  el.textContent = isOwner()
+    ? "Free, on your plan. You can always use it; anyone else asks you first (Yes, No or how long, on your phone). At most 100 cards a person a day. For the family it works only on the home Wi-Fi; Gemini takes over whenever the Mac says no."
+    : (c.usable ? "You can use it: " + c.state + "." : "Not for you yet: " + c.state + ".") + " It works on the home Wi-Fi; Gemini reads cards everywhere else.";
+  const a = $("opt-claude-who");
+  a.classList.toggle("hide", !isOwner());
+  a.href = MAC_PRIVATE + "/pokescan/claude";
 }
 async function readWithGemini(shot) {
   const out = await askGemini({
@@ -6155,7 +6239,8 @@ async function cardPictureData(c) {
 async function askAnyReader(q) {
   let lastErr = null;
   for (const id of scanOrder()) {
-    if (!readerAvailable(id)) continue;
+    // Claude on Dad's Mac reads card pictures only (the Mac's question is fixed); other questions skip it.
+    if (id === "claude" || !readerAvailable(id)) continue;
     try {
       if (id === "gemini") {
         const out = await askGemini({ system: q.system, search: !!q.search, parts: [...(q.picture ? [{ inline_data: { mime_type: q.picture.mime, data: q.picture.data } }] : []), { text: q.text }] });
@@ -8062,6 +8147,7 @@ function takeKeysFromLink() {
 // not seen yet, once. (Asked for: "when I go back on, it will say this was
 // updated, and who asked to update it.")
 const CHANGES = [
+  { id: 68, date: "2026-10-01", by: "Dad", what: "Claude reads your cards now, free, on Dad's Mac at home, and it's first in \"Which AI reads and answers\". Dad can always use it; everyone else taps \"Ask Dad to use Claude\" and he says yes or no on his phone. It works on the home Wi-Fi; anywhere else, or if the Mac says no, Gemini reads the card like before." },
   { id: 67, date: "2026-09-30", by: "Moshe", what: "What's new now starts each line with who asked for it, in a colored name tag, so you can see at a glance which changes were Moshe's, Shmuel's or Dad's." },
   { id: 66, date: "2026-09-30", by: "Moshe", what: "Minecraft Dungeons: searching a card (like Sun's Grace) also shows the Hero cards it comes on (Sven), and each card's page has \"Hero cards that come with it\". A Hero card's page lists its five items; tap one to open it." },
   { id: 65, date: "2026-09-30", by: "Moshe", what: "Which AI reads and answers: tapping Groq or ChatGPT when it's greyed out now says why and gives you an \"Ask to turn on\" button that goes to Dad. Dad can share ChatGPT with the family from Options (each person still needs his OK)." },
