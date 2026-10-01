@@ -1314,7 +1314,7 @@
         <div class="chips" id="opt-activity-chips"></div>
       </div>
       <div class="opt-row">
-        <div class="opt-text">Send approvals into my Claude Code chat<small>The "Send to Claude" button on the notification drops the request into this chat on the Mac (needs the phone on Tailscale). Blank chat id = whichever chat you touched last.</small></div>
+        <div class="opt-text">Send approvals into my Claude Code chat<small>The "Send to Claude" button on the notification drops the request into this chat on the Mac (needs the phone on Tailscale). Blank (best) = your Bug reports chat, else the chat you touched last. A chat named here is only tried first: if it has closed, it goes to those instead, and if no chat can take it your phone gets a message saying so.</small></div>
       </div>
       <div class="field-row" style="display:flex;gap:8px">
         <input type="text" id="opt-claude-host" placeholder="Mac address:port" autocomplete="off" autocapitalize="off" style="flex:1;min-width:0">
@@ -4693,20 +4693,25 @@ async function pushToOwner(title, text, requestId, kind) {
     const relay = claudeRelay();
     const line = claudeLineFor({ by: who, text, at: Date.now(), kind });
     if (relay.host) actions.push({ action: "http", label: "Send to Claude", url: "http://" + relay.host + "/claude/ask", method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text: (kind === "answer" ? "Poké Scan answer sent by Dad from his phone. " : "Poké Scan request approved by Dad from his phone. ") + line, mode: "session", ...(relay.session ? { session: relay.session } : {}) }), clear: true });
+      body: JSON.stringify({ text: (kind === "answer" ? "Poké Scan answer sent by Dad from his phone. " : "Poké Scan request approved by Dad from his phone. ") + line, mode: "session", source: "Poké Scan", ...(relay.session ? { session: relay.session } : {}) }), clear: true });
     actions.push({ action: "view", label: "Approve in app", url: here + "?approve=" + encodeURIComponent(requestId) });
     if (actions.length < 3) actions.push({ action: "view", label: "Open Poké Scan", url: here });
   }
   return ntfyPublish(topic, title, text, actions);
 }
 // Where Dad's Claude Code chats live: the house Mac's service on Tailscale
-// (the address Claude Talk uses), and the chat to drop requests into. Set
-// in Options; the chat defaults to the one this app was built in, and an
-// empty chat id means "whichever chat he touched last".
-const CLAUDE_RELAY_DEFAULT = { host: "100.95.155.127:8787", session: "49f47eb1-7391-4d06-9c85-b0c92c20bee4" };
+// (the address Claude Talk uses). NO chat is named by default (his rule
+// 2026-09-30: the button had the chat this app was built in baked in, closed
+// since Sept 21, and his 5 taps failed with nothing shown). With no chat named
+// the Mac picks: his "Bug reports" chat, else the chat he touched last; a chat
+// set in Options is only a first choice, and if it is closed the Mac falls back
+// the same way. If no chat can take it the Mac pushes him one line saying so.
+const CLAUDE_RELAY_DEFAULT = { host: "100.95.155.127:8787", session: "" };
+const CLAUDE_OLD_SESSIONS = ["49f47eb1-7391-4d06-9c85-b0c92c20bee4"];   // never send these again
 function claudeRelay() {
   const h = typeof state.settings.claudeHost === "string" ? state.settings.claudeHost.trim() : CLAUDE_RELAY_DEFAULT.host;
-  const sid = typeof state.settings.claudeSession === "string" ? state.settings.claudeSession.trim() : CLAUDE_RELAY_DEFAULT.session;
+  let sid = typeof state.settings.claudeSession === "string" ? state.settings.claudeSession.trim() : CLAUDE_RELAY_DEFAULT.session;
+  if (CLAUDE_OLD_SESSIONS.includes(sid)) sid = "";
   return { host: h, session: sid };
 }
 // Claude, with the request already typed in. claude.ai/new?q= prefills a
@@ -7775,6 +7780,6 @@ safely("minecraft", () => MCD.setup({ who: () => who, state: () => state, live, 
 </script>
 
 <script defer src="https://leodhi.github.io/claude/app-open.js" data-app="pokescan"></script>
-<script defer src="https://leodhi.github.io/claude/ladybug.js"></script>
+<script defer src="https://leodhi.github.io/claude/ladybug.js?v=2026-09-30.2"></script>
 </body>
 </html>
