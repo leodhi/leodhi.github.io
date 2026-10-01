@@ -49,6 +49,24 @@ export function load() {
 }
 load().catch(() => {});
 
+// Which Hero cards come with a card (Moshe, 2026-09-30: "When I search suns
+// grace tell me what heroes are including that card"). Every Hero card gives
+// five items -- melee, range, armor, skin and pet -- listed in its "items".
+// A name matches with or without the apostrophe or capitals.
+export function heroesWith(name) {
+  if (!DATA) return [];
+  const n = norm(name);
+  return DATA.cards.filter(r => r.type === "Hero" && Array.isArray(r.items) && r.items.some(x => norm(x) === n));
+}
+// A Hero card's five items: [{ name, slot, id }] -- id when the item is also a card of its own.
+const SLOTS = ["Melee", "Range", "Armor", "Skin", "Pet"];
+export function heroItems(c) {
+  const row = DATA ? byId.get(c.id) : null;
+  if (!row || !Array.isArray(row.items)) return [];
+  return row.items.map((x, i) => { const own = DATA.cards.find(r => r.type !== "Hero" && norm(r.name) === norm(x)); return { name: x, slot: SLOTS[i] || "", id: own ? "mcd:" + numOf(own) : "" }; });
+}
+function heroWords(r) { return r.name + " (#" + numOf(r) + ")"; }
+
 export const isMcdId = id => String(id || "").startsWith("mcd:");
 export const isMcd = c => !!c && (c.game === GAME || isMcdId(c.id) || isMcdId(c.cardId));
 export const isMcdSnap = s => !!s && s.game === GAME;
@@ -134,7 +152,11 @@ function shade(hex, f) {
 export function tileLine(c) {
   const r = rarityInfo(c);
   // The kind line above already names the rarity; this says what it means.
-  return `<span class="mcd-line" style="--rc:${escapeAttr(r.color || "")}">${escapeHtml(r.short || r.name || "")}</span>`;
+  const own = `<span class="mcd-line" style="--rc:${escapeAttr(r.color || "")}">${escapeHtml(r.short || r.name || "")}</span>`;
+  if (c.viaHero) return own + `<span class="mcd-hero-line">Comes with ${escapeHtml(c.viaHero.join(", "))}</span>`;
+  if (c.mcd && c.mcd.type === "Hero") return own;
+  const heroes = heroesWith(c.name);
+  return heroes.length ? own + `<span class="mcd-hero-line">On Hero card${heroes.length === 1 ? "" : "s"}: ${escapeHtml(heroes.map(heroWords).join(", "))}</span>` : own;
 }
 
 // ---------- Search ----------
@@ -175,7 +197,15 @@ export async function search(q) {
       });
     }
   }
-  return rows.map(cardFor);
+  // A name typed (not a kind like "hero"): the Hero cards that come with it
+  // follow, each saying which of the cards above it carries.
+  const out = rows.map(cardFor);
+  if (n && rows.length && rows.length <= 12 && !rows.every(r => r.type === "Hero")) {
+    const via = new Map();
+    rows.filter(r => r.type !== "Hero").forEach(r => heroesWith(r.name).forEach(h => { if (!rows.includes(h)) via.set(h, [...(via.get(h) || []), r.name]); }));
+    via.forEach((names, h) => { const c = cardFor(h); c.viaHero = [...new Set(names)]; out.push(c); });
+  }
+  return out;
 }
 
 // ---------- Owning them ----------
@@ -286,6 +316,8 @@ export function sheetHtml(c, h) {
       </div>
     </div>
 
+    ${heroBoxHtml(c)}
+
     <h4>How rare is it?</h4>
     <div class="price-box mcd-rare" style="--rc:${escapeAttr(r.color || "#999")}">
       <div class="mcd-rare-big">${escapeHtml(r.name || "")}</div>
@@ -311,6 +343,27 @@ export function sheetHtml(c, h) {
       <li>It has ${back}.</li>
       <li>A shiny foil copy of the same card counts as this one here.</li>
     </ol>`;
+}
+
+// On a card's page: the Hero cards that come with it, or, on a Hero card,
+// its five items. Each one that is a card of its own opens it.
+function heroBoxHtml(c) {
+  const type = c.mcd && c.mcd.type;
+  if (type === "Hero") {
+    const items = heroItems(c);
+    if (!items.length) return "";
+    return `<h4>The five items on this card</h4><div class="price-box"><div class="mcd-missing">${items.map(it => it.id
+      ? `<button type="button" class="mcd-miss" data-mcd-open="${escapeAttr(it.id)}"><span class="mm-num">${escapeHtml(it.slot)}</span><span class="mm-name">${escapeHtml(it.name)}</span><span class="mm-rar">open ›</span></button>`
+      : `<div class="mcd-miss mcd-item"><span class="mm-num">${escapeHtml(it.slot)}</span><span class="mm-name">${escapeHtml(it.name)}</span><span class="mm-rar">only on Hero cards</span></div>`).join("")}</div>
+      <p class="field-note" style="margin:8px 0 0">Scanning this Hero card in the arcade gives you all five at once.</p></div>`;
+  }
+  const heroes = heroesWith(c.name);
+  return `<h4>Hero cards that come with it</h4><div class="price-box">${heroes.length
+    ? `<p style="margin:0 0 8px">${escapeHtml(c.name)} is one of the five items on ${heroes.length === 1 ? "this Hero card" : "these " + heroes.length + " Hero cards"}:</p><div class="mcd-missing">${heroes.map(h => {
+        const s = seriesOf(h.series);
+        return `<button type="button" class="mcd-miss" data-mcd-open="mcd:${numOf(h)}"><span class="mm-num">#${escapeHtml(numOf(h))}</span><span class="mm-name">${escapeHtml(h.name)}</span><span class="mm-rar">${escapeHtml(s ? seriesWords(s).short : "")}</span></button>`;
+      }).join("")}</div>`
+    : `<p class="field-note" style="margin:0">No Hero card comes with ${escapeHtml(c.name)}. You get it from its own card only.</p>`}</div>`;
 }
 
 // ---------- Trades ----------
@@ -401,6 +454,10 @@ const STYLE = `
 .mcd-miss .mm-num { color: var(--ink-faint); font-variant-numeric: tabular-nums; font-weight: 700; }
 .mcd-miss .mm-name { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mcd-miss .mm-rar { font-weight: 800; font-size: calc(12px * var(--scale, 1)); }
+.t-row:has(> .mcd-hero-line) { flex-wrap: wrap; }
+.mcd-hero-line { flex: 1 0 100%; display: block; margin-top: 2px; font-size: var(--t-sub); font-weight: 700; line-height: 1.25; color: color-mix(in srgb, #e6b422 70%, var(--ink)); overflow-wrap: anywhere; }
+.mcd-item { cursor: default; }
+.mcd-item .mm-rar { color: var(--ink-faint); font-weight: 600; }
 .mcd-done { margin-top: 8px; font-weight: 800; color: var(--ok); }
 .mcd-progress { margin-top: 14px; border-radius: 18px; padding: 14px; background: linear-gradient(160deg, rgba(63,185,80,0.16), var(--panel) 55%); border: 1px solid rgba(63,185,80,0.35); box-shadow: 0 8px 24px rgba(63,185,80,0.12), var(--shadow); }
 .mcd-head { display: flex; gap: 10px; align-items: center; }

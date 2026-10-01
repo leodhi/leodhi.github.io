@@ -152,6 +152,35 @@
   .claim .claim-tag { position: absolute; left: 0; right: 0; bottom: 0; background: var(--gold); color: #3d2b00; font-size: calc(9px * var(--scale, 1)); font-weight: 900; text-align: center; letter-spacing: 0.05em; padding: 2px 0; }
   @keyframes claim-glow { 0%, 100% { box-shadow: 0 0 0 3px rgba(255,204,0,0.25), 0 6px 16px rgba(0,0,0,0.5); } 50% { box-shadow: 0 0 0 7px rgba(255,204,0,0.45), 0 6px 22px rgba(0,0,0,0.6); } }
   .who-chip .who-dot img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
+  /* A found Pokémon as the avatar: the creature itself, a bit bigger, on a
+     soft glow, never cut into a circle (Moshe, 2026-09-30). */
+  .who-chip .who-dot.poke { width: 30px; height: 30px; margin: -6px 0 -6px -4px; background: radial-gradient(circle at 50% 55%, rgba(255,204,0,0.45), rgba(255,204,0,0) 70%); }
+  .who-chip .who-dot.poke img { object-fit: contain; border-radius: 0; filter: drop-shadow(0 1px 1px rgba(0,0,0,0.35)); }
+  .claim.poke { background: radial-gradient(circle at 50% 45%, #fff6c9, #ffcc00 70%, #b8860b); }
+  .claim.poke img { object-fit: contain; padding: 4px 3px 14px; box-sizing: border-box; }
+  #claim-sheet { z-index: 29; }
+  #claim-sheet .sheet.claim-full { max-width: none; height: 100%; max-height: 100%; border-radius: 0; padding-top: calc(10px + env(safe-area-inset-top)); background: radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--gold) 28%, var(--panel)), var(--panel) 60%); }
+  #claim-sheet .sheet-top { background: transparent; border-bottom: none; }
+  .claim-hero { text-align: center; margin: 4px 0 6px; }
+  .claim-hero img { width: min(46vw, 220px); height: min(46vw, 220px); object-fit: contain; filter: drop-shadow(0 8px 18px rgba(0,0,0,0.35)); animation: claim-pop 0.5s cubic-bezier(.2,.9,.3,1.3); }
+  .claim-hero h3 { margin: 6px 0 2px; font-size: calc(24px * var(--scale, 1)); }
+  .claim-hero p { margin: 0; color: var(--ink-muted); font-size: var(--body); }
+  @keyframes claim-pop { from { transform: scale(0.6); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  .look-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(150px, 44vw), 1fr)); gap: 10px; margin-top: 14px; }
+  .look-pick { font: inherit; color: var(--ink); background: var(--panel-2); border: 2px solid var(--line); border-radius: 18px; padding: 10px 8px 12px; cursor: pointer; touch-action: manipulation; display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 0; }
+  .look-pick img { width: 100%; max-width: 140px; aspect-ratio: 1; object-fit: contain; }
+  .look-pick b { font-size: calc(17px * var(--scale, 1)); }
+  .look-pick small { color: var(--ink-muted); font-size: calc(12px * var(--scale, 1)); overflow-wrap: anywhere; text-align: center; }
+  .look-pick:not(:disabled):active { transform: scale(0.96); }
+  .look-pick:disabled { opacity: 0.45; cursor: default; }
+  .look-pick.on { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(255,204,0,0.35); }
+  .who-avatar { margin-top: 14px; }
+  .who-avatar h4 { margin: 0 0 4px; }
+  .who-avatar .look-grid { grid-template-columns: repeat(auto-fill, minmax(min(110px, 28vw), 1fr)); margin-top: 8px; }
+  .who-avatar .look-pick img { max-width: 80px; }
+  .doubles { margin-top: 12px; border-radius: 16px; padding: 12px 14px; background: color-mix(in srgb, var(--gold) 14%, var(--panel)); border: 1px solid color-mix(in srgb, var(--gold) 55%, transparent); font-size: var(--body); line-height: 1.4; }
+  .doubles ul { margin: 6px 0 8px; padding-left: 18px; }
+  .doubles .btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
   .hero { position: relative; }
   /* ---------- Sets (master sets) ---------- */
   .set-row { display: flex; align-items: center; gap: 12px; background: var(--panel); border: 1px solid var(--panel-2); border-radius: 14px; padding: 10px 12px; margin-top: 8px; cursor: pointer; touch-action: manipulation; transition: transform 0.12s cubic-bezier(.2,.9,.3,1.1); }
@@ -295,6 +324,8 @@
   .whats-new ul { margin: 0; padding-left: 18px; font-size: calc(13.5px * var(--scale, 1)); line-height: 1.45; }
   .whats-new li { margin: 3px 0; }
   .whats-new li small { color: var(--ink-muted); }
+  .whats-new .wn-by { display: inline-block; font-size: calc(12px * var(--scale, 1)); font-weight: 800; color: #fff; background: var(--accent); border-radius: 999px; padding: 1px 8px; margin-right: 6px; vertical-align: 1px; white-space: nowrap; }
+  .whats-new .wn-by.dad { background: var(--ok); }
   .whats-new .link { padding: 6px 0 0; min-height: 0; }
   /* ---------- Two tabs: Find, My cards ---------- */
   .seg { display: flex; background: var(--panel); border: 1px solid var(--panel-2); border-radius: 12px; padding: 3px; margin: 12px 0 14px; }
@@ -633,7 +664,9 @@
   .reader-pick b { display: block; font-size: calc(13px * var(--scale, 1)); }
   .reader-pick small { display: block; font-size: calc(11px * var(--scale, 1)); color: var(--ink-muted); line-height: 1.25; overflow-wrap: anywhere; }
   .reader.on .reader-pick { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
-  .reader.off .reader-pick { opacity: 0.75; cursor: default; }
+  .reader.off .reader-pick { opacity: 0.75; }
+  .reader-why { grid-column: 1 / -1; font-size: calc(12.5px * var(--scale, 1)); line-height: 1.4; background: var(--panel-2); border-radius: 12px; padding: 8px 10px; margin-top: 2px; }
+  .reader-why .pill-btn { margin-top: 6px; }
   .reader-ask { font-size: calc(12px * var(--scale, 1)); min-height: 32px; padding: 4px 8px; }
   .chip.on { background: var(--accent); border-color: var(--accent); color: #fff; }
   .sheet-actions { display: flex; flex-direction: column; gap: 9px; margin-top: 18px; }
@@ -997,6 +1030,7 @@
       <div id="cl-worth-slot"></div>
       <div class="summary" id="mine-summary"></div>
       <div class="reorder-hint" id="reorder-hint">Press and hold a card, then drag it to where you want it.</div>
+      <div id="mine-doubles" class="doubles hide"></div>
       <div id="mine-root"></div>
     </section>
 
@@ -1040,6 +1074,14 @@
 </div>
 
 <!-- Is it this exact printing? Asked before a card is added. (Moshe.) -->
+<!-- Moshe, 2026-09-30: "if you collect it it should make the options the
+     whole screen". The hidden card's looks, as a page of their own. -->
+<div class="sheet-back" id="claim-sheet">
+  <div class="sheet claim-full">
+    <div class="sheet-top"><button type="button" class="link" id="claim-close">‹ Back</button><span></span></div>
+    <div id="claim-body"></div>
+  </div>
+</div>
 <div class="sheet-back" id="confirm-sheet">
   <div class="sheet">
     <div class="grabber"></div>
@@ -1208,6 +1250,7 @@
     <h3 id="who-title">Who's collecting?</h3>
     <p class="sheet-sub" id="who-sub">Each person has their own cards and their own recent scans. This phone remembers the name you pick.</p>
     <div class="chips" id="who-chips"></div>
+    <div id="who-avatar" class="who-avatar hide"></div>
     <div id="who-add">
       <label for="who-input" id="who-input-label">Add a family member</label>
       <input type="text" id="who-input" placeholder="Their name, e.g. Alex" maxlength="30" autocomplete="off" autocapitalize="words">
@@ -1315,6 +1358,7 @@
       </div>
       <div class="opt-row">
         <div class="opt-text">ChatGPT — paid backup for scanning<small id="opt-chatgpt-line"></small></div>
+        <button type="button" class="pill-btn hide" id="opt-chatgpt-share">Share it with the family</button>
         <button type="button" class="pill-btn hide" id="opt-chatgpt-remove">Remove</button>
       </div>
       <div id="opt-chatgpt-edit">
@@ -1749,8 +1793,22 @@ onAuthStateChanged(authClient, async user => {
   setStage("list");
   let ownershipSettled = false;
   historyStarted = false;
-  unsubscribe = onSnapshot(docRef, snap => {
+  let lastDataJson = "";
+  // includeMetadataChanges: the server confirming the phone's copy changes
+  // no data, and without it cardsFromPhoneOnly would stay true for ever.
+  unsubscribe = onSnapshot(docRef, { includeMetadataChanges: true }, snap => {
     const d = (snap.exists() ? snap.data() : null) || {};
+    // The family's cards have really arrived (from the server, or this
+    // phone's saved copy of them) -- only then can "do I have it already?"
+    // be answered. See addCard.
+    // A copy from the phone's own storage can be days old: shown at once,
+    // but before a NEW card is added the server is asked (latestCards).
+    cardsFromPhoneOnly = !!(snap.metadata && snap.metadata.fromCache);
+    if (snap.exists() || !cardsFromPhoneOnly) cardsArrived = true;
+    // Only that changed (same data, now from the server): nothing to redraw.
+    const json = JSON.stringify(d);
+    if (ownershipSettled && json === lastDataJson) return;
+    lastDataJson = json;
     if (!ownershipSettled) {
       ownershipSettled = true;
       if (!ownershipAllows(user, d)) { refuseAccess(user, d); return; }
@@ -1798,6 +1856,18 @@ onAuthStateChanged(authClient, async user => {
   });
   loadLlmKey();
 });
+
+let cardsArrived = false, cardsFromPhoneOnly = true;
+// Ask the server for the cards as they are now and fold in any this phone
+// hasn't seen; at most 5 seconds, then go on with what is here.
+async function latestCards() {
+  try {
+    const fresh = await Promise.race([getDoc(docRef), new Promise((_, no) => setTimeout(() => no(new Error("slow")), 5000))]);
+    const cards = fresh && fresh.exists() ? (fresh.data() || {}).cards : null;
+    if (cards && typeof cards === "object") Object.entries(cards).forEach(([id, e]) => { if (!state.cards[id]) state.cards[id] = e; });
+    return true;
+  } catch (e) { return false; }
+}
 
 // ---------- Writing ----------
 // One way in. Everything that changes the document goes through these.
@@ -1920,6 +1990,7 @@ function renderWho() {
   $("who-name").textContent = who || (isOwner() ? "Your name" : "No name yet");
   const av = who ? avatarOf(who) : null;
   if (av) $("who-dot").innerHTML = `<img src="${escapeAttr(av.src)}" alt="" style="filter:${escapeAttr(av.css || "none")}">`; else $("who-dot").textContent = who ? who.trim().charAt(0).toUpperCase() : "?";
+  $("who-dot").classList.toggle("poke", !!(av && av.poke));
   $("opt-who-line").textContent = who ? who + (currentUser && currentUser.email ? " · " + currentUser.email : "") : (isOwner() ? "Nobody yet — tap to pick a name." : "Not on a name yet.");
   renderFamilyList();
   const sel = $("mine-who");
@@ -1930,6 +2001,7 @@ function renderWho() {
   sel.value = names.includes(current) || current === "*" ? current : (who || "*");
 }
 function openWho() {
+  safely("avatar", renderAvatarPicker);
   const names = everyoneKnown();
   const owner = isOwner();
   $("who-title").textContent = owner ? "Who's collecting?" : "Your name";
@@ -2792,6 +2864,7 @@ function chatgptAllowedText(name) {
 const CHATGPT_SPANS = [["1h", "An hour", 3600000], ["1d", "A day", 86400000], ["1w", "A week", 7 * 86400000], ["always", "Always", true], ["off", "Off", false]];
 function chatgptAskedBy(name) { return !!((state.settings.chatgptAsked || {})[name]); }
 function setChatgptAllowed(name, allowed) {
+  if (allowed) shareChatgptKey();
   const map = { ...(state.settings.chatgptAllowed || {}), [name]: allowed === true ? true : typeof allowed === "number" ? Date.now() + allowed : false };
   const asked = { ...(state.settings.chatgptAsked || {}) }; delete asked[name];
   state.settings = { ...state.settings, chatgptAllowed: map, chatgptAsked: asked };
@@ -2863,7 +2936,7 @@ function readerStates() {
   const fails = readerFails();
   return SCAN_ORDER_DEFAULT.map(id => {
     const name = READER_NAMES[id];
-    if (!hasReaderKey(id)) return { id, name, usable: false, state: "no key yet — " + (isOwner() ? "paste one in Options" : ownerWord() + " adds it in Options") };
+    if (!hasReaderKey(id)) return { id, name, usable: false, state: !isOwner() && who && ((state.settings.readerAsked || {})[who] || {})[id] ? "you asked " + ownerName() + " to turn it on — waiting" : "no key yet — " + (isOwner() ? "paste one in Options" : ownerWord() + " adds it in Options") };
     if (id === "chatgpt" && !isOwner() && !chatgptAllowedFor(who)) {
       if (!who) return { id, name, usable: false, state: "pick your name first" };
       return chatgptAskedBy(who) ? { id, name, usable: false, state: "asked " + ownerWord() + " — waiting for an OK" } : { id, name, usable: false, state: "costs money — needs " + ownerWord() + "'s OK", ask: true };
@@ -2877,7 +2950,7 @@ function readerRowHtml() {
   const first = scanOrder()[0];
   return `<div class="reader-title">Which AI reads and answers</div><div class="reader-list">${readerStates().map(r =>
     `<div class="reader${r.usable ? "" : " off"}${r.id === first && r.usable ? " on" : ""}" data-reader="${r.id}">`
-    + `<button type="button" class="reader-pick" data-reader-pick="${r.id}" ${r.usable ? "" : "disabled"} aria-pressed="${r.id === first && r.usable}"><b>${escapeHtml(r.name)}</b><small>${escapeHtml(r.state)}</small></button>`
+    + `<button type="button" class="reader-pick" data-reader-pick="${r.id}" ${r.usable ? "" : `aria-disabled="true"`} aria-pressed="${r.id === first && r.usable}"><b>${escapeHtml(r.name)}</b><small>${escapeHtml(r.state)}</small></button>`
     + (r.ask ? `<button type="button" class="pill-btn reader-ask" data-reader-ask="chatgpt">Ask to use ChatGPT</button>` : "")
     + `</div>`).join("")}</div>`;
 }
@@ -2886,6 +2959,15 @@ function renderReaderRows() {
 }
 document.addEventListener("click", async e => {
   const pick = e.target.closest("[data-reader-pick]");
+  if (pick && pick.getAttribute("aria-disabled") === "true") { showReaderWhy(pick); return; }
+  const askOn = e.target.closest("[data-reader-turnon]");
+  if (askOn) {
+    askOn.disabled = true;
+    const pushed = await askReaderOn(askOn.dataset.readerTurnon);
+    renderReaderRows();
+    showToast(pushed ? "Asked — it's on " + ownerName() + "'s phone now" : "Asked — " + ownerName() + " will see it in Options");
+    return;
+  }
   if (pick && !pick.disabled) {
     const inScan = !!pick.closest("#scanned");   // asked before the rows are redrawn
     pickReader(pick.dataset.readerPick);
@@ -2901,6 +2983,40 @@ document.addEventListener("click", async e => {
     showToast(pushed ? "Asked — it's on " + ownerWord() + "'s phone now" : "Asked — " + ownerWord() + " will see it in Options");
   }
 });
+// Tapping a reader that can't be used says why, in plain words, under the
+// row, with the one thing that would turn it on.
+function showReaderWhy(pick) {
+  const row = pick.closest(".reader-list");
+  const id = pick.dataset.readerPick;
+  const r = readerStates().find(x => x.id === id);
+  if (!row || !r) return;
+  row.querySelectorAll(".reader-why").forEach(x => x.remove());
+  const name = READER_NAMES[id];
+  let html;
+  if (!hasReaderKey(id)) {
+    html = isOwner()
+      ? `<b>${name} has no key yet.</b> Paste one in Options${id === "groq" ? " (Groq's keys are free at console.groq.com)" : ""} and everyone can use it.<br><button type="button" class="pill-btn" data-open-options>Open Options</button>`
+      : `<b>${name} isn't turned on yet.</b> Only ${escapeHtml(ownerName())} can turn it on, by adding its key.${(state.settings.readerAsked || {})[who] && state.settings.readerAsked[who][id] ? "<br>You've asked already." : who ? `<br><button type="button" class="pill-btn" data-reader-turnon="${id}">Ask to turn on ${name}</button>` : ""}`;
+  } else {
+    html = `<b>${name}:</b> ${escapeHtml(r.state)}.`;
+  }
+  const box = document.createElement("div");
+  box.className = "reader-why";
+  box.innerHTML = html;
+  row.appendChild(box);
+  const o = box.querySelector("[data-open-options]");
+  if (o) o.addEventListener("click", openOptions);
+}
+async function askReaderOn(id) {
+  if (!who || isOwner()) return false;
+  const mine = { ...((state.settings.readerAsked || {})[who] || {}), [id]: Date.now() };
+  const asked = { ...(state.settings.readerAsked || {}), [who]: mine };
+  state.settings = { ...state.settings, readerAsked: asked };
+  save({ settings: { readerAsked: asked } });
+  const name = READER_NAMES[id];
+  return pushToOwner("Poké Scan: " + who + " asks to turn on " + name,
+    who + " tapped " + name + " under \"Which AI reads and answers\", but it has no key in Poké Scan yet. " + (id === "chatgpt" ? "Open Poké Scan, Options, and tap \"Share it with the family\" next to ChatGPT (it costs a little each time, and each person still needs your OK)." : id === "groq" ? "Groq is free: make a key at console.groq.com, then paste it in Poké Scan, Options, Groq." : "Paste a key in Poké Scan, Options."));
+}
 function readerAvailable(id) {
   if (id === "gemini") return !!geminiKey().key;
   if (id === "groq") return !!groqKey();
@@ -2925,12 +3041,18 @@ function renderGeminiLine() {
   $("opt-groq-remove").classList.toggle("hide", !(gk && mayEditKey()));
   // ChatGPT
   const ck = chatgptKey();
-  $("opt-chatgpt-line").textContent = ck.from === "llms" ? "Using the ChatGPT key saved in the LLMs app." : ck.from === "here" ? "A key is saved" + (mayEditKey() ? " (ends in …" + ck.key.slice(-4) + ")." : ".") : "No key yet.";
+  $("opt-chatgpt-line").textContent = ck.from === "llms" ? "Using the ChatGPT key saved in the LLMs app — on your phone only. The family can't use ChatGPT until you share it (each person still needs your OK)." : ck.from === "here" ? "A key is saved" + (mayEditKey() ? " (ends in …" + ck.key.slice(-4) + ")." : ".") : "No key yet.";
   $("opt-chatgpt-edit").classList.toggle("hide", !mayEditKey());
   $("opt-chatgpt-remove").classList.toggle("hide", !(ck.from === "here" && mayEditKey()));
+  $("opt-chatgpt-share").classList.toggle("hide", !(ck.from === "llms" && mayEditKey()));
   if (!mayEditKey() && who && ck.key) {
     $("opt-chatgpt-line").textContent += chatgptAllowedFor(who) ? " You're allowed to use it." : (chatgptAskedBy(who) ? " You've asked to use it — waiting on " + ownerWord() + "." : " It costs money, so ask " + ownerWord() + " before you use it.");
   }
+  // Who asked for a reader that has no key here (the owner's list).
+  if (mayEditKey()) [["groq", "opt-groq-line"], ["chatgpt", "opt-chatgpt-line"], ["gemini", "opt-gemini-line"]].forEach(([id, el]) => {
+    const names = Object.entries(state.settings.readerAsked || {}).filter(([, m]) => m && m[id]).map(([n]) => n);
+    if (names.length && !(id === "chatgpt" ? ck.from === "here" : id === "groq" ? gk : g.key)) $(el).textContent += " " + names.join(" and ") + " asked to use it.";
+  });
   // Order
   const order = scanOrder();
   $("scan-order-chips").innerHTML = SCAN_ORDER_DEFAULT.map(id => `<button type="button" class="chip${order[0] === id ? " on" : ""}" data-scan-first="${id}">${READER_NAMES[id]}</button>`).join("");
@@ -2954,6 +3076,19 @@ $("opt-groq-key").addEventListener("input", () => { if (!mayEditKey()) return; c
 $("opt-groq-remove").addEventListener("click", () => { removeKey("groqKey", "Groq"); $("opt-groq-key").value = ""; });
 $("opt-chatgpt-key").addEventListener("input", () => { if (!mayEditKey()) return; const k = $("opt-chatgpt-key").value.trim(); if (k) { saveSettings({ chatgptKey: k }); renderGeminiLine(); } });
 $("opt-chatgpt-remove").addEventListener("click", () => { removeKey("chatgptKey", "ChatGPT"); $("opt-chatgpt-key").value = ""; });
+// Moshe, 2026-09-29: "It wont let me select the different ais". On the
+// family's phones only the keys saved in Poké Scan itself can be used: the
+// LLMs page's keys are the owner's alone. Sharing copies the ChatGPT key in
+// here; each person still needs the owner's OK before they can use it.
+function shareChatgptKey() {
+  if (!isOwner()) return false;
+  const k = typeof llmSettings.openaiKey === "string" ? llmSettings.openaiKey.trim() : "";
+  if (!k || (typeof state.settings.chatgptKey === "string" && state.settings.chatgptKey.trim())) return false;
+  saveSettings({ chatgptKey: k });
+  renderGeminiLine(); renderReaderRows();
+  return true;
+}
+$("opt-chatgpt-share").addEventListener("click", () => { if (shareChatgptKey()) showToast("Shared — the family can ask you to use ChatGPT now"); });
 function removeKey(field, name) {
   if (!mayEditKey()) return;
   const before = typeof state.settings[field] === "string" ? state.settings[field] : "";
@@ -3076,6 +3211,7 @@ function rankResults(list, hint) {
     if (tot && String(c.total) === tot) s += 5;
     if (setHint && c.set && normName(c.set.name).includes(setHint)) s += 4;
     if (hint && hint.family && c.family === hint.family) s += 2;
+    if (c.viaHero) s -= 20;   // a Minecraft Hero card that only carries the card typed: after it
     return s;
   };
   const dated = c => (c.set && c.set.releaseDate) || "0000";
@@ -5765,7 +5901,7 @@ function hashOf(str) { let h = 2166136261; for (let i = 0; i < str.length; i++) 
 // A card id like sv03.5-006 has a dot in it, and a dot in a save path means
 // "one level down" -- so claims are keyed by a dot-free copy of the id.
 const claimKey = cardId => String(cardId || "").replace(/[.\/]/g, "_");
-function claimRecord(cardId) { const r = (state.claims || {})[claimKey(cardId)] || {}; return { opens: Number(r.opens) || 0, by: r.by && typeof r.by === "object" ? r.by : {}, name: r.name || "", image: r.image || "" }; }
+function claimRecord(cardId) { const r = (state.claims || {})[claimKey(cardId)] || {}; return { opens: Number(r.opens) || 0, by: r.by && typeof r.by === "object" ? r.by : {}, name: r.name || "", image: r.image || "", pic: r.pic || "", dex: Number(r.dex) || 0, cardId: r.cardId || "" }; }
 function claimSpot(c) {
   const h = hashOf("claim:" + c.id);
   const corner = (h >>> 8) % 4;
@@ -5777,7 +5913,7 @@ function noteClaimOpen(c, price) {
   if (!c || !c.id || !(price >= CLAIM_MIN_PRICE) || claimCounted === c.id) return;
   claimCounted = c.id;
   const r = claimRecord(c.id);
-  const next = { ...r, opens: r.opens + 1, name: c.name, image: c.image || r.image };
+  const next = { ...r, opens: r.opens + 1, name: c.name, image: c.image || r.image, cardId: c.id, ...(imgUrl(c, "low") ? { pic: imgUrl(c, "low") } : {}), ...(dexOfCard(c) ? { dex: dexOfCard(c) } : {}) };
   state.claims = { ...(state.claims || {}), [claimKey(c.id)]: next };
   saveEntry("claims", claimKey(c.id), next);
 }
@@ -5787,12 +5923,51 @@ function claimShowing(c, price) {
   const every = Math.max(1, 3 - Object.keys(r.by).length);      // 3, then 2, then every time
   return r.opens > 0 && r.opens % every === 0;
 }
+// Moshe, 2026-09-30: "Make it that the special avatars are the Pokemon. So
+// the charizard should be a charizard not the card." The picture is the
+// Pokémon itself -- the official artwork, by its Pokédex number, which the
+// card database gives every Pokémon card (dexId). A card with no Pokémon on
+// it (a Trainer, a Yu-Gi-Oh! card) keeps its card picture.
+const POKE_ART = n => "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/" + n + ".png";
+const DEX_KEY = "pokescan-dex";
+const dexMemo = (() => { try { return JSON.parse(localStorage.getItem(DEX_KEY) || "{}") || {}; } catch (e) { return {}; } })();
+const dexAsked = new Set();
+function dexOfCard(c) { const d = c && Array.isArray(c.dexId) ? Number(c.dexId[0]) : 0; return d > 0 ? d : 0; }
+// The number for a claimed card: saved with the claim, else looked up once
+// (claims made before this change) and kept on this device.
+function dexFor(cardId) {
+  const r = claimRecord(cardId);
+  if (r.dex > 0) return r.dex;
+  if (dexMemo[cardId] !== undefined) return dexMemo[cardId];
+  const cached = cardCache.get(cardId);
+  if (cached && dexOfCard(cached)) return dexOfCard(cached);
+  if (!dexAsked.has(cardId) && !/^(ptcg|ygo|mcd):/.test(cardId)) {
+    dexAsked.add(cardId);
+    fetch(DEX + "/en/cards/" + encodeURIComponent(cardId)).then(r => r.ok ? r.json() : null).then(c => {
+      dexMemo[cardId] = dexOfCard(c) || 0;
+      try { localStorage.setItem(DEX_KEY, JSON.stringify(dexMemo)); } catch (e) {}
+      if (dexMemo[cardId]) { safely("who", renderWho); if ($("who-sheet").classList.contains("show")) safely("avatar", renderAvatarPicker); }
+    }).catch(() => { dexAsked.delete(cardId); });
+  }
+  return 0;
+}
+// { src, css, poke } for a claimed card in a look.
+function claimPicture(cardId, variant) {
+  const r = claimRecord(cardId);
+  const look = LOOKS.find(l => l.key === variant) || LOOKS[0];
+  const dex = dexFor(cardId);
+  if (dex) return { src: POKE_ART(dex), css: look.css, poke: true };
+  const card = r.pic || (r.image ? r.image + "/low.webp" : "");
+  return card ? { src: card, css: look.css, poke: false } : null;
+}
 function myLookFor(cardId) { const r = claimRecord(cardId); return who ? r.by[who] || "" : ""; }
 function claimHtml(c, price) {
   if (!claimShowing(c, price) || myLookFor(c.id)) return "";
   const spot = claimSpot(c);
   const pos = [`top:${spot.y}px;right:${spot.x}px`, `top:${spot.y}px;left:${spot.x}px`, `bottom:${spot.y}px;right:${spot.x}px`, `bottom:${spot.y}px;left:${spot.x}px`][spot.corner];
-  return `<button type="button" class="claim" id="claim-btn" style="${pos}" aria-label="A hidden ${escapeAttr(c.name)} — tap to claim it">${imgUrl(c, "low") ? `<img src="${escapeAttr(imgUrl(c, "low"))}" alt="">` : ""}<span class="claim-tag">CLAIM</span></button>`;
+  const dex = dexOfCard(c);
+  const pic = dex ? POKE_ART(dex) : imgUrl(c, "low");
+  return `<button type="button" class="claim${dex ? " poke" : ""}" id="claim-btn" style="${pos}" aria-label="A hidden ${escapeAttr(c.name)} — tap to claim it">${pic ? `<img src="${escapeAttr(pic)}" alt="">` : ""}<span class="claim-tag">CLAIM</span></button>`;
 }
 function claimLine(c) {
   const r = claimRecord(c.id);
@@ -5800,44 +5975,84 @@ function claimLine(c) {
   if (!names.length) return "";
   return `<div class="field-note" style="margin-top:6px">🏅 ${names.map(n => escapeHtml(n) + " (" + escapeHtml((LOOKS.find(l => l.key === r.by[n]) || {}).label || r.by[n]) + ")").join(", ")} found the hidden one.</div>`;
 }
-// Tapping the copy: pick a look nobody else has taken.
+// Tapping the copy: pick a look nobody else has taken -- on a page of its own,
+// the whole screen, with the Pokémon big in each look.
+let claimFor = null;
 function openClaimLooks(c) {
   if (!who) { openWho(); return; }
+  claimFor = c;
   const r = claimRecord(c.id);
   const taken = {}; Object.entries(r.by).forEach(([n, v]) => { taken[v] = n; });
-  const box = document.createElement("div");
-  box.className = "sold-form"; box.id = "claim-looks";
-  box.innerHTML = `<div><b>Which look is yours?</b> <span class="field-note" style="display:inline">A look someone already took is theirs.</span></div>
-    <div class="chips" style="margin-top:8px">${LOOKS.map(l => `<button type="button" class="chip" data-look="${l.key}" ${taken[l.key] && taken[l.key] !== who ? "disabled" : ""} style="display:flex;align-items:center;gap:6px">${imgUrl(c, "low") ? `<img src="${escapeAttr(imgUrl(c, "low"))}" alt="" style="width:22px;height:30px;object-fit:cover;border-radius:3px;filter:${l.css || "none"}">` : ""}${l.label}${taken[l.key] && taken[l.key] !== who ? " · " + escapeHtml(taken[l.key]) : ""}</button>`).join("")}</div>`;
-  const anchor = $("hero-ctl-anchor") || document.querySelector(".hero-ctl");
-  anchor.after(box);
-  box.querySelector(".chips").addEventListener("click", e => { const b = e.target.closest("[data-look]"); if (b && !b.disabled) claimCard(c, b.dataset.look); });
+  const dex = dexOfCard(c);
+  const pic = dex ? POKE_ART(dex) : imgUrl(c, "high") || imgUrl(c, "low");
+  $("claim-body").innerHTML = `<div class="claim-hero">${pic ? `<img src="${escapeAttr(pic)}" alt="">` : ""}<h3>You found a hidden ${escapeHtml(c.name)}!</h3><p>Pick your look. It becomes your picture next to your name.</p></div>
+    <div class="look-grid">${LOOKS.map(l => {
+      const gone = taken[l.key] && taken[l.key] !== who;
+      return `<button type="button" class="look-pick${taken[l.key] === who ? " on" : ""}" data-look="${l.key}" ${gone ? "disabled" : ""}>${pic ? `<img src="${escapeAttr(pic)}" alt="" style="filter:${l.css || "none"}">` : ""}<b>${l.label}</b><small>${gone ? escapeHtml(taken[l.key]) + " has this one" : "Tap to take it"}</small></button>`;
+    }).join("")}</div>`;
+  openSheet("claim-sheet");
 }
+$("claim-body").addEventListener("click", e => { const b = e.target.closest("[data-look]"); if (b && !b.disabled && claimFor) claimCard(claimFor, b.dataset.look); });
+$("claim-close").addEventListener("click", () => { closeSheet("claim-sheet"); if (openCardData) renderCardSheet(openCardData, false); });
 function claimCard(c, look) {
   if (!who) return;
   const r = claimRecord(c.id);
   const takenBy = Object.entries(r.by).find(([n, v]) => v === look && n !== who);
-  if (takenBy) { showToast("Too late — " + takenBy[0] + " has the " + look + " one."); renderCardSheet(openCardData || c, false); return; }
+  if (takenBy) { showToast("Too late — " + takenBy[0] + " has the " + look + " one."); openClaimLooks(c); return; }
   const before = (state.claims || {})[claimKey(c.id)] || null;
   const beforeAvatar = (state.avatars || {})[who] || null;
-  const after = { ...r, name: c.name, image: c.image || r.image, by: { ...r.by, [who]: look } };
+  const after = { ...r, name: c.name, image: c.image || r.image, cardId: c.id, by: { ...r.by, [who]: look }, ...(imgUrl(c, "low") ? { pic: imgUrl(c, "low") } : {}), ...(dexOfCard(c) ? { dex: dexOfCard(c) } : {}) };
   const avatar = { cardId: c.id, variant: look };
   pushAction({ label: who + " claimed the " + look + " " + c.name, undo: [{ field: "claims", id: claimKey(c.id), value: before }, { field: "avatars", id: who, value: beforeAvatar }], redo: [{ field: "claims", id: claimKey(c.id), value: after }, { field: "avatars", id: who, value: avatar }] });
   state.claims = { ...(state.claims || {}), [claimKey(c.id)]: after };
   state.avatars = { ...(state.avatars || {}), [who]: avatar };
   saveEntry("claims", claimKey(c.id), after);
   saveEntry("avatars", who, avatar);
-  showToast("You claimed the " + look + " " + c.name + " — it's your avatar now");
+  showToast("You claimed the " + look + " " + c.name + " — it's your picture next to your name now");
+  closeSheet("claim-sheet");
   renderAll();
   renderCardSheet(openCardData || c, false);
 }
 function avatarOf(name) {
   const a = (state.avatars || {})[name];
-  if (!a || !a.cardId) return null;
-  const cl = claimRecord(a.cardId);
-  const look = LOOKS.find(l => l.key === a.variant) || LOOKS[0];
-  return cl.image ? { src: cl.image + "/low.webp", css: look.css } : null;
+  if (!a || !a.cardId || a.none) return null;
+  return claimPicture(a.cardId, a.variant);
 }
+// Moshe, 2026-09-29: "It wont let me put the special avatar on my name." The
+// name sheet now shows every hidden card this name has found, each in its
+// look, and the one tapped goes next to the name (or none).
+function claimsOf(name) {
+  return Object.entries(state.claims || {}).filter(([, v]) => v && v.by && v.by[name]).map(([k, v]) => ({ cardId: v.cardId || claimIdFromKey(k), variant: v.by[name], name: v.name || "" }));
+}
+// Claims saved before the card id was kept: the key is the id with its dot
+// made "_" (sv06.5-075 -> sv06_5-075). The avatar remembers the real id.
+function claimIdFromKey(k) {
+  const known = [...Object.values(state.avatars || {}).map(a => a && a.cardId), ...Object.values(state.cards).map(c => c && c.cardId), ...cardCache.keys()].find(id => id && claimKey(id) === k);
+  return known || k.replace(/^([a-z]+\d+)_(\d+)-/i, "$1.$2-");
+}
+function renderAvatarPicker() {
+  const box = $("who-avatar");
+  const mine = who && mayChange(who) ? claimsOf(who) : [];
+  if (!mine.length) { box.classList.add("hide"); box.innerHTML = ""; return; }
+  const cur = (state.avatars || {})[who] || {};
+  box.innerHTML = `<h4>Your picture next to your name</h4><p class="field-note" style="margin:0">The hidden Pokémon you found. Tap one to wear it.</p>
+    <div class="look-grid">${mine.map(m => {
+      const p = claimPicture(m.cardId, m.variant);
+      const on = !cur.none && cur.cardId === m.cardId;
+      return `<button type="button" class="look-pick${on ? " on" : ""}" data-avatar="${escapeAttr(m.cardId)}" data-variant="${escapeAttr(m.variant)}">${p ? `<img src="${escapeAttr(p.src)}" alt="" style="filter:${escapeAttr(p.css || "none")}">` : ""}<b>${escapeHtml(m.name)}</b><small>${escapeHtml((LOOKS.find(l => l.key === m.variant) || {}).label || "")}${on ? " · wearing it" : ""}</small></button>`;
+    }).join("")}<button type="button" class="look-pick${cur.cardId && !cur.none ? "" : " on"}" data-avatar=""><span style="font-size:calc(34px * var(--scale, 1));line-height:80px">${escapeHtml(who.trim().charAt(0).toUpperCase())}</span><b>No picture</b><small>Just my letter</small></button></div>`;
+  box.classList.remove("hide");
+}
+$("who-avatar").addEventListener("click", e => {
+  const b = e.target.closest("[data-avatar]");
+  if (!b || !who || !mayChange(who)) return;
+  const before = (state.avatars || {})[who] || null;
+  const after = b.dataset.avatar ? { cardId: b.dataset.avatar, variant: b.dataset.variant } : { ...(before || {}), none: true };
+  pushAction({ label: b.dataset.avatar ? "New picture next to " + who : "No picture next to " + who, undo: [{ field: "avatars", id: who, value: before }], redo: [{ field: "avatars", id: who, value: after }] });
+  state.avatars = { ...(state.avatars || {}), [who]: after };
+  saveEntry("avatars", who, after);
+  renderWho(); renderAvatarPicker();
+});
 // Why the price is what it is, in plain words, from what is known about
 // the card: how rare, how hard to pull, how old, who is on it, and how it
 // compares to a plain card. A Gemini button for the story behind it.
@@ -7045,9 +7260,22 @@ function emptySearchBoxAfterAdd() {
   if (/^Looking up/.test($("find-status").textContent)) { searchSeq++; setStatus("find-status", ""); }
   $("q").value = ""; $("q-clear").classList.add("hide");
 }
-function addCard(c) {
+// Moshe, 2026-09-30: "If I only added one card it should only add one card."
+// On Sept 28 the app opened without his cards (the evening it wasn't loading
+// properly), so "do you have it already?" found nothing and seven cards he
+// already had went in a second time, each as a card of its own. Adding now
+// waits for the cards to arrive; doubles already made are offered back as
+// one in My cards (renderDoubles).
+let addingNow = false;
+async function addCard(c) {
   if (!who) { openWho(); return; }
   if (!isOwner() && nameForEmail(currentUser && currentUser.email) !== who) return;
+  if (!cardsArrived) { showToast("Your cards haven't loaded yet — wait a moment and tap again, so it isn't added twice."); return; }
+  if (!entryFor(c.id, who) && cardsFromPhoneOnly) {
+    if (addingNow) return;
+    addingNow = true;
+    try { await latestCards(); } finally { addingNow = false; }
+  }
   keepListInPlace(c.id, () => addCardNow(c));
   emptySearchBoxAfterAdd();
 }
@@ -7331,9 +7559,60 @@ function redrawHistory() {
   const slot = $("cl-history-slot");
   if (slot && historyCard && openCardData && openCardData.id === historyCard.c.id) slot.innerHTML = CL.cardHistoryHtml(historyCard.c, historyCard.finish, historyCard.headline);
 }
+// The same card in someone's cards twice, as two separate cards (each ×1)
+// -- the Sept 28 doubles above. Shown at the top of My cards with one button
+// that keeps one of each: the oldest copy stays (with its star and place),
+// the larger "how many" of the two is kept, and the extra copy goes to
+// Recently deleted as "Added by mistake". Undo puts them back.
+function doublesOf(person) {
+  const groups = new Map();
+  Object.entries(state.cards).forEach(([id, c]) => {
+    if (!live(c) || !c.who || (person !== "*" && c.who !== person)) return;
+    const k = c.who + "|" + c.cardId;
+    groups.set(k, [...(groups.get(k) || []), { id, ...c }]);
+  });
+  return [...groups.values()].filter(g => g.length > 1).map(g => g.sort((a, b) => (Number(a.addedAt) || 0) - (Number(b.addedAt) || 0)));
+}
+function mayChange(person) { return isOwner() || (who && person === who && myOwnName() === who); }
+function dayWords(t) { try { return new Date(Number(t)).toLocaleDateString(undefined, { month: "short", day: "numeric" }); } catch (e) { return ""; } }
+function renderDoubles(person) {
+  const box = $("mine-doubles");
+  const groups = doublesOf(person).filter(g => mayChange(g[0].who));
+  if (!groups.length) { box.classList.add("hide"); box.innerHTML = ""; return; }
+  const html = `<b>${groups.length === 1 ? "This card is" : "These " + groups.length + " cards are"} in ${person === "*" ? "the cards" : escapeHtml(person) + "'s cards"} twice</b>, as two separate cards:
+    <ul>${groups.map(g => `<li>${escapeHtml((g[0].snap && g[0].snap.name) || "Card")}${person === "*" ? " (" + escapeHtml(g[0].who) + ")" : ""} — added ${g.map(e => dayWords(e.addedAt)).join(" and ")}</li>`).join("")}</ul>
+    If you only have one of each, tap Keep one. The extra copy goes to Recently deleted, and Undo puts it back.
+    <div class="btn-row" style="margin-top:8px"><button type="button" class="btn secondary" id="doubles-fix">Keep one of each</button></div>`;
+  if (box.dataset.drawn !== html) { box.innerHTML = html; box.dataset.drawn = html; $("doubles-fix").addEventListener("click", () => keepOneOfEach(person)); }
+  box.classList.remove("hide");
+}
+function keepOneOfEach(person) {
+  const groups = doublesOf(person).filter(g => mayChange(g[0].who));
+  if (!groups.length) return;
+  const undo = [], redo = [], now = Date.now();
+  groups.forEach(g => {
+    const [keep, ...extra] = g;
+    const before = state.cards[keep.id];
+    const after = { ...before, qty: Math.max(...g.map(e => Number(e.qty) || 1)), fav: g.some(e => e.fav) };
+    const finish = g.map(e => e.finish).find(Boolean); if (finish && !after.finish) after.finish = finish;
+    const stamp = g.map(e => e.stamp).find(Boolean); if (stamp && !after.stamp) after.stamp = stamp;
+    if (g.some(e => e.fake)) after.fake = true;
+    undo.push({ field: "cards", id: keep.id, value: before }); redo.push({ field: "cards", id: keep.id, value: after });
+    state.cards[keep.id] = after; saveEntry("cards", keep.id, after);
+    extra.forEach(e => {
+      const b = state.cards[e.id], a = { ...b, deletedAt: now, gone: { how: "mistake", note: "was in twice", at: now } };
+      undo.push({ field: "cards", id: e.id, value: b }); redo.push({ field: "cards", id: e.id, value: a });
+      state.cards[e.id] = a; saveEntry("cards", e.id, a);
+    });
+  });
+  pushAction({ label: "Kept one of " + groups.length + " doubled card" + (groups.length === 1 ? "" : "s"), undo, redo });
+  showToast(groups.length === 1 ? "Kept one — the extra copy is in Recently deleted" : "Kept one of each — the extra copies are in Recently deleted");
+  renderAll();
+}
 function renderMine() {
   const root = $("mine-root");
   const { list, person } = mineEntries();
+  safely("doubles", () => renderDoubles(person));
   repriceStale();
   safely("minecraft sets", MCD.renderProgress);
   const all = Object.values(state.cards).filter(c => live(c) && (person === "*" || c.who === person));
@@ -7569,7 +7848,7 @@ function closeSheet(id) {
   if (id === "cam-sheet") stopCamera();
   if (id === "ask-sheet" && askResolve) { const r = askResolve; askResolve = null; r(null); }
 }
-["card-sheet", "who-sheet", "options-sheet", "cam-sheet", "money-sheet", "trade-add-sheet", "time-sheet", "confirm-sheet", "ask-sheet", "lang-sheet"].forEach(id => {
+["card-sheet", "who-sheet", "options-sheet", "cam-sheet", "money-sheet", "trade-add-sheet", "time-sheet", "confirm-sheet", "ask-sheet", "lang-sheet", "claim-sheet"].forEach(id => {
   $(id).addEventListener("click", e => { if (e.target === $(id)) closeSheet(id); });
   attachSheetSwipe(id);
 });
@@ -7783,6 +8062,12 @@ function takeKeysFromLink() {
 // not seen yet, once. (Asked for: "when I go back on, it will say this was
 // updated, and who asked to update it.")
 const CHANGES = [
+  { id: 67, date: "2026-09-30", by: "Moshe", what: "What's new now starts each line with who asked for it, in a colored name tag, so you can see at a glance which changes were Moshe's, Shmuel's or Dad's." },
+  { id: 66, date: "2026-09-30", by: "Moshe", what: "Minecraft Dungeons: searching a card (like Sun's Grace) also shows the Hero cards it comes on (Sven), and each card's page has \"Hero cards that come with it\". A Hero card's page lists its five items; tap one to open it." },
+  { id: 65, date: "2026-09-30", by: "Moshe", what: "Which AI reads and answers: tapping Groq or ChatGPT when it's greyed out now says why and gives you an \"Ask to turn on\" button that goes to Dad. Dad can share ChatGPT with the family from Options (each person still needs his OK)." },
+  { id: 64, date: "2026-09-30", by: "Moshe", what: "Found a hidden card? The looks now fill the whole screen, with the Pokémon big in each one." },
+  { id: 63, date: "2026-09-30", by: "Moshe", what: "Hidden cards are the Pokémon now: claim a hidden Charizard and your picture is Charizard itself, not the card, a bit bigger next to your name. Tap your name to pick which one you wear, or none." },
+  { id: 62, date: "2026-09-30", by: "Moshe", what: "Adding one card adds one card. If your cards haven't loaded yet, the app now waits instead of adding a second copy, and My cards offers \"Keep one of each\" for cards that went in twice (the extra copy goes to Recently deleted, and Undo puts it back)." },
   { id: 61, date: "2026-09-30", by: "Moshe", what: "The Collectr look, the way you described it (the colors and where things go): Collectr's dark colors, your collection's worth big at the top of My cards, prices big under each card, and the tabs along the bottom. It's on for you; everyone else is asked once. Switch it in Options, under Look." },
   { id: 60, date: "2026-09-30", by: "Moshe", what: "Price history, the two Collectr parts you picked: My cards starts with what your whole collection is worth and a chart of it over time (1W, 1M, 3M, 1Y, All), and every card's page has its price history: the store's averages for the last 30 days, 7 days and yesterday, plus a line Poké Scan saves once a day from today on." },
   { id: 53, date: "2026-09-29", by: "a family member", what: "Right card, wrong pack: when the same card came out in more than one pack, the app asks what's at the bottom of your card (the symbol, the number, both or neither) and then which pack, by its symbol, instead of picking one. A card already in your cards has \"Wrong pack? Change it\" on its page; the price follows, and Undo puts it back." },
@@ -7794,13 +8079,13 @@ const CHANGES = [
   { id: 47, date: "2026-09-28", by: "Moshe", what: "Languages are now just English and Other. Other asks \"Which writing is on your card?\": it shows the Pokémon's name as each language writes it, with the little word printed at the top left, so you tap the one that looks like your card. You can also type the letters you see (like ピカチュウ) and it works out the language. Typing Japanese, Korean or Chinese letters in the search box switches by itself." },
   { id: 46, date: "2026-09-28", by: "Moshe", what: "Taking a card out of your collection asks how it left: sold, traded, gave away, lost, damaged or something else, with a note if you want. The answer shows in Recently deleted. A card added in the last minute comes straight out with no question, and Undo still puts it back." },
   { id: 45, date: "2026-09-28", by: "Moshe", what: "Mark a card Fake on its page (Is this card real? Real / Fake). A fake card shows FAKE, counts as $0.00 in every total and on the trade gauge, and anyone about to ask for it in a trade is warned first." },
-  { id: 43, date: "2026-09-28", by: "Lew", what: "When a request doesn't reach Dad's phone, the person who asked now sees it in red under their request with a Try again button (it also tries by itself every 10 minutes while the app is open), and Dad's list says \"never reached your phone\". The free notification service allows only so many messages a day from one home Wi-Fi, and the house Mac uses the same one, so it ran out tonight at 6:59 PM. Anything still waiting is also sent from elsewhere once a day, at 10 AM." },
-  { id: 42, date: "2026-09-28", by: "Lew", what: "Approve all (and Approve on a single request) now opens the Claude app itself on your iPhone and iPad, instead of Claude in Safari. The requests are still copied for you as well." },
-  { id: 41, date: "2026-09-28", by: "Lew", what: "No more notifications when someone adds, removes, sells or trades cards. You can switch them back on in Options (Tell me when someone changes their cards). Requests and trades waiting for your answer still come through." },
+  { id: 43, date: "2026-09-28", by: "Dad", what: "When a request doesn't reach Dad's phone, the person who asked now sees it in red under their request with a Try again button (it also tries by itself every 10 minutes while the app is open), and Dad's list says \"never reached your phone\". The free notification service allows only so many messages a day from one home Wi-Fi, and the house Mac uses the same one, so it ran out tonight at 6:59 PM. Anything still waiting is also sent from elsewhere once a day, at 10 AM." },
+  { id: 42, date: "2026-09-28", by: "Dad", what: "Approve all (and Approve on a single request) now opens the Claude app itself on your iPhone and iPad, instead of Claude in Safari. The requests are still copied for you as well." },
+  { id: 41, date: "2026-09-28", by: "Dad", what: "No more notifications when someone adds, removes, sells or trades cards. You can switch them back on in Options (Tell me when someone changes their cards). Requests and trades waiting for your answer still come through." },
   { id: 40, date: "2026-09-28", by: "Moshe", what: "Search results show each card's price as you look: the same market price My cards will show, with the finish (Holo, Reverse holo…) when a card comes in more than one. Prices fill in a few at a time, are kept for a day, and a card the database has no price for says \"No price\"." },
   { id: 39, date: "2026-09-28", by: "Moshe", what: "A card's page has \"The picture on the card\": who drew it, and a Tell me about the design button that describes what the picture shows, the art style, and whether it's full art, textured or shiny. The answer is kept, so the same card isn't asked twice." },
   { id: 38, date: "2026-09-28", by: "Moshe", what: "After you add a card (the + on a tile, or Add on the card's page), the search results stay exactly where they were, same type picked, and only the search box is emptied, ready for the next name." },
-  { id: 37, date: "2026-09-28", by: "Lew", what: "All three readers — Gemini, Groq and ChatGPT — now show every time, with why one can't be used right now. Tap one to use it first; when a scan fails, tap another to read the same picture again. Groq works again (it was asking for a reader Groq switched off in July). Anyone can tap Ask to use ChatGPT at any time, and Dad gets a notification." },
+  { id: 37, date: "2026-09-28", by: "Dad", what: "All three readers — Gemini, Groq and ChatGPT — now show every time, with why one can't be used right now. Tap one to use it first; when a scan fails, tap another to read the same picture again. Groq works again (it was asking for a reader Groq switched off in July). Anyone can tap Ask to use ChatGPT at any time, and Dad gets a notification." },
   { id: 35, date: "2026-09-28", by: "Dad", what: "Every AI answer now has a small line under it saying which AI answered and what that one answer cost, like \"Gemini 3.6 Flash · $0.0012\" — the card read, Why it costs that, the promo product, what else is different, eBay & Google prices and the shop prices. Each one is also counted on this device." },   // idea 732
   { id: 34, date: "2026-09-23", by: "Dad", what: "Dad's phone now gets a notification when someone adds, removes, sells or trades cards (one push for a burst of changes), and a request that didn't reach his phone is sent again next time you open the app." },
   { id: 33, date: "2026-09-23", by: "Dad", what: "Trade check, at the top of the Trade tab: before a swap, each side taps Scan (or Type) under their name and adds the cards they'd give. It adds both sides up at today's store prices and says Fair trade, or who gives more and by how much. A card with no store price can have a price typed in. Trading with someone in the family? Send it to them as a real trade." },
@@ -7839,7 +8124,9 @@ function renderWhatsNew() {
   const fresh = CHANGES.filter(c => c.id > seen);
   const box = $("whats-new");
   if (!fresh.length) { box.classList.add("hide"); return; }
-  box.innerHTML = `<div class="wn-title">Updated since you were last here</div><ul>${fresh.map(c => `<li>${escapeHtml(c.what)} <small>— asked for by ${escapeHtml(c.by)}, ${escapeHtml(c.date)}</small></li>`).join("")}</ul><button type="button" class="link" id="whats-new-ok">Got it</button>`;
+  // Moshe, 2026-09-29: "tell me who requested it". Each line starts with
+  // the name, in a tag; Dad's are green.
+  box.innerHTML = `<div class="wn-title">Updated since you were last here</div><ul>${fresh.map(c => `<li><span class="wn-by${/^dad$/i.test(c.by) ? " dad" : ""}">${escapeHtml(/^a family member$/i.test(c.by) ? "Family" : c.by)} asked</span>${escapeHtml(c.what)} <small>— ${escapeHtml(c.date)}</small></li>`).join("")}</ul><button type="button" class="link" id="whats-new-ok">Got it</button>`;
   box.classList.remove("hide");
   $("whats-new-ok").addEventListener("click", () => {
     // The highest number, wherever it sits in the list (two chats can add entries the same day).
@@ -7853,7 +8140,7 @@ renderWhatsNew();
 // anywhere: every sheet closed, the search cleared. (Asked for: "Home should
 // take me to the Poké Scan main page, not my Home app.")
 function goHome() {
-  ["card-sheet", "who-sheet", "options-sheet", "cam-sheet", "money-sheet", "trade-add-sheet", "time-sheet", "confirm-sheet", "ask-sheet", "lang-sheet"].forEach(id => { if ($(id).classList.contains("show")) closeSheet(id); });
+  ["card-sheet", "who-sheet", "options-sheet", "cam-sheet", "money-sheet", "trade-add-sheet", "time-sheet", "confirm-sheet", "ask-sheet", "lang-sheet", "claim-sheet"].forEach(id => { if ($(id).classList.contains("show")) closeSheet(id); });
   $("q").value = ""; $("q-clear").classList.add("hide");
   results = []; bestId = null; $("scanned").classList.add("hide"); setStatus("find-status", "");
   renderResults();

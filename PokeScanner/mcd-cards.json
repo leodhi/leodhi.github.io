@@ -21,7 +21,7 @@
    {
     "name": "Minecraft Dungeons Arcade Cards List (questwalker, collector site)",
     "url": "https://questwalker.github.io/minecraft-dungeons-arcade-cards/",
-    "used_for": "Independent cross-check of all 144 names, types and rarities; hero card loadouts; collector view that rarity does not change how often a card comes out"
+    "used_for": "Independent cross-check of all 144 names, types and rarities; hero card loadouts; collector view that rarity does not change how often a card comes out. The five items on each Hero card (melee, range, armor, skin, pet) were copied from this list on 2026-09-30; #110 Sven checked against the photo of its back on the Minecraft Wiki."
    },
    {
     "name": "CB9001/minecraft-dungeons-arcade-cards (GitHub)",
@@ -1037,7 +1037,14 @@
    "type": "Hero",
    "rarity": "hero",
    "special": "holographic, gold foil",
-   "image": "https://minecraft.wiki/images/MCDA_Card_99_The_Kelptomaniac_front.png"
+   "image": "https://minecraft.wiki/images/MCDA_Card_99_The_Kelptomaniac_front.png",
+   "items": [
+    "Whispering Spear",
+    "Nautical Crossbow",
+    "Nimble Turtle Armor",
+    "The Kelptomaniac",
+    "Baby Turtle"
+   ]
   },
   {
    "series": "s3",
@@ -1046,7 +1053,14 @@
    "type": "Hero",
    "rarity": "hero",
    "special": "holographic, gold foil",
-   "image": "https://minecraft.wiki/images/MCDA_Card_100_Explorer_front.png"
+   "image": "https://minecraft.wiki/images/MCDA_Card_100_Explorer_front.png",
+   "items": [
+    "Maulers",
+    "Weeping Vine Bow",
+    "Living Vine",
+    "Explorer",
+    "Cat"
+   ]
   },
   {
    "series": "s3",
@@ -1055,7 +1069,14 @@
    "type": "Hero",
    "rarity": "hero",
    "special": "holographic, gold foil",
-   "image": "https://minecraft.wiki/images/MCDA_Card_101_Valorie_front.png"
+   "image": "https://minecraft.wiki/images/MCDA_Card_101_Valorie_front.png",
+   "items": [
+    "Highland Axe",
+    "Guardian Bow",
+    "Phantom Armor",
+    "Valorie",
+    "Goat"
+   ]
   },
   {
    "series": "s3",
@@ -1064,7 +1085,14 @@
    "type": "Hero",
    "rarity": "hero",
    "special": "holographic, gold foil",
-   "image": "https://minecraft.wiki/images/MCDA_Card_102_Strider_Warrior_front.png"
+   "image": "https://minecraft.wiki/images/MCDA_Card_102_Strider_Warrior_front.png",
+   "items": [
+    "Moon Daggers",
+    "Mechanical Shortbow",
+    "Black Wolf Armor",
+    "Strider Warrior",
+    "Wolf"
+   ]
   },
   {
    "series": "s3",
@@ -1073,7 +1101,14 @@
    "type": "Hero",
    "rarity": "hero",
    "special": "holographic, gold foil",
-   "image": "https://minecraft.wiki/images/MCDA_Card_103_Darian_front.png"
+   "image": "https://minecraft.wiki/images/MCDA_Card_103_Darian_front.png",
+   "items": [
+    "Bee Stinger",
+    "Sabrewing",
+    "Beenest Armor",
+    "Darian",
+    "Bee"
+   ]
   },
   {
    "series": "s3",
@@ -1082,7 +1117,14 @@
    "type": "Hero",
    "rarity": "hero",
    "special": "holographic, gold foil",
-   "image": "https://minecraft.wiki/images/MCDA_Card_104_Loge_front.png"
+   "image": "https://minecraft.wiki/images/MCDA_Card_104_Loge_front.png",
+   "items": [
+    "Firebrand",
+    "Blast Fungus",
+    "Hungry Horror",
+    "Loge",
+    "Red Sheep"
+   ]
   },
   {
    "series": "s3",
@@ -1091,7 +1133,14 @@
    "type": "Hero",
    "rarity": "hero",
    "special": "holographic, gold foil",
-   "image": "https://minecraft.wiki/images/MCDA_Card_105_Skelly_front.png"
+   "image": "https://minecraft.wiki/images/MCDA_Card_105_Skelly_front.png",
+   "items": [
+    "Jailor's Scythe",
+    "Haunted Bow",
+    "Wither Armor",
+    "Skelly",
+    "Endermite"
+   ]
   },
   {
    "series": "s3",
@@ -1100,7 +1149,14 @@
    "type": "Hero",
    "rarity": "hero",
    "special": "holographic, gold foil",
-   "image": "https://minecraft.wiki/images/MCDA_Card_106_Wargen_front.png"
+   "image": "https://minecraft.wiki/images/MCDA_Card_106_Wargen_front.png",
+   "items": [
+    "Dark Katana",
+    "Satchel of Elements",
+    "Unstable Robes",
+    "Wargen",
+    "Soul Entity"
+   ]
   },
   {
    "series": "s3",
@@ -1109,7 +1165,14 @@
    "type": "Hero",
    "rarity": "hero",
    "special": "holographic, gold foil",
-   "image": "https://minecraft.wiki/images/MCDA_Card_107_Annika_front.png"
+   "image": "https://minecraft.wiki/images/MCDA_Card_107_Annika_front.png",
+   "items": [
+    "Nightmare's Bite",
+    "Web Bow",
+    "Spider Armor",
+    "Annika",
+    "Bat"
+   ]
   },
   {
    "series": "s3",
@@ -1118,7 +1181,14 @@
    "type": "Hero",
    "rarity": "hero",
    "special": "holographic, gold foil",
-   "image": "https://minecraft.wiki/images/MCDA_Card_108_Dani_front.png"
+   "image": "https://minecraft.wiki/images/MCDA_Card_108_Dani_front.png",
+   "items": [
+    "Fighter's Bindings",
+    "Twin Bow",
+    "Ocelot Armor",
+    "Dani",
+    "Parrot"
+   ]
   },
   {
    "series": "s3",
@@ -1127,7 +1197,14 @@
    "type": "Hero",
    "rarity": "hero",
    "special": "holographic, gold foil",
-   "image": "https://minecraft.wiki/images/MCDA_Card_109_Frosty_front.png"
+   "image": "https://minecraft.wiki/images/MCDA_Card_109_Frosty_front.png",
+   "items": [
+    "Frost Scythe",
+    "Winter's Touch",
+    "Frost Bite",
+    "Frosty",
+    "Polar Bear"
+   ]
   },
   {
    "series": "s3",
@@ -1136,7 +1213,14 @@
    "type": "Hero",
    "rarity": "hero",
    "special": "holographic, gold foil",
-   "image": "https://minecraft.wiki/images/MCDA_Card_110_Sven_front.png"
+   "image": "https://minecraft.wiki/images/MCDA_Card_110_Sven_front.png",
+   "items": [
+    "Sun's Grace",
+    "Sabrewing",
+    "Hero's Armor",
+    "Sven",
+    "Horse"
+   ]
   },
   {
    "series": "s3",
@@ -1145,7 +1229,14 @@
    "type": "Hero",
    "rarity": "hero",
    "special": "holographic, gold foil",
-   "image": "https://minecraft.wiki/images/MCDA_Card_111_Nuru_front.png"
+   "image": "https://minecraft.wiki/images/MCDA_Card_111_Nuru_front.png",
+   "items": [
+    "Hammer of Gravity",
+    "Imploding Crossbow",
+    "Sturdy Shulker Armor",
+    "Nuru",
+    "Rabbit"
+   ]
   },
   {
    "series": "s3",
@@ -1154,7 +1245,14 @@
    "type": "Hero",
    "rarity": "hero",
    "special": "holographic, gold foil",
-   "image": "https://minecraft.wiki/images/MCDA_Card_112_Ivy_front.png"
+   "image": "https://minecraft.wiki/images/MCDA_Card_112_Ivy_front.png",
+   "items": [
+    "Battlestaff of Terror",
+    "Echo of the Valley",
+    "Battle Robe",
+    "Ivy",
+    "Llama"
+   ]
   },
   {
    "series": "s3",
@@ -1163,7 +1261,14 @@
    "type": "Hero",
    "rarity": "hero",
    "special": "holographic, gold foil",
-   "image": "https://minecraft.wiki/images/MCDA_Card_113_Corrupted_Defender_front.png"
+   "image": "https://minecraft.wiki/images/MCDA_Card_113_Corrupted_Defender_front.png",
+   "items": [
+    "Bone Cudgel",
+    "Bonebow",
+    "Grim Armor",
+    "Corrupted Defender",
+    "Zombified Baby Pig"
+   ]
   },
   {
    "series": "s3",
@@ -1172,7 +1277,14 @@
    "type": "Hero",
    "rarity": "hero",
    "special": "holographic, gold foil",
-   "image": "https://minecraft.wiki/images/MCDA_Card_114_Void_Voyager_front.png"
+   "image": "https://minecraft.wiki/images/MCDA_Card_114_Void_Voyager_front.png",
+   "items": [
+    "The Beginning and The End",
+    "Veiled Crossbow",
+    "Ender Armor",
+    "Void Voyager",
+    "Baby Ghast"
+   ]
   },
   {
    "series": "s3",
@@ -1181,7 +1293,14 @@
    "type": "Hero",
    "rarity": "hero",
    "special": "holographic, gold foil",
-   "image": "https://minecraft.wiki/images/MCDA_Card_115_Qamar_front.png"
+   "image": "https://minecraft.wiki/images/MCDA_Card_115_Qamar_front.png",
+   "items": [
+    "Heartstealer",
+    "Sugar Rush",
+    "The Troubadour",
+    "Qamar",
+    "Guardian Vex"
+   ]
   },
   {
    "series": "s3",
@@ -1190,7 +1309,14 @@
    "type": "Hero",
    "rarity": "hero",
    "special": "holographic, gold foil",
-   "image": "https://minecraft.wiki/images/MCDA_Card_116_Sam_front.png"
+   "image": "https://minecraft.wiki/images/MCDA_Card_116_Sam_front.png",
+   "items": [
+    "Cursed Axe",
+    "Voidcaller",
+    "Renegade Armor",
+    "Sam",
+    "Arctic Fox"
+   ]
   },
   {
    "series": "s3",
@@ -1199,7 +1325,14 @@
    "type": "Hero",
    "rarity": "hero",
    "special": "holographic, gold foil",
-   "image": "https://minecraft.wiki/images/MCDA_Card_117_The_Monumental_front.png"
+   "image": "https://minecraft.wiki/images/MCDA_Card_117_The_Monumental_front.png",
+   "items": [
+    "Stormlander",
+    "Lightning Rod",
+    "Titan's Shroud",
+    "The Monumental",
+    "Iron Golem"
+   ]
   },
   {
    "series": "s3",
@@ -1208,7 +1341,14 @@
    "type": "Hero",
    "rarity": "hero",
    "special": "holographic, gold foil",
-   "image": "https://minecraft.wiki/images/MCDA_Card_118_Eshe_front.png"
+   "image": "https://minecraft.wiki/images/MCDA_Card_118_Eshe_front.png",
+   "items": [
+    "Shear Daggers",
+    "Echo of the Valley",
+    "Goat Gear",
+    "Eshe",
+    "Sheep"
+   ]
   },
   {
    "series": "s4",
@@ -1388,7 +1528,14 @@
    "type": "Hero",
    "rarity": "hero",
    "special": "holographic, gold foil",
-   "image": "https://minecraft.wiki/images/MCDA_Card_138_Llama_Hero_front.png"
+   "image": "https://minecraft.wiki/images/MCDA_Card_138_Llama_Hero_front.png",
+   "items": [
+    "Dancer's Sword",
+    "Bow of Lost Souls",
+    "Souldancer Robe",
+    "Llama",
+    "Llama"
+   ]
   },
   {
    "series": "s4",
@@ -1397,7 +1544,14 @@
    "type": "Hero",
    "rarity": "hero",
    "special": "holographic, gold foil",
-   "image": "https://minecraft.wiki/images/MCDA_Card_139_Mayeso_Hero_front.png"
+   "image": "https://minecraft.wiki/images/MCDA_Card_139_Mayeso_Hero_front.png",
+   "items": [
+    "Maulers",
+    "Elite Power Bow",
+    "Ocelot Armor",
+    "Mayeso",
+    "Ocelot"
+   ]
   },
   {
    "series": "s4",
@@ -1406,7 +1560,14 @@
    "type": "Hero",
    "rarity": "hero",
    "special": "holographic, gold foil",
-   "image": "https://minecraft.wiki/images/MCDA_Card_140_Pake_Hero_front.png"
+   "image": "https://minecraft.wiki/images/MCDA_Card_140_Pake_Hero_front.png",
+   "items": [
+    "Master's Katana",
+    "Soul Hunter Crossbow",
+    "Ghost Kindler",
+    "Pake",
+    "Horse"
+   ]
   },
   {
    "series": "s4",
@@ -1415,7 +1576,14 @@
    "type": "Hero",
    "rarity": "hero",
    "special": "holographic, gold foil",
-   "image": "https://minecraft.wiki/images/MCDA_Card_141_Annika_Hero_front.png"
+   "image": "https://minecraft.wiki/images/MCDA_Card_141_Annika_Hero_front.png",
+   "items": [
+    "Jailor's Scythe",
+    "Web Bow",
+    "Archer's Armor",
+    "Annika",
+    "Zombified Baby Pig"
+   ]
   },
   {
    "series": "s4",
@@ -1424,7 +1592,14 @@
    "type": "Hero",
    "rarity": "hero",
    "special": "holographic, gold foil",
-   "image": "https://minecraft.wiki/images/MCDA_Card_142_The_Archeologist_Hero_front.png"
+   "image": "https://minecraft.wiki/images/MCDA_Card_142_The_Archeologist_Hero_front.png",
+   "items": [
+    "Vine Whip",
+    "Baby Crossbows",
+    "Climbing Gear",
+    "The Archeologist",
+    "Bat"
+   ]
   },
   {
    "series": "s4",
@@ -1433,7 +1608,14 @@
    "type": "Hero",
    "rarity": "hero",
    "special": "holographic, gold foil",
-   "image": "https://minecraft.wiki/images/MCDA_Card_143_Fuego_Hero_front.png"
+   "image": "https://minecraft.wiki/images/MCDA_Card_143_Fuego_Hero_front.png",
+   "items": [
+    "Growing Staff",
+    "Haunted Bow",
+    "Fox Armor",
+    "Fuego",
+    "Fox"
+   ]
   },
   {
    "series": "s5",
