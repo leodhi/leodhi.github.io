@@ -15,6 +15,11 @@
 // to a plain address at home. Opening a page is allowed, so the Mac's own page does the talking.
 // It is the way the bug ladybug reaches the Mac, proven from Dad's iPhone (the "#" way).
 //
+// CHATGPT, ONE CARD AT A TIME (Dad, 2026-10-02, to Moshe: "Ask me each time with Claude as default"). A
+// family member may pick ChatGPT for a scan, but ChatGPT's key stays on Dad's Mac and every scan is its
+// own Yes / No on his phone (index.html asks; the Mac keeps a one-use ticket). Only after his Yes does
+// this same Mac page carry that one picture, with engine "chatgpt" and the ask's number, to the Mac.
+//
 // EVERYTHING ELSE IS GEMINI. Away from home, not allowed yet, 100 today, 6 this minute, the Mac
 // busy or Claude stuck: the Mac (or the missing answer) says so and Gemini reads the same picture.
 // The Mac checks everything itself (pokescan_plan.py in leodhi/apps); nothing here is trusted by it.
@@ -109,6 +114,9 @@ export function setupClaude(ctx) {
     if (awayRecently()) return { id: "claude", name, usable: true, state: ctx.isOwner() ? "your Mac didn't answer a moment ago" : "only at home, on the home Wi-Fi" };
     return { id: "claude", name, usable: true, state: allowedText(who) + (ctx.isOwner() ? "" : " · home Wi-Fi") };
   }
+  // ChatGPT for one scan goes through the same Mac page, so it needs the same thing: a name, the Mac's home address
+  // (written when Dad first says yes to anybody for Claude) and the Mac not being out of reach a moment ago.
+  function chatgptReady() { return !!ctx.who() && !!homeAddress() && !awayRecently(); }
   // First in line when it can be used and the Mac wasn't out of reach a moment ago.
   function first() { const r = readerState(); return r.usable && !awayRecently(); }
 
@@ -206,37 +214,41 @@ export function setupClaude(ctx) {
   // read(shot, say, tapFirst) -> {name, suffix, number, total, set} or throws. tapFirst(openIt)
   // shows a button; its tap calls openIt() right there, inside the tap (a browser opens a window
   // only then), and resolves with what it returned -- or with "gemini" when they chose Gemini.
-  async function read(shot, say, tapFirst) {
+  // opts: { engine: "chatgpt", ask: <the number of Dad's Yes> } for one ChatGPT card; Claude otherwise.
+  async function read(shot, say, tapFirst, opts) {
+    const gpt = !!(opts && opts.engine === "chatgpt");
+    const ai = gpt ? "ChatGPT" : "Claude";
     const addr = address();
-    if (!addr) throw trouble(ctx.ownerName() + "'s Mac isn't set up for Claude yet.");
+    if (!addr) throw trouble(ctx.ownerName() + "'s Mac isn't set up for " + ai + " yet.");
     const u = ctx.user();
     let token = "";
     try { token = u ? await u.getIdToken() : ""; } catch (e) { token = ""; }
-    if (!token) throw trouble("Sign in again to use Claude.");
+    if (!token) throw trouble("Sign in again to use " + ai + ".");
     const pic = await smaller(shot);
     const id = hex(8);
     const payload = { v: 1, id, token, image: pic.data, mime: pic.mime, back: location.origin + location.pathname };
+    if (gpt) { payload.engine = "chatgpt"; payload.ask = String(opts.ask || ""); }
     let win = open(addr, payload);               // works when the tap is still fresh (a computer, mostly)
     if (!win) {
       const got = await tapFirst(() => open(addr, payload));   // a phone: one tap opens it
-      if (got === "gemini") throw trouble("You picked Gemini for this one.", { skipped: true });
+      if (got === "gemini") throw trouble(gpt ? "You picked Claude for this one." : "You picked Gemini for this one.", { skipped: true });
       win = got;
       if (!win) throw trouble("The browser didn't let Poké Scan open the Mac's page.");
     }
     payload.token = ""; payload.image = "";      // nothing of it kept here once it's on its way
     const mac = ctx.isOwner() ? "your Mac" : ctx.ownerName() + "'s Mac";
-    say("Claude is reading it on " + mac + "…");
-    const a = await hear(addr, id, () => say("Claude has the picture and is reading it…"));
+    say(ai + " is reading it on " + mac + "…");
+    const a = await hear(addr, id, () => say(ai + " has the picture and is reading it…"));
     try { if (win && !win.closed) win.close(); } catch (e) {}
     if (a.code === "unreached") {
       put(AWAY_KEY, String(Date.now()));
       ctx.redraw();
-      throw trouble(ctx.isOwner() ? "Your Mac didn't answer (is Tailscale on?)." : ctx.ownerName() + "'s Mac can't be reached from here: Claude works on the home Wi-Fi.");
+      throw trouble(ctx.isOwner() ? "Your Mac didn't answer (is Tailscale on?)." : ctx.ownerName() + "'s Mac can't be reached from here: " + ai + " works on the home Wi-Fi.");
     }
     put(AWAY_KEY, "");
-    if (a.code === "slow") throw trouble("Claude on the Mac is taking too long.");
+    if (a.code === "slow") throw trouble(ai + " on the Mac is taking too long.");
     if (!a.ok) {
-      if (a.code === "not_allowed" || a.code === "ran_out") { noteLocalOk(ctx.who(), 0); ctx.redraw(); }
+      if (!gpt && (a.code === "not_allowed" || a.code === "ran_out")) { noteLocalOk(ctx.who(), 0); ctx.redraw(); }
       if (a.code === "place") { put(AWAY_KEY, String(Date.now())); ctx.redraw(); }
       throw trouble(words(a));
     }
@@ -253,6 +265,7 @@ export function setupClaude(ctx) {
       day: "That's 100 cards with Claude today. Gemini reads the rest until tomorrow.",
       minute: "That's 6 cards with Claude this minute. Gemini reads this one.",
       busy: boss + "'s Mac is busy reading other cards.",
+      ticket: boss + " didn't say yes to ChatGPT for this card, or the yes ran out.",
       picture: "That picture couldn't be sent to Claude."
     }[a.code] || (a.reason || "Claude on the Mac couldn't read it this time.");
   }
@@ -264,10 +277,10 @@ export function setupClaude(ctx) {
     for (const p of ctx.loadPending(ctx.askApp)) if (p.kind === "claude" && p.name === ctx.who() && !watch) follow(p);
     if (returned && !tookReturn) {
       tookReturn = true;
-      if (returned.ok && returned.read && returned.read.name) ctx.searchFor(returned.read);
+      if (returned.ok && returned.read && returned.read.name) ctx.searchFor(returned.read, returned.engine);
       else if (returned.code) ctx.toast(words(returned));
     }
   }
 
-  return { readerState, first, allowedFor, ask, read, afterLoad, words, homeAddress, awayRecently };
+  return { readerState, first, allowedFor, ask, read, afterLoad, words, homeAddress, awayRecently, chatgptReady };
 }
