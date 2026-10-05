@@ -1392,29 +1392,29 @@
 
     <div class="opt-section" data-words="request requests change ask family ntfy push notification alert approve claude changes cards added activity tell me">
       <h4>Requests from the family</h4>
-      <div class="opt-row">
+      <div class="opt-row owner-only">
         <div class="opt-text">Changes people asked for<small id="opt-req-line"></small></div>
       </div>
-      <ul class="req-list" id="opt-req-list"></ul>
+      <ul class="req-list owner-only" id="opt-req-list"></ul>
       <div class="opt-row" id="opt-mine-ntfy-row">
         <div class="opt-text">My own notifications<small id="opt-mine-ntfy-line">Your ntfy topic on this phone: trades waiting for you and answers to your requests are pushed there.</small></div>
         <button type="button" class="pill-btn" id="opt-ntfy-test">Send a test</button>
       </div>
       <input type="text" id="opt-mine-ntfy" placeholder="ntfy topic name (open the ntfy app, tap +, make one up)" autocomplete="off" autocapitalize="off">
-      <div class="opt-row" id="opt-ntfy-row">
+      <div class="opt-row owner-only" id="opt-ntfy-row">
         <div class="opt-text">Push to your phone (owner)<small id="opt-ntfy-line">Your ntfy topic. Every new request is sent there straight away, with an Approve button. Only you see this.</small></div>
         <button type="button" class="pill-btn" id="opt-ntfy-owner-test">Send a test to the owner's phone</button>
       </div>
-      <input type="text" id="opt-ntfy" placeholder="ntfy topic name" autocomplete="off" autocapitalize="off">
-      <p class="field-note">The same topic your reminders use. Leave it blank and requests only show here.</p>
+      <input type="text" id="opt-ntfy" class="owner-only" placeholder="ntfy topic name" autocomplete="off" autocapitalize="off">
+      <p class="field-note owner-only">The same topic your reminders use. Leave it blank and requests only show here.</p>
       <div class="opt-row" id="opt-activity-row">
         <div class="opt-text">Tell me when someone changes their cards<small>A notification on your phone when someone in the family adds, removes, sells or trades cards. Ten changes in a row come as one notification. Your own changes never send one.</small></div>
         <div class="chips" id="opt-activity-chips"></div>
       </div>
-      <div class="opt-row">
+      <div class="opt-row owner-only">
         <div class="opt-text">Send approvals into my Claude Code chat<small>The "Send to Claude" button on the notification drops the request into this chat on the Mac (needs the phone on Tailscale). Blank (best) = your Bug reports chat, else the chat you touched last. A chat named here is only tried first: if it has closed, it goes to those instead, and if no chat can take it your phone gets a message saying so.</small></div>
       </div>
-      <div class="field-row" style="display:flex;gap:8px">
+      <div class="field-row owner-only" style="display:flex;gap:8px">
         <input type="text" id="opt-claude-host" placeholder="Mac address:port" autocomplete="off" autocapitalize="off" style="flex:1;min-width:0">
         <input type="text" id="opt-claude-session" placeholder="chat id" autocomplete="off" autocapitalize="off" style="flex:1.4;min-width:0">
       </div>
@@ -8200,6 +8200,17 @@ function renderAll() {
   safely("readers", renderReaderRows);
   safely("offer", renderOffer);
   safely("question", renderQuestion);
+  safely("owner-only", applyOwnerOnly);
+}
+// Parts of the page only the owner (Dad) should see: hidden for family and for anyone signed out.
+// (This page's code is public, so this keeps it out of sight; it is not a lock.)
+let wnOwnerShown = null;
+function applyOwnerOnly() {
+  const owner = isOwner();
+  document.querySelectorAll(".owner-only").forEach(el => el.classList.toggle("hide", !owner));
+  // What's new lists "Dad asked" lines for Dad only; draw it again when who is looking changes
+  // (the page first draws it before sign-in, when nobody is the owner yet).
+  if (wnOwnerShown !== owner) { wnOwnerShown = owner; renderWhatsNew(); }
 }
 
 // Keys handed over by the Keys iPhone app, on this page's own address:
@@ -8249,9 +8260,9 @@ function takeKeysFromLink() {
 // not seen yet, once. (Asked for: "when I go back on, it will say this was
 // updated, and who asked to update it.")
 const CHANGES = [
-  { id: 70, date: "2026-10-04", by: "Dad", what: "Dad's ChatGPT key now sits in a place only Dad's phone can open, instead of in the family's shared Poké Scan, so no family phone gets a copy of it. Scanning works just as before." },
+  { id: 70, date: "2026-10-04", by: "Dad", what: "ChatGPT is set up more safely behind the scenes. Scanning works just as before." },
   { id: 69, date: "2026-10-02", by: "Moshe", what: "Pick ChatGPT for a card and Dad gets a Yes or No on his phone for that one card. Claude is still the one that reads by default. If Dad says no, or doesn't answer in 10 minutes, Claude reads the card instead and Poké Scan tells you why. It works on the home Wi-Fi, like Claude." },
-  { id: 68, date: "2026-10-01", by: "Dad", what: "Claude reads your cards now, free, on Dad's Mac at home, and it's first in \"Which AI reads and answers\". Dad can always use it; everyone else taps \"Ask Dad to use Claude\" and he says yes or no on his phone. It works on the home Wi-Fi; anywhere else, or if the Mac says no, Gemini reads the card like before." },
+  { id: 68, date: "2026-10-01", by: "Dad", what: "Claude reads your cards now, free, and it's first in \"Which AI reads and answers\". Dad can always use it; everyone else taps \"Ask Dad to use Claude\" and he says yes or no. It works on the home Wi-Fi; anywhere else, Gemini reads the card like before." },
   { id: 67, date: "2026-09-30", by: "Moshe", what: "What's new now starts each line with who asked for it, in a colored name tag, so you can see at a glance which changes were Moshe's, Shmuel's or Dad's." },
   { id: 66, date: "2026-09-30", by: "Moshe", what: "Minecraft Dungeons: searching a card (like Sun's Grace) also shows the Hero cards it comes on (Sven), and each card's page has \"Hero cards that come with it\". A Hero card's page lists its five items; tap one to open it." },
   { id: 65, date: "2026-09-30", by: "Moshe", what: "Which AI reads and answers: tapping Groq or ChatGPT when it's greyed out now says why and gives you an \"Ask to turn on\" button that goes to Dad. Dad can share ChatGPT with the family from Options (each person still needs his OK)." },
@@ -8269,7 +8280,7 @@ const CHANGES = [
   { id: 47, date: "2026-09-28", by: "Moshe", what: "Languages are now just English and Other. Other asks \"Which writing is on your card?\": it shows the Pokémon's name as each language writes it, with the little word printed at the top left, so you tap the one that looks like your card. You can also type the letters you see (like ピカチュウ) and it works out the language. Typing Japanese, Korean or Chinese letters in the search box switches by itself." },
   { id: 46, date: "2026-09-28", by: "Moshe", what: "Taking a card out of your collection asks how it left: sold, traded, gave away, lost, damaged or something else, with a note if you want. The answer shows in Recently deleted. A card added in the last minute comes straight out with no question, and Undo still puts it back." },
   { id: 45, date: "2026-09-28", by: "Moshe", what: "Mark a card Fake on its page (Is this card real? Real / Fake). A fake card shows FAKE, counts as $0.00 in every total and on the trade gauge, and anyone about to ask for it in a trade is warned first." },
-  { id: 43, date: "2026-09-28", by: "Dad", what: "When a request doesn't reach Dad's phone, the person who asked now sees it in red under their request with a Try again button (it also tries by itself every 10 minutes while the app is open), and Dad's list says \"never reached your phone\". The free notification service allows only so many messages a day from one home Wi-Fi, and the house Mac uses the same one, so it ran out tonight at 6:59 PM. Anything still waiting is also sent from elsewhere once a day, at 10 AM." },
+  { id: 43, date: "2026-09-28", by: "Dad", what: "When a request doesn't reach Dad's phone, the person who asked now sees it in red under their request with a Try again button (it also tries by itself every 10 minutes while the app is open), and Dad's list says \"never reached your phone\". A request that could not be sent is now sent again later by itself." },
   { id: 42, date: "2026-09-28", by: "Dad", what: "Approve all (and Approve on a single request) now opens the Claude app itself on your iPhone and iPad, instead of Claude in Safari. The requests are still copied for you as well." },
   { id: 41, date: "2026-09-28", by: "Dad", what: "No more notifications when someone adds, removes, sells or trades cards. You can switch them back on in Options (Tell me when someone changes their cards). Requests and trades waiting for your answer still come through." },
   { id: 40, date: "2026-09-28", by: "Moshe", what: "Search results show each card's price as you look: the same market price My cards will show, with the finish (Holo, Reverse holo…) when a card comes in more than one. Prices fill in a few at a time, are kept for a day, and a card the database has no price for says \"No price\"." },
@@ -8311,7 +8322,8 @@ const SEEN_KEY = "pokescan-seen-change";
 function renderWhatsNew() {
   let seen = 0;
   try { seen = Number(localStorage.getItem(SEEN_KEY)) || 0; } catch (e) {}
-  const fresh = CHANGES.filter(c => c.id > seen);
+  // Lines Dad asked for are for Dad only (his bug report 2026-10-05: "Dad asked should only show up for me").
+  const fresh = CHANGES.filter(c => c.id > seen && (isOwner() || !/^dad$/i.test(c.by)));
   const box = $("whats-new");
   if (!fresh.length) { box.classList.add("hide"); return; }
   // Moshe, 2026-09-29: "tell me who requested it". Each line starts with
