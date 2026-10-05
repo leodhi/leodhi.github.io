@@ -109,8 +109,12 @@ async function record() {
   for (const [k, v] of Object.entries(worth)) if (((hist.worth || {})[k] || {})[d] !== v) patch["worth." + k + "." + d] = v;
   for (const [k, n] of Object.entries(names)) if ((hist.names || {})[k] !== n) patch["names." + k] = n;
   for (const [k, v] of Object.entries(prices)) if (((hist.prices || {})[k] || {})[d] !== v) patch["prices." + k + "." + d] = v;
+  // Only Dad (the owner of the family's main document) may change who is on the history's
+  // list: firestore.rules refuses it from anyone else (2026-10-04), and a refusal throws away the
+  // whole save, so a family phone would lose that day's prices. His phone brings the list into
+  // step the next time he opens Poke Scan.
   const fam = (st.sharedWith || []).slice().sort().join(",");
-  if (fam && fam !== (hist.sharedWith || []).slice().sort().join(",")) patch.sharedWith = st.sharedWith.slice();
+  if (fam && api.ownsMain && api.ownsMain() && fam !== (hist.sharedWith || []).slice().sort().join(",")) patch.sharedWith = st.sharedWith.slice();
   if (!Object.keys(patch).length) return;
   try { await api.fs.updateDoc(api.fs.doc(api.db, "homeApps", "pokescanHistory"), patch); }
   catch (e) { console.warn("price history: couldn't save today:", e && e.message); }

@@ -1512,7 +1512,7 @@ import { setupClaude, MAC_PRIVATE } from "./pokescan-claude.js";
 const CL = setupCollectr({
   state: () => state, signedIn: () => signedIn, live: e => live(e), cardWorth: e => cardWorth(e),
   money: (n, u) => money(n, u), usd: v => usd(v), escapeHtml: x => escapeHtml(x), escapeAttr: x => escapeAttr(x),
-  redrawHistory: () => { safely("history", redrawHistory); }
+  redrawHistory: () => { safely("history", redrawHistory); }, ownsMain: () => ownsMainDoc()
 });
 const CLD = setupClaude({
   isOwner: () => isOwner(), who: () => who, settings: () => state.settings || {}, user: () => currentUser,
@@ -1781,7 +1781,9 @@ function claimIfNeeded(user, data) {
   if (!(data.ownerUid || data.ownerEmail)) {
     setDoc(docRef, { ownerUid: user.uid, ownerEmail: user.email || null }, { merge: true })
       .catch(e => setStatus("app-status", "Couldn't save: " + e.message, true));
-  } else if (!data.ownerEmail && user.email) {
+  } else if (!data.ownerEmail && user.email && data.ownerUid === user.uid) {
+    // Only the owner fills in his own missing email; anyone else doing it would be writing
+    // themselves in as the owner (firestore.rules refuses that since 2026-10-04).
     setDoc(docRef, { ownerEmail: user.email }, { merge: true }).catch(() => {});
   }
 }
@@ -1792,6 +1794,7 @@ onAuthStateChanged(authClient, async user => {
   currentUser = user || null;
   if (!user) {
     historyStarted = false; safely("history", () => CL.onSignedIn(db, null, null));
+    safely("keys-doc", stopMyKeys);
     askedHowLong = false;
     clearTimeout(timeTick);
     setStage("signin");
@@ -1854,6 +1857,8 @@ onAuthStateChanged(authClient, async user => {
     safely("history", CL.onState);
     setStage("ready");
     showScreen("app");
+    safely("keys-doc", watchMyKeys);
+    safely("keys-move", moveKeysToMine);
     safely("keys", takeKeysFromLink);
     safely("approve", takeApproveFromLink);
     safely("resend", () => { resendUnpushedRequests(); });
@@ -1925,6 +1930,7 @@ function renderUndo() {
 // (sharedWith). null means remove.
 async function applySteps(steps) {
   for (const s of steps) {
+    if (s.field === "keys") { await saveKey(s.id, s.value || ""); renderGeminiLine(); continue; }
     if (!s.id) {
       try { await updateDoc(docRef, { [s.field]: s.value === null || s.value === undefined ? deleteField() : s.value }); } catch (e) { setStatus("app-status", "Couldn't save: " + e.message, true); }
     } else if (s.value === null || s.value === undefined) await removeKeys(s.field, [s.id]);
@@ -1978,6 +1984,14 @@ function isOwner() {
   return (state.ownerUid && state.ownerUid === currentUser.uid) || (!!state.ownerEmail && lowerEmail(state.ownerEmail) === lowerEmail(currentUser.email));
 }
 const lowerEmail = e => String(e || "").trim().toLowerCase();
+// The owner exactly as firestore.rules sees him: the account id on the document, or the same
+// email confirmed by sign-in. Unlike isOwner(), an unclaimed document makes nobody the owner.
+// Only he may change who owns Poke Scan or who is on its list, and only he holds the paid keys.
+function ownsMainDoc() {
+  if (!currentUser || !(state.ownerUid || state.ownerEmail)) return false;
+  if (state.ownerUid && state.ownerUid === currentUser.uid) return true;
+  return !!currentUser.emailVerified && !!state.ownerEmail && lowerEmail(state.ownerEmail) === lowerEmail(currentUser.email);
+}
 function nameForEmail(email) {
   const e = lowerEmail(email);
   if (!e) return "";
@@ -2837,8 +2851,107 @@ async function loadLlmKey() {
   } catch (e) { llmSettings = {}; }
   renderGeminiLine();
 }
+// PAID KEYS LIVE IN DAD'S OWN DOCUMENT (2026-10-04, a review he asked for). Keys pasted in
+// Options used to sit inside the family's shared document, so every family phone got a copy of
+// them (only the screen hid all but the last four letters). A key named in KEYS_JUST_MINE now
+// lives in homeApps/pokescanKeys, which has no family list: firestore.rules lets only the owner
+// of Poke Scan open it. ChatGPT is there because no family phone ever uses its key (their
+// ChatGPT cards go through Dad's Mac, one Yes at a time). Gemini and Groq stay on the family
+// document for now: family phones read cards with those keys themselves, away from home, and
+// moving them would take that away -- his choice, one line here.
+// The move happens on Dad's own phone the next time he opens Poke Scan: the key is written into
+// his document first, and only once that is saved is it taken off the family one.
+const KEYS_JUST_MINE = ["chatgptKey"];
+const myKeysRef = doc(db, "homeApps", "pokescanKeys");
+let myKeys = {}, myKeysOk = false, myKeysUnsub = null, myKeysFailed = false, movingKeys = false;
+const keyTimers = {};   // a key being saved right now, by field
+function keyValue(field) {
+  if (KEYS_JUST_MINE.includes(field) && myKeysOk) {
+    const v = typeof myKeys[field] === "string" ? myKeys[field].trim() : "";
+    if (v) return v;
+  }
+  return typeof state.settings[field] === "string" ? state.settings[field].trim() : "";
+}
+function stopMyKeys() {
+  if (myKeysUnsub) { myKeysUnsub(); myKeysUnsub = null; }
+  myKeys = {}; myKeysOk = false; myKeysFailed = false;
+}
+function watchMyKeys() {
+  if (myKeysUnsub || !ownsMainDoc()) return;      // family phones never ask for it
+  myKeysUnsub = onSnapshot(myKeysRef, snap => {
+    myKeys = snap.exists() ? (snap.data() || {}) : {};
+    myKeysOk = true;
+    moveKeysToMine();
+    renderGeminiLine();
+    renderReaderRows();
+    safely("keys", takeKeysFromLink);      // a link that came before his document did
+  }, err => {
+    // Can't be opened (someone else took the name before the rules locked it): the keys stay
+    // where they were, working as before.
+    myKeysOk = false; myKeysFailed = true;
+    console.warn("own keys:", err && err.message);
+    safely("keys", takeKeysFromLink);
+  });
+}
+async function writeMyKeys(patch) {
+  const u = currentUser;
+  await setDoc(myKeysRef, { ...patch, ownerUid: u.uid, ownerEmail: u.email || "", savedAt: Date.now() }, { merge: true });
+}
+async function moveKeysToMine() {
+  if (movingKeys || !myKeysOk || !ownsMainDoc()) return;
+  // A key he is saving right now is left alone until it is saved.
+  if (KEYS_JUST_MINE.some(f => keyTimers[f])) return;
+  const patch = {}, off = [];
+  KEYS_JUST_MINE.forEach(f => {
+    const old = typeof state.settings[f] === "string" ? state.settings[f].trim() : "";
+    if (!old) return;
+    off.push(f);
+    // His own document already has one: that one counts, the family copy only goes.
+    if (!(typeof myKeys[f] === "string" && myKeys[f].trim())) patch[f] = old;
+  });
+  if (!off.length) return;
+  movingKeys = true;
+  try {
+    if (Object.keys(patch).length) { await writeMyKeys(patch); myKeys = { ...myKeys, ...patch }; }
+    const del = {};
+    off.forEach(f => { del["settings." + f] = deleteField(); });
+    await updateDoc(docRef, del);
+    const settings = { ...state.settings };
+    off.forEach(f => { delete settings[f]; });
+    state.settings = settings;
+  } catch (e) { console.warn("own keys: couldn't move them yet:", e && e.message); }
+  finally { movingKeys = false; }
+}
+// Every key the owner saves or removes goes through here. Pasting fires on every change in the
+// box, so the write waits a moment, like saveSettings does.
+function saveKey(field, value) {
+  if (!KEYS_JUST_MINE.includes(field) || !ownsMainDoc() || !myKeysOk) { saveSettings({ [field]: value }); return Promise.resolve(); }
+  myKeys = { ...myKeys, [field]: value };
+  // Taken off this phone's copy of the family document at once, so a move running meanwhile
+  // can't carry the old key back over the new one.
+  const hadOld = typeof state.settings[field] === "string" && !!state.settings[field];
+  if (hadOld) { const settings = { ...state.settings }; delete settings[field]; state.settings = settings; }
+  clearTimeout(keyTimers[field]);
+  return new Promise(done => {
+    keyTimers[field] = setTimeout(async () => {
+      try {
+        await writeMyKeys({ [field]: myKeys[field] });
+        if (hadOld) await updateDoc(docRef, { ["settings." + field]: deleteField() });
+        setStatus("app-status", "");
+      } catch (e) {
+        // His own document refused it: keep the key working in the old place rather than lose
+        // it, and stop using his document on this visit (nothing moves or gets cleared).
+        myKeysOk = false;
+        save({ settings: { [field]: myKeys[field] } });
+        state.settings = { ...state.settings, [field]: myKeys[field] };
+      }
+      delete keyTimers[field];
+      done();
+    }, 400);
+  });
+}
 function geminiKey() {
-  const own = typeof state.settings.geminiKey === "string" ? state.settings.geminiKey.trim() : "";
+  const own = keyValue("geminiKey");
   if (own) return { key: own, from: "here" };
   const shared = typeof llmSettings.googleKey === "string" ? llmSettings.googleKey.trim() : "";
   if (shared) return { key: shared, from: "llms" };
@@ -2853,9 +2966,9 @@ function geminiKey() {
 // Gemini's daily allowance is gone (free), ChatGPT last (paid -- pennies a
 // card, but real money, so each family member needs the owner's say-so).
 // Keys: the LLMs app's, or pasted here; owner only either way.
-function groqKey() { return typeof state.settings.groqKey === "string" ? state.settings.groqKey.trim() : ""; }
+function groqKey() { return keyValue("groqKey"); }
 function chatgptKey() {
-  const own = typeof state.settings.chatgptKey === "string" ? state.settings.chatgptKey.trim() : "";
+  const own = keyValue("chatgptKey");
   if (own) return { key: own, from: "here" };
   const shared = typeof llmSettings.openaiKey === "string" ? llmSettings.openaiKey.trim() : "";
   return shared ? { key: shared, from: "llms" } : { key: "", from: "" };
@@ -3058,17 +3171,17 @@ $("opt-exact").addEventListener("change", () => { if (!who) return; setPref("exa
 $("opt-collectr").addEventListener("change", () => { if (!who) { $("opt-collectr").checked = prefOn("collectrLook"); return; } setPref("collectrLook", $("opt-collectr").checked); });
 function precheckOn() { return state.settings.precheck !== false; }
 $("opt-precheck").addEventListener("change", () => { if (!isOwner()) { $("opt-precheck").checked = precheckOn(); return; } state.settings = { ...state.settings, precheck: $("opt-precheck").checked }; save({ settings: { precheck: $("opt-precheck").checked } }); });
-$("opt-groq-key").addEventListener("input", () => { if (!mayEditKey()) return; const k = $("opt-groq-key").value.trim(); if (k) { saveSettings({ groqKey: k }); renderGeminiLine(); } });
+$("opt-groq-key").addEventListener("input", () => { if (!mayEditKey()) return; const k = $("opt-groq-key").value.trim(); if (k) { saveKey("groqKey", k); renderGeminiLine(); } });
 $("opt-groq-remove").addEventListener("click", () => { removeKey("groqKey", "Groq"); $("opt-groq-key").value = ""; });
-$("opt-chatgpt-key").addEventListener("input", () => { if (!mayEditKey()) return; const k = $("opt-chatgpt-key").value.trim(); if (k) { saveSettings({ chatgptKey: k }); renderGeminiLine(); } });
+$("opt-chatgpt-key").addEventListener("input", () => { if (!mayEditKey()) return; const k = $("opt-chatgpt-key").value.trim(); if (k) { saveKey("chatgptKey", k); renderGeminiLine(); } });
 $("opt-chatgpt-remove").addEventListener("click", () => { removeKey("chatgptKey", "ChatGPT"); $("opt-chatgpt-key").value = ""; });
 function removeKey(field, name) {
   if (!mayEditKey()) return;
-  const before = typeof state.settings[field] === "string" ? state.settings[field] : "";
+  const before = keyValue(field);
   if (!before) return;
-  pushAction({ label: "Removed the " + name + " key", undo: [{ field: "settings", id: field, value: before }], redo: [{ field: "settings", id: field, value: "" }] });
-  state.settings = { ...state.settings, [field]: "" };
-  save({ settings: { [field]: "" } });
+  pushAction({ label: "Removed the " + name + " key", undo: [{ field: "keys", id: field, value: before }], redo: [{ field: "keys", id: field, value: "" }] });
+  if (KEYS_JUST_MINE.includes(field) && ownsMainDoc() && myKeysOk) saveKey(field, "");
+  else { state.settings = { ...state.settings, [field]: "" }; save({ settings: { [field]: "" } }); }
   renderGeminiLine();
   showToast("Removed the " + name + " key");
 }
@@ -7879,7 +7992,7 @@ $("opt-gemini-key").addEventListener("input", () => {
   if (!mayEditKey()) return;
   const key = $("opt-gemini-key").value.trim();
   if (!key) return;                       // clearing the box is not removing the key; the Remove button is
-  saveSettings({ geminiKey: key });
+  saveKey("geminiKey", key);
   renderGeminiLine();
 });
 
@@ -8112,11 +8225,17 @@ let keysFromLink = null;
 })();
 function takeKeysFromLink() {
   if (!keysFromLink) return;
+  // Dad's own document hasn't answered yet: wait for it, so a paid key never touches the family one.
+  if (ownsMainDoc() && myKeysUnsub && !myKeysOk && !myKeysFailed && Object.keys(keysFromLink).some(f => KEYS_JUST_MINE.includes(f))) return;
   const got = keysFromLink;
   keysFromLink = null;
   if (!isOwner()) { setStatus("app-status", "Keys arrived from the Keys app, but only " + (state.ownerEmail || "the owner") + " can save them here. Nothing was kept.", true); return; }
-  state.settings = { ...state.settings, ...got };
-  save({ settings: got });
+  // Dad's-only keys to his own document; the rest together in one save on the family document.
+  const shared = {};
+  Object.entries(got).forEach(([field, value]) => {
+    if (KEYS_JUST_MINE.includes(field) && ownsMainDoc() && myKeysOk) saveKey(field, value); else shared[field] = value;
+  });
+  if (Object.keys(shared).length) { state.settings = { ...state.settings, ...shared }; save({ settings: shared }); }
   const names = Object.keys(got).map(k => ({ chatgptKey: "ChatGPT", geminiKey: "Gemini", groqKey: "Groq" }[k])).join(", ");
   showToast("Keys for " + names + " arrived and are saved.");
   renderGeminiLine();
@@ -8130,6 +8249,7 @@ function takeKeysFromLink() {
 // not seen yet, once. (Asked for: "when I go back on, it will say this was
 // updated, and who asked to update it.")
 const CHANGES = [
+  { id: 70, date: "2026-10-04", by: "Dad", what: "Dad's ChatGPT key now sits in a place only Dad's phone can open, instead of in the family's shared Poké Scan, so no family phone gets a copy of it. Scanning works just as before." },
   { id: 69, date: "2026-10-02", by: "Moshe", what: "Pick ChatGPT for a card and Dad gets a Yes or No on his phone for that one card. Claude is still the one that reads by default. If Dad says no, or doesn't answer in 10 minutes, Claude reads the card instead and Poké Scan tells you why. It works on the home Wi-Fi, like Claude." },
   { id: 68, date: "2026-10-01", by: "Dad", what: "Claude reads your cards now, free, on Dad's Mac at home, and it's first in \"Which AI reads and answers\". Dad can always use it; everyone else taps \"Ask Dad to use Claude\" and he says yes or no on his phone. It works on the home Wi-Fi; anywhere else, or if the Mac says no, Gemini reads the card like before." },
   { id: 67, date: "2026-09-30", by: "Moshe", what: "What's new now starts each line with who asked for it, in a colored name tag, so you can see at a glance which changes were Moshe's, Shmuel's or Dad's." },
@@ -8234,6 +8354,6 @@ safely("minecraft", () => MCD.setup({ who: () => who, state: () => state, live, 
 </script>
 
 <script defer src="https://leodhi.github.io/claude/app-open.js" data-app="pokescan"></script>
-<script defer src="https://leodhi.github.io/claude/ladybug.js?v=2026-10-02.1"></script>
+<script defer src="https://leodhi.github.io/claude/ladybug.js?v=2026-10-02.3"></script>
 </body>
 </html>
