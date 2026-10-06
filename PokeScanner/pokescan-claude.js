@@ -215,9 +215,11 @@ export function setupClaude(ctx) {
   // shows a button; its tap calls openIt() right there, inside the tap (a browser opens a window
   // only then), and resolves with what it returned -- or with "gemini" when they chose Gemini.
   // opts: { engine: "chatgpt", ask: <the number of Dad's Yes> } for one ChatGPT card; Claude otherwise.
+  // { engine: "chatgptplan", model } is his own ChatGPT plan, free: only his devices, no ask (2026-10-06).
   async function read(shot, say, tapFirst, opts) {
     const gpt = !!(opts && opts.engine === "chatgpt");
-    const ai = gpt ? "ChatGPT" : "Claude";
+    const plan = !!(opts && opts.engine === "chatgptplan");
+    const ai = plan ? "ChatGPT plan" : gpt ? "ChatGPT" : "Claude";
     const addr = address();
     if (!addr) throw trouble(ctx.ownerName() + "'s Mac isn't set up for " + ai + " yet.");
     const u = ctx.user();
@@ -228,6 +230,7 @@ export function setupClaude(ctx) {
     const id = hex(8);
     const payload = { v: 1, id, token, image: pic.data, mime: pic.mime, back: location.origin + location.pathname };
     if (gpt) { payload.engine = "chatgpt"; payload.ask = String(opts.ask || ""); }
+    if (plan) { payload.engine = "chatgptplan"; payload.model = String(opts.model || "").slice(0, 40); }
     let win = open(addr, payload);               // works when the tap is still fresh (a computer, mostly)
     if (!win) {
       const got = await tapFirst(() => open(addr, payload));   // a phone: one tap opens it
@@ -248,7 +251,7 @@ export function setupClaude(ctx) {
     put(AWAY_KEY, "");
     if (a.code === "slow") throw trouble(ai + " on the Mac is taking too long.");
     if (!a.ok) {
-      if (!gpt && (a.code === "not_allowed" || a.code === "ran_out")) { noteLocalOk(ctx.who(), 0); ctx.redraw(); }
+      if (!gpt && !plan && (a.code === "not_allowed" || a.code === "ran_out")) { noteLocalOk(ctx.who(), 0); ctx.redraw(); }
       if (a.code === "place") { put(AWAY_KEY, String(Date.now())); ctx.redraw(); }
       throw trouble(words(a));
     }
@@ -266,6 +269,7 @@ export function setupClaude(ctx) {
       minute: "That's 6 cards with Claude this minute. Gemini reads this one.",
       busy: boss + "'s Mac is busy reading other cards.",
       ticket: boss + " didn't say yes to ChatGPT for this card, or the yes ran out.",
+      owner: "ChatGPT plan is only for " + boss + "'s own phone, iPad and Mac.",
       picture: "That picture couldn't be sent to Claude."
     }[a.code] || (a.reason || "Claude on the Mac couldn't read it this time.");
   }

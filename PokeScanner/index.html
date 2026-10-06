@@ -1367,8 +1367,12 @@
       </div>
       <div id="opt-chatgpt-edit">
         <input type="password" id="opt-chatgpt-key" placeholder="Paste a ChatGPT (OpenAI) API key" autocomplete="off">
-        <p class="field-note">It costs money — a penny or two a card. Your own scans use this key. The family never get it: when one of them picks ChatGPT for a card, your Mac reads it with its own ChatGPT key, and you get a Yes or No on your phone for that one card (Claude is first for them, free). If you already saved a ChatGPT key in the LLMs app, it's used automatically.</p>
+        <p class="field-note">It costs money — a penny or two a card. Your own scans use this key. The family never get it: when one of them picks ChatGPT for a card, you get a Yes or No on your phone for that one card (Claude is first for them, free). After your Yes your Mac reads it on your ChatGPT plan, which costs nothing, and only if the plan can't does it use its own ChatGPT key. If you already saved a ChatGPT key in the LLMs app, it's used automatically.</p>
       </div>
+      <div class="opt-row">
+        <div class="opt-text">ChatGPT plan — reads cards free, through Dad's Mac<small id="opt-chatgptplan-line"></small></div>
+      </div>
+      <div class="chips hide" id="opt-chatgptplan-chips" style="margin:2px 0 8px"></div>
       <div class="opt-row">
         <div class="opt-text">Ask how long on open<small>Moshe's idea: pick a time when you open the app; when it's up, keep going or get signed out. On or off on this device. Dad isn't asked unless he turns this on.</small></div>
         <span class="switch">
@@ -1491,7 +1495,11 @@ import {
   sendEmailVerification, sendSignInLinkToEmail, isSignInWithEmailLink, signInWithEmailLink
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 
-import { askWithCost as askLLMWithCost, listModels as listLlmModels, GEMINI_DEFAULT, GEMINI_PLAIN, geminiLive, geminiLearn, geminiWhy, geminiAlternates } from "https://leodhi.github.io/claude/ask-llm.js";
+import { askWithCost as askLLMWithCost, listModels as listLlmModels, GEMINI_DEFAULT, GEMINI_PLAIN, geminiLive, geminiLearn, geminiWhy, geminiAlternates,
+         CHATGPT_PLAN, CHATGPT_PLAN_MODELS, CHATGPT_PLAN_DEFAULT, chatgptPlanModel, chatgptOnMac, takeMacFromHash } from "https://leodhi.github.io/claude/ask-llm.js";
+// ChatGPT on his own ChatGPT plan, through his Mac (2026-10-06): the Mac's https address, kept in this browser by the
+// "connect" link or the ladybug, is what a QUESTION to it goes to; a card PICTURE goes the way Claude's does (the Mac's own reader page).
+try { takeMacFromHash(); } catch (e) {}
 // Idea 732: which AI answered and what it cost, shown under each answer and
 // counted in this browser. Every use is failure-safe: cost never stops an answer.
 import { noteAnswer, showLine } from "https://leodhi.github.io/claude/ai-cost.js";
@@ -2978,8 +2986,14 @@ function chatgptKey() {
 // card, every card is its own Yes / No on Dad's phone (askGptForThisScan, below); only his Yes lets that one
 // picture go, through his Mac's own ChatGPT key. No, or no answer in 10 minutes: Claude reads it.
 function ownerWord() { return state.ownerEmail || "the owner"; }
-const SCAN_ORDER_DEFAULT = ["claude", "gemini", "groq", "chatgpt"];
-const READER_NAMES = { claude: "Claude", gemini: "Gemini", groq: "Groq", chatgpt: "ChatGPT" };
+// ChatGPT plan (2026-10-06, his ChatGPT Pro through his Mac, free, his own devices only) sits BEFORE the paid ChatGPT
+// key so a free read is tried first; it is never first by itself: Claude (or Gemini / Groq) still goes first.
+const SCAN_ORDER_DEFAULT = ["claude", "gemini", "groq", "chatgptplan", "chatgpt"];
+const READER_NAMES = { claude: "Claude", gemini: "Gemini", groq: "Groq", chatgptplan: "ChatGPT plan", chatgpt: "ChatGPT" };
+// Which ChatGPT plan model reads a card on this device (the Mac's three, cheap first). Owner's choice, this device only.
+const PLAN_MODEL_KEY = "pokescan-chatgptplan-model";
+function planChoice() { try { return chatgptPlanModel(localStorage.getItem(PLAN_MODEL_KEY) || ""); } catch (e) { return CHATGPT_PLAN_DEFAULT; } }
+function planLabel(id) { return (CHATGPT_PLAN_MODELS.find(m => m.id === id) || CHATGPT_PLAN_MODELS[0]).label; }
 function scanOrder() {
   // Groq goes first by itself once its key is there (Moshe: "move to groq
   // auto") -- it is free and fast; Gemini stays for the web searches.
@@ -3024,7 +3038,7 @@ function noteReaderOk(id) {
   try { localStorage.setItem(READER_FAIL_KEY, JSON.stringify(all)); } catch (x) {}
   renderReaderRows();
 }
-function hasReaderKey(id) { return id === "claude" ? true : id === "gemini" ? !!geminiKey().key : id === "groq" ? !!groqKey() : (isOwner() ? !!chatgptKey().key : true); }
+function hasReaderKey(id) { return id === "claude" || id === "chatgptplan" ? true : id === "gemini" ? !!geminiKey().key : id === "groq" ? !!groqKey() : (isOwner() ? !!chatgptKey().key : true); }
 // { id, name, usable, state, ask } -- state in plain words.
 function readerStates() {
   const fails = readerFails();
@@ -3038,6 +3052,15 @@ function readerStates() {
       const f = fails[id];
       if (f) return { id, name, usable: true, state: "didn't answer: " + f.msg };
       return { id, name, usable: true, state: "asks " + ownerName() + " each time · costs a little" };
+    }
+    if (id === "chatgptplan") {
+      // No key: it runs on his ChatGPT plan, on his Mac, for his own devices only. A card picture goes the way
+      // Claude's does (the Mac's own reader page); a question goes to the Mac's secure address.
+      if (!isOwner()) return { id, name, usable: false, state: "only on " + ownerName() + "'s own phone, iPad and Mac" };
+      if (CLD.awayRecently() && !chatgptOnMac()) return { id, name, usable: false, state: "your Mac didn't answer a moment ago" };
+      const f = fails[id];
+      if (f) return { id, name, usable: true, state: "didn't answer: " + f.msg };
+      return { id, name, usable: true, state: "ready — free, on your ChatGPT plan, through your Mac (" + planLabel(planChoice()) + ")" };
     }
     if (!hasReaderKey(id)) return { id, name, usable: false, state: !isOwner() && who && ((state.settings.readerAsked || {})[who] || {})[id] ? "you asked " + ownerName() + " to turn it on — waiting" : "no key yet — " + (isOwner() ? "paste one in Options" : ownerWord() + " adds it in Options") };
     const f = fails[id];
@@ -3120,10 +3143,15 @@ function readerAvailable(id) {
   if (id === "gemini") return !!geminiKey().key;
   if (id === "groq") return !!groqKey();
   if (id === "chatgpt") return isOwner() && !!chatgptKey().key;   // for questions: the family's ChatGPT is per scanned card, through the Mac
+  if (id === "chatgptplan") return isOwner() && chatgptOnMac();    // for questions: asked through the Mac's secure address, his devices only
   return false;
 }
 // For scanning: a family member's ChatGPT is there when Dad's Mac can be reached from home (every card asks him first).
-function scanAvailable(id) { return id === "chatgpt" && !isOwner() ? CLD.chatgptReady() : readerAvailable(id); }
+// ChatGPT plan is his own only, and reads a card picture the way Claude does (the Mac's reader page), so it needs the Mac reachable.
+function scanAvailable(id) {
+  if (id === "chatgptplan") return isOwner() && !CLD.awayRecently();
+  return id === "chatgpt" && !isOwner() ? CLD.chatgptReady() : readerAvailable(id);
+}
 function mayEditKey() { return isOwner(); }
 function renderGeminiLine() {
   safely("claude-line", renderClaudeLine);
@@ -3147,6 +3175,15 @@ function renderGeminiLine() {
   $("opt-chatgpt-edit").classList.toggle("hide", !mayEditKey());
   $("opt-chatgpt-remove").classList.toggle("hide", !(ck.from === "here" && mayEditKey()));
   if (!mayEditKey()) $("opt-chatgpt-line").textContent = "ChatGPT costs money, so each card you pick it for asks " + ownerName() + " first: he gets a Yes or No on his phone. On No, or no answer in 10 minutes, Claude reads the card instead and the app tells you.";
+  // ChatGPT plan: free, his own devices only; the model that reads is his pick on this device.
+  const pl = $("opt-chatgptplan-line");
+  if (pl) {
+    pl.textContent = mayEditKey()
+      ? "Free: runs on your ChatGPT plan, on your Mac, no key and nothing charged per card. Your own phone, iPad and Mac only. Claude, Gemini and Groq still go first; this steps in before the paid ChatGPT key. Reading: " + planLabel(planChoice()) + "."
+      : "Only " + ownerName() + "'s own phone, iPad and Mac can use it.";
+    $("opt-chatgptplan-chips").classList.toggle("hide", !mayEditKey());
+    $("opt-chatgptplan-chips").innerHTML = CHATGPT_PLAN_MODELS.map(m => `<button type="button" class="chip${planChoice() === m.id ? " on" : ""}" data-plan-model="${m.id}" title="${escapeAttr(m.note)}">${escapeHtml(m.label)}</button>`).join("");
+  }
   // Who asked for a reader that has no key here (the owner's list).
   if (mayEditKey()) [["groq", "opt-groq-line"], ["chatgpt", "opt-chatgpt-line"], ["gemini", "opt-gemini-line"]].forEach(([id, el]) => {
     const names = Object.entries(state.settings.readerAsked || {}).filter(([, m]) => m && m[id]).map(([n]) => n);
@@ -3156,6 +3193,12 @@ function renderGeminiLine() {
   const order = scanOrder();
   $("scan-order-chips").innerHTML = SCAN_ORDER_DEFAULT.map(id => `<button type="button" class="chip${order[0] === id ? " on" : ""}" data-scan-first="${id}">${READER_NAMES[id]}</button>`).join("");
 }
+$("opt-chatgptplan-chips").addEventListener("click", e => {
+  const b = e.target.closest("[data-plan-model]");
+  if (!b || !isOwner()) return;
+  try { localStorage.setItem(PLAN_MODEL_KEY, chatgptPlanModel(b.dataset.planModel)); } catch (x) {}
+  renderGeminiLine(); renderReaderRows();
+});
 $("scan-order-chips").addEventListener("click", e => {
   const b = e.target.closest("[data-scan-first]");
   if (!b) return;
@@ -3165,7 +3208,8 @@ $("scan-order-chips").addEventListener("click", e => {
   state.settings = { ...state.settings, scanFirst: id };
   save({ settings: { scanFirst: id } });
   renderGeminiLine();
-  $("scan-order-note").textContent = READER_NAMES[id] + " reads first now." + (readerAvailable(id) ? "" : " It has no key yet, so the next one steps in until you add one above.");
+  $("scan-order-note").textContent = READER_NAMES[id] + " reads first now." + (id === "chatgptplan" ? (scanAvailable(id) ? "" : " It can't be used right now (your Mac didn't answer), so the next one steps in.")
+    : readerAvailable(id) ? "" : " It has no key yet, so the next one steps in until you add one above.");
 });
 $("opt-exact").addEventListener("change", () => { if (!who) return; setPref("exactCard", $("opt-exact").checked); });
 $("opt-collectr").addEventListener("change", () => { if (!who) { $("opt-collectr").checked = prefOn("collectrLook"); return; } setPref("collectrLook", $("opt-collectr").checked); });
@@ -4496,6 +4540,7 @@ async function readWithAnyone(shot, say) {
     try {
       let read = null, by = id;
       if (id === "claude") read = await readWithClaude(shot, say);
+      if (id === "chatgptplan") read = await readWithClaude(shot, say, { engine: "chatgptplan", model: planChoice() });
       if (id === "gemini") read = await readWithGemini(shot);
       if (id === "groq") read = await readWithGroq(shot);
       if (id === "chatgpt" && isOwner()) read = await readWithChatgpt(shot);
@@ -4588,10 +4633,12 @@ async function readWithChatgptAsked(shot, say) {
 // page can't open it by itself, one button asks for that tap; "Use Gemini instead" skips it.
 async function readWithClaude(shot, say, opts) {
   const gpt = !!(opts && opts.engine === "chatgpt");     // one ChatGPT card, after Dad's yes (the same page on the Mac carries it)
-  const ai = gpt ? "ChatGPT" : "Claude";
+  const plan = !!(opts && opts.engine === "chatgptplan"); // his own ChatGPT plan, free (his devices only; the same page on the Mac carries it)
+  const ai = plan ? "ChatGPT plan" : gpt ? "ChatGPT" : "Claude";
   const where = isOwner() ? "your Mac at home" : escapeHtml(ownerName()) + "'s Mac at home";
   const read = await CLD.read(shot, msg => say(msg), openIt => new Promise(resolve => {
     showScanned((gpt ? `<b>${escapeHtml(ownerName())} said yes to ChatGPT for this card.</b><br><span>It reads it on ${where}. A page opens for a moment and closes by itself.</span>`
+        : plan ? `<b>Read it with ChatGPT plan?</b><br><span>Free, on your ChatGPT plan, on ${where}. A page opens for a moment and closes by itself.</span>`
         : `<b>Read it with Claude?</b><br><span>Free, on ${where}. A page opens for a moment and closes by itself.</span>`)
       + `<div class="claude-tap"><button type="button" class="pill-btn" data-claude-go>Read it with ${ai}</button>`
       + `<button type="button" class="link" data-claude-skip>${gpt ? "Use Claude instead" : "Use Gemini instead"}</button></div>`, shot.dataUrl, false);
@@ -4616,7 +4663,7 @@ async function showClaudeRead(r, engine) {
   if (!read.name || r.is_card === false) { showToast(r.notes || "That doesn't look like a Pokémon card."); return; }
   setTab("find");
   const label = `${escapeHtml(read.name)}${read.suffix ? " " + escapeHtml(read.suffix) : ""}${read.number ? " · #" + escapeHtml(read.number) + (read.total ? "/" + escapeHtml(read.total) : "") : ""}${read.set ? " · " + escapeHtml(read.set) : ""}`;
-  showScanned(`<b>Looks like ${label}</b><br><span>Read by ${engine === "chatgpt" ? "ChatGPT" : "Claude"}. ${read.number ? "The best match is marked. " : ""}Not it? Type the name instead.</span>`, "", false);
+  showScanned(`<b>Looks like ${label}</b><br><span>Read by ${engine === "chatgptplan" ? "ChatGPT plan" : engine === "chatgpt" ? "ChatGPT" : "Claude"}. ${read.number ? "The best match is marked. " : ""}Not it? Type the name instead.</span>`, "", false);
   $("q").value = read.name + (read.number ? " " + read.number + (read.total ? "/" + read.total : "") : "");
   $("q-clear").classList.remove("hide");
   const fam = read.suffix ? familyOf({ suffix: read.suffix, name: "" }) : "";
@@ -6363,6 +6410,16 @@ async function askAnyReader(q) {
         noteReaderOk(id);
         return { text, sources: [], cost, by: "Groq" };
       }
+      if (id === "chatgptplan") {
+        // Free, on his ChatGPT plan, through the Mac's secure address (his own devices; ask-llm.js / mac-plan.js).
+        let out;
+        try {
+          out = await askLLMWithCost({ provider: CHATGPT_PLAN, model: planChoice(), app: AI_APP, system: q.system, maxTokens: 600,
+            turns: [{ role: "user", text: q.text, ...(q.picture ? { image: { media_type: q.picture.mime, data: q.picture.data } } : {}) }] });
+        } catch (e) { throw Object.assign(e, { planTrouble: true }); }   // the next reader steps in
+        noteReaderOk(id);
+        return { text: out.text, sources: [], cost: out.cost, by: "ChatGPT plan" };
+      }
       if (id === "chatgpt") {
         const { key } = chatgptKey();
         if (!chatgptModel) {
@@ -6386,7 +6443,7 @@ async function askAnyReader(q) {
     } catch (e) {
       lastErr = e;
       noteReaderFail(id, e);
-      if (!(e && (e.quota || /allowance|refused|isn't valid|not valid|reach Google|isn't answering|free Google plan|no model|offered no model|decommission|does not exist|not found|model_not_found/i.test(e.message)))) throw e;
+      if (!(e && (e.quota || e.planTrouble || /allowance|refused|isn't valid|not valid|reach Google|isn't answering|free Google plan|no model|offered no model|decommission|does not exist|not found|model_not_found/i.test(e.message)))) throw e;
     }
   }
   if (lastErr) throw lastErr;
@@ -8260,6 +8317,7 @@ function takeKeysFromLink() {
 // not seen yet, once. (Asked for: "when I go back on, it will say this was
 // updated, and who asked to update it.")
 const CHANGES = [
+  { id: 71, date: "2026-10-06", by: "Dad", what: "New reader \"ChatGPT plan\" under \"Which AI reads and answers\": it uses your own ChatGPT plan through your Mac, free, with no key. Your own phone, iPad and Mac only. In Options you pick which of its three models reads (GPT-6-Luna is the cheap one it starts on). Claude, Gemini and Groq still go first; the paid ChatGPT key is still there and is tried after it." },
   { id: 70, date: "2026-10-04", by: "Dad", what: "ChatGPT is set up more safely behind the scenes. Scanning works just as before." },
   { id: 69, date: "2026-10-02", by: "Moshe", what: "Pick ChatGPT for a card and Dad gets a Yes or No on his phone for that one card. Claude is still the one that reads by default. If Dad says no, or doesn't answer in 10 minutes, Claude reads the card instead and Poké Scan tells you why. It works on the home Wi-Fi, like Claude." },
   { id: 68, date: "2026-10-01", by: "Dad", what: "Claude reads your cards now, free, and it's first in \"Which AI reads and answers\". Dad can always use it; everyone else taps \"Ask Dad to use Claude\" and he says yes or no. It works on the home Wi-Fi; anywhere else, Gemini reads the card like before." },
@@ -8366,6 +8424,6 @@ safely("minecraft", () => MCD.setup({ who: () => who, state: () => state, live, 
 </script>
 
 <script defer src="https://leodhi.github.io/claude/app-open.js" data-app="pokescan"></script>
-<script defer src="https://leodhi.github.io/claude/ladybug.js?v=2026-10-02.3"></script>
+<script defer src="https://leodhi.github.io/claude/ladybug.js?v=2026-10-05.1"></script>
 </body>
 </html>
