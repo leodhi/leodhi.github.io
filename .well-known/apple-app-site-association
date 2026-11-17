@@ -1,0 +1,13 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": [ "BMG7PDW8M7.com.leodhi.Shutoff" ],
+        "components": [
+          { "/": "/claude/docs/shutoff/app-signin/", "comment": "Shutoff sign-in hand-off (security fix G16/G22). Only this page opens the app." },
+          { "/": "/claude/docs/shutoff/app-signin", "comment": "Same page without the last slash." }
+        ]
+      }
+    ]
+  }
+}
