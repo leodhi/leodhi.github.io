@@ -1,8 +1,8 @@
 {
   "name": "Poké Scan",
   "short_name": "Poké Scan",
-  "start_url": ".",
-  "scope": "./",
+  "start_url": "/claude/docs/pokescan/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#0b0b0d",
   "theme_color": "#0b0b0d",
